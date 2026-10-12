@@ -10,6 +10,7 @@ import GuidedTour from '../components/GuidedTour'
 import FreePreview from '../components/FreePreview'
 import ResultsNavigation from './results/ResultsNavigation'
 import BestMatchPanel from './results/BestMatchPanel'
+import AllProfessionsPanel from './results/AllProfessionsPanel'
 import { LLM_PROVIDERS, LLM_SETTINGS_EVENT } from '../utils/llmSettings'
 import {
   clearRecommendationHistory,
@@ -139,6 +140,16 @@ const getProfessionRoadmapSummary = (results, profession) => {
   const all = results?.roadmaps_by_profession?.[profession]
   if (all) return all
   return { full: results?.full_roadmap || {}, gap: {} }
+}
+const getProfessionSkillCoverage = (results, profession) => {
+  const summary = results.roadmaps_by_profession?.[profession]
+  const full = summary?.full ?? (profession === results.top_profession ? results.full_roadmap : null)
+  const gap = summary?.gap ?? (profession === results.top_profession && results.roadmap_with_courses
+    ? Object.fromEntries(Object.entries(results.roadmap_with_courses).map(([cat, skills]) => [cat, Object.keys(skills)])) : null)
+  if (full == null || gap == null) return null
+  const all = flattenRoadmapSkills(full)
+  const missing = new Set(flattenRoadmapSkills(gap).map(({ cat, skill }) => `${cat}::${normalizeSkillKey(skill)}`))
+  return { total: all.length, known: all.filter(({ cat, skill }) => !missing.has(`${cat}::${normalizeSkillKey(skill)}`)) }
 }
 
 const mergeAudioChunks = chunks => {
@@ -441,7 +452,7 @@ function RadarChart({ data, animKey, lang }) {
   )
 }
 
-function ProfessionBarsChart({ professions, rows, profLabel, t, animKey, onSelect }) {
+function ProfessionBarsChart({ professions, rows, profLabel, t, animKey, onSelect, ranks }) {
   const maxScore = Math.max(...professions.map(p => p.final_score || 0), 1)
   const [hovered, setHovered] = useState(null)
 
@@ -468,7 +479,7 @@ function ProfessionBarsChart({ professions, rows, profLabel, t, animKey, onSelec
               onMouseLeave={() => setHovered(null)}
               onClick={() => onSelect?.(p.name)}
             >
-              <span className={styles.professionBarRank}>#{index + 1}</span>
+              <span className={styles.professionBarRank}>#{ranks?.[p.name] ?? index + 1}</span>
               <span className={styles.professionBarName}>{profLabel(p.name)}</span>
               <span className={styles.professionBarTrack}>
                 <span
@@ -593,7 +604,7 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
   )
 }
 
-function SkillGapComparison({ professions, results, profLabel, t, onSelect }) {
+function SkillGapComparison({ professions, results, profLabel, t, onSelect, useCareerCoverage = false }) {
   return (
     <div className={styles.gapCompare}>
       <div className={styles.compareHeader}>
@@ -601,9 +612,15 @@ function SkillGapComparison({ professions, results, profLabel, t, onSelect }) {
         <small>{t.results.compareAll}</small>
       </div>
       {professions.map(p => {
+        if (useCareerCoverage && !p.skillCoverage) return (
+          <button key={p.name} type="button" className={`${styles.gapCompareRow} ${styles.gapCompareUnavailable}`} onClick={() => onSelect?.(p.name)}>
+            <span className={styles.gapCompareName}>{profLabel(p.name)}</span>
+            <span className={styles.gapCompareMeta}>{t.review.gapUnavailable}</span>
+          </button>
+        )
         const summary = getProfessionRoadmapSummary(results, p.name)
-        const total = sumSkillCount(summary.full)
-        const gap = sumSkillCount(summary.gap)
+        const total = useCareerCoverage ? p.skillCoverage.total : sumSkillCount(summary.full)
+        const gap = useCareerCoverage ? total - p.skillCoverage.known.length : sumSkillCount(summary.gap)
         const known = Math.max(total - gap, 0)
         const completion = total ? Math.round((known / total) * 100) : 0
         const tooltip = `${profLabel(p.name)}\n${t.results.youKnow}: ${known}/${total}\n${t.results.toLearn}: ${gap}`
@@ -1662,15 +1679,18 @@ export default function Results({ results: initialResults, formData, onBack, onR
     { key: 'history', label: t.review.historyTab },
   ]
 
-  const allProfessions = Object.entries(results.final_scores).map(([name, final_score]) => {
+  const allProfessions = Object.entries(results.final_scores || {}).map(([name, final_score]) => {
     const breakdown = getScoreBreakdown(results, name)
     return {
-      name, final_score,
+      name, final_score, breakdown, skillCoverage: getProfessionSkillCoverage(results, name),
       ...Object.fromEntries(breakdown.map(item => [item.key, item.value])),
       contributions: Object.fromEntries(breakdown.map(item => [item.key, item.contribution])),
       vacancies_per_week: results.demand_scores?.[name]?.predicted_vacancies ?? null,
     }
   })
+
+  const rankedProfessions = [...allProfessions].sort((a, b) => (b.final_score ?? 0) - (a.final_score ?? 0))
+  const professionRanks = Object.fromEntries(rankedProfessions.map((p, index) => [p.name, index + 1]))
 
   const sorted = [...allProfessions].sort((a, b) => {
     if (sortBy === 'score')   return (b.final_score ?? 0)  - (a.final_score ?? 0)
@@ -1681,8 +1701,9 @@ export default function Results({ results: initialResults, formData, onBack, onR
     return 0
   })
 
-  const activeProfName = selectedProf || top_profession
-  const activeProf     = sorted.find(p => p.name === activeProfName) || sorted[0]
+  const requestedProfName = selectedProf || top_profession
+  const activeProf = allProfessions.find(p => p.name === requestedProfName) || rankedProfessions[0]
+  const activeProfName = activeProf?.name || requestedProfName
 
   const rawRoadmap = results?.roadmaps_by_profession?.[activeProfName]?.roadmap_with_courses || results.roadmap_with_courses
 
@@ -2655,7 +2676,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
             {t.results.newAnalysis}
           </button>
         </div>
-        <div className={styles.tabContent} id="results-panel" role="tabpanel" aria-labelledby={`results-tab-${tab}`} key={`${tab}${activeProfName}${cardKey}`}>
+        <div className={styles.tabContent} id="results-panel" role="tabpanel" aria-labelledby={`results-tab-${tab}`} key={tab === 'all' ? 'all' : `${tab}${activeProfName}${cardKey}`}>
 
           {/* ─ BEST MATCH ─ */}
           {tab === 'history' && <section className={styles.bestCard}>
@@ -2664,11 +2685,11 @@ export default function Results({ results: initialResults, formData, onBack, onR
           </section>}
           {tab === 'best' && activeProf && (() => {
             const rows = orderedRows(ALL_SCORE_ROWS, 'score')
-            const activeRank = [...allProfessions].sort((a, b) => b.final_score - a.final_score).findIndex(p => p.name === activeProf.name) + 1
+            const activeRank = professionRanks[activeProf.name]
             return (
               <BestMatchPanel profession={activeProf} rank={activeRank} isTop={activeProf.name === top_profession}
                 name={profLabel(activeProf.name)} t={t} profLabel={profLabel}
-                alternatives={[...allProfessions].sort((a, b) => b.final_score - a.final_score).filter(p => p.name !== activeProf.name)}
+                alternatives={rankedProfessions.filter(p => p.name !== activeProf.name)}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 viewMode={viewMode} onViewMode={setViewMode} aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
                 score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
@@ -2731,53 +2752,21 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
           {/* ─ ALL PROFESSIONS ─ */}
           {tab === 'all' && (
-            <>
-              <div data-tour-slot="comparison" />
-              <div className={styles.sortBar}>
-                <span className={styles.sortLabel}>{t.results.sortBy}</span>
-                {SORT_OPTIONS.map(({ key, label }) => (
-                  <button key={key}
-                    className={`${styles.sortBtn} ${sortBy === key ? styles.sortBtnActive : ''}`}
-                    onClick={() => setSortBy(key)}>{label}
-                  </button>
-                ))}
-              </div>
-              <ScoreCircleGrid professions={sorted} rows={ALL_SCORE_ROWS} profLabel={profLabel} t={t} onSelect={handleSelectProf}/>
-              <div className={styles.allCharts}>
-                <ProfessionBarsChart professions={sorted} rows={orderedRows(ALL_SCORE_ROWS, sortBy)} profLabel={profLabel} t={t} animKey={`${sortBy}${cardKey}`} onSelect={handleSelectProf}/>
-                <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf}/>
-              </div>
-              <div className={styles.allGrid}>
-                {sorted.map((p, i) => {
-                  const rows = orderedRows(ALL_SCORE_ROWS, sortBy)
-                  const aKey = `${p.name}${sortBy}`
-                  return (
-                    <div key={p.name} className={`${styles.profCard} ${p.name === top_profession ? styles.profCardTop : ''}`}>
-                      <div className={styles.profHeader}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <ProgressRing value={p.final_score ?? 0} size={40} stroke={3}
-                            color={BAR_COLORS.skill_match} animKey={aKey}
-                            tooltipText={`${profLabel(p.name)}\n${t.results.scoreOverview}: ${formatMatchScore(p.final_score)}`}/>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span className={styles.profRank}>#{i+1}</span>
-                            <span className={styles.profName}>{profLabel(p.name)}</span>
-                            {p.name === top_profession && <span className={styles.topBadge}>{t.results.bestMatch.toUpperCase()}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <ProfScores p={p} rows={rows} animKey={aKey} lang={lang}/>
-                      {p.vacancies_per_week != null && (
-                        <div className={styles.demandRow}>
-                          <div className={styles.demandItem}>
-                            {p.vacancies_per_week.toLocaleString()} {t.results.vacanciesWeek}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </>
+            <AllProfessionsPanel professions={sorted} selected={activeProf} ranks={professionRanks} topName={top_profession}
+              profLabel={profLabel} t={t} sortOptions={SORT_OPTIONS} sortBy={sortBy} onSort={setSortBy}
+              onSelect={setSelectedProf} onRoadmap={() => setTab('roadmap')}
+              missingSkills={missingSkills}
+              partialSignals={activeProf && [results.classification_scores?.[activeProf.name], results.skill_scores?.[activeProf.name],
+                results.demand_scores?.[activeProf.name]?.trend_score, results.demand_scores?.[activeProf.name]?.market_share].some(value => value == null)}
+              scoring={activeProf && <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />}
+              comparisons={<>
+                <ScoreCircleGrid professions={sorted} rows={ALL_SCORE_ROWS} profLabel={profLabel} t={t} onSelect={handleSelectProf}/>
+                <div className={styles.allCharts}>
+                  <ProfessionBarsChart professions={sorted} ranks={professionRanks} rows={orderedRows(ALL_SCORE_ROWS, sortBy)} profLabel={profLabel} t={t} animKey={`${sortBy}${cardKey}`} onSelect={handleSelectProf}/>
+                  <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf} useCareerCoverage/>
+                </div>
+              </>}
+            />
           )}
 
           {/* ─ ROADMAP ─ */}

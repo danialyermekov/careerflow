@@ -45,6 +45,11 @@ export const translations = {
       "paragraphs": [...betaTranslations.en.privacyText, experienceTranslations.en.privacy]
     },
     review: {
+      rankingTitle: 'All professions & comparative ranking', rankingIntro: 'Compare profile, skill and historical market signals across the supported IT careers. Select a career to inspect its score and learning steps.',
+      trackCount: n => `${n} career tracks evaluated`, coverageCount: (known, total) => `${known} of ${total} roadmap skills covered`,
+      roadmapCoverage: 'Roadmap skill coverage', coverageNote: 'Coverage is derived from the supplied career roadmap and its gaps, not verified proficiency.',
+      viewCareerDetails: 'View selected career details', additionalComparisons: 'Additional score and skill comparisons',
+      partialSignals: 'Some scoring inputs are unavailable for this saved result. Zero-valued display signals do not establish an assessed match.', rankingEmpty: 'No career scores are available for this result.',
       weightedSignals: 'Weighted scoring signals', visualization: 'Visualization & signal analysis', gapAssessment: 'Skill gap assessment',
       alternatives: 'Alternative recommendations', contextTools: 'Profile context and recommendation details',
       gapUnavailable: 'Skill-gap data is unavailable for this career.', gapEmpty: 'No missing skills in the available roadmap.',
@@ -437,6 +442,11 @@ export const translations = {
       "paragraphs": [...betaTranslations.ru.privacyText, experienceTranslations.ru.privacy]
     },
     review: {
+      rankingTitle: 'Все профессии и сравнительный рейтинг', rankingIntro: 'Сравните сигналы профиля, навыков и исторического рынка для поддерживаемых IT-профессий. Выберите профессию, чтобы изучить её оценку и учебные шаги.',
+      trackCount: n => `Оценено карьерных направлений: ${n}`, coverageCount: (known, total) => `Покрыто навыков учебного плана: ${known} из ${total}`,
+      roadmapCoverage: 'Покрытие навыков учебного плана', coverageNote: 'Покрытие рассчитано по предоставленному плану профессии и его пробелам, а не по проверке владения навыками.',
+      viewCareerDetails: 'Подробнее о выбранной профессии', additionalComparisons: 'Дополнительное сравнение оценок и навыков',
+      partialSignals: 'Часть исходных сигналов недоступна для этого сохранённого результата. Нулевые значения на экране не подтверждают оценённое соответствие.', rankingEmpty: 'Для этого результата нет оценок профессий.',
       weightedSignals: 'Взвешенные сигналы рейтинга', visualization: 'Визуализация и анализ сигналов', gapAssessment: 'Анализ пробелов в навыках',
       alternatives: 'Альтернативные рекомендации', contextTools: 'Контекст профиля и детали рекомендации',
       gapUnavailable: 'Для этой профессии нет данных о пробелах в навыках.', gapEmpty: 'В доступном плане нет недостающих навыков.',
@@ -829,6 +839,11 @@ export const translations = {
       "paragraphs": [...betaTranslations.kk.privacyText, experienceTranslations.kk.privacy]
     },
     review: {
+      rankingTitle: 'Барлық мамандықтар және салыстырмалы рейтинг', rankingIntro: 'Қолдау көрсетілетін IT-мамандықтардың профиль, дағды және тарихи нарық сигналдарын салыстырыңыз. Бағасы мен оқу қадамдарын көру үшін мамандықты таңдаңыз.',
+      trackCount: n => `Бағаланған мансап бағыттары: ${n}`, coverageCount: (known, total) => `Оқу жоспарының қамтылған дағдылары: ${total} ішінен ${known}`,
+      roadmapCoverage: 'Оқу жоспары дағдыларының қамтылуы', coverageNote: 'Қамтылу берілген мамандық жоспары мен оның жетіспейтін дағдыларынан есептеледі, расталған біліктілік емес.',
+      viewCareerDetails: 'Таңдалған мамандық туралы мәлімет', additionalComparisons: 'Бағалар мен дағдыларды қосымша салыстыру',
+      partialSignals: 'Бұл сақталған нәтиженің кейбір бастапқы сигналдары қолжетімсіз. Экрандағы нөлдік мәндер бағаланған сәйкестікті растамайды.', rankingEmpty: 'Бұл нәтиже үшін мамандық бағалары қолжетімсіз.',
       weightedSignals: 'Рейтингтің салмақталған сигналдары', visualization: 'Визуализация және сигналдарды талдау', gapAssessment: 'Дағды жетіспеушілігін талдау',
       alternatives: 'Баламалы ұсыныстар', contextTools: 'Профиль контексті және ұсыныс мәліметтері',
       gapUnavailable: 'Бұл мамандық бойынша дағды жетіспеушілігі деректері жоқ.', gapEmpty: 'Қолжетімді жоспарда жетіспейтін дағдылар жоқ.',

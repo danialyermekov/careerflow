@@ -277,3 +277,166 @@ describe('editorial results navigation and Best Match', () => {
     }))
   })
 })
+
+describe('editorial All Professions master-detail', () => {
+  const names = ['Data Analyst', 'Data Scientist', 'Data Engineer', 'Business Analyst', 'Machine Learning Engineer', 'Software Engineer', 'Cloud Engineer']
+  const result = {
+    session_id: 'all-professions-test', top_profession: names[4], alternative_profession: names[1],
+    final_scores: Object.fromEntries(names.map((name, index) => [name, [.2170, .5600, .4990, .4818, .5611, .3992, .4505][index]])),
+    classification_scores: Object.fromEntries(names.map((name, index) => [name, [14, 7, 6, 5, 4, 3, 1][index]])),
+    skill_scores: Object.fromEntries(names.map((name, index) => [name, [.1, .7, .2, .4, .3, .6, .5][index]])),
+    demand_scores: Object.fromEntries(names.map((name, index) => [name, { trend_score: [.2, .4, .8, .5, .6, .1, .3][index], market_share: [.1, .3, .2, .4, .9, .5, .6][index] }])),
+    scoring_weights: { classifier: .2, skill_matcher: .3, demand_trend: .35, demand_market_share: .15 },
+    roadmaps_by_profession: Object.fromEntries(names.map((name, index) => [name, {
+      full: { programming: ['python', 'sql', `skill-${index}`] }, gap: { programming: [`skill-${index}`] },
+      roadmap_with_courses: { programming: { [`skill-${index}`]: { courses: [] } } },
+    }])),
+    full_roadmap: {}, roadmap_with_courses: {}, _formData: { skills: ['Python', 'SQL'] },
+  }
+  let container, root
+  const rows = () => [...container.querySelectorAll('.careerRanking .careerSelect')]
+  const detail = () => container.querySelector('#selected-career-details')
+  const button = text => [...container.querySelectorAll('button')].find(el => el.textContent === text)
+  const openAll = async () => act(async () => button(translations.en.results.tabs.all).click())
+  beforeEach(async () => {
+    global.IS_REACT_ACT_ENVIRONMENT = true
+    localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
+    HTMLElement.prototype.scrollIntoView = jest.fn()
+    api.getRecommendationState.mockResolvedValue({ progress: {} })
+    api.getTrialStatus.mockResolvedValue({ available: false, remaining: 0, total: 3 })
+    api.saveRoadmapProgress.mockResolvedValue({}); api.saveCourseFilterPreferences.mockResolvedValue({})
+    container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
+    await act(async () => root.render(<AppProvider><Results results={result} /></AppProvider>))
+    await openAll()
+  })
+  afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); jest.restoreAllMocks() })
+
+  test.each([
+    ['score', [4, 1, 2, 3, 6, 5, 0]], ['skill', [1, 5, 6, 3, 4, 2, 0]],
+    ['profile', [0, 1, 2, 3, 4, 5, 6]], ['trend', [2, 4, 3, 1, 6, 0, 5]], ['market', [4, 6, 5, 3, 1, 2, 0]],
+  ])('%s sorts actual normalized data, retaining overall ranks and top-match identity', async (sort, order) => {
+    const before = JSON.stringify(result)
+    const control = container.querySelector(`.careerSort button[data-sort="${sort}"]`)
+    expect(control).not.toBeNull()
+    await act(async () => { control.focus(); control.click() })
+    expect(rows().map(row => row.dataset.profession)).toEqual(order.map(index => names[index]))
+    const overall = [4, 1, 2, 3, 6, 5, 0]
+    for (const row of rows()) {
+      expect(row.querySelector('.careerRank').textContent).toBe(`#${overall.indexOf(names.indexOf(row.dataset.profession)) + 1}`)
+      expect(row.querySelector('.careerScore').textContent).toBe(`${(result.final_scores[row.dataset.profession] * 100).toFixed(1)} / 100`)
+    }
+    expect(control.getAttribute('aria-pressed')).toBe('true')
+    expect(document.activeElement).toBe(control)
+    expect(rows().find(row => row.querySelector('.careerTopBadge')).dataset.profession).toBe(names[4])
+    expect(rows().find(row => row.getAttribute('aria-pressed') === 'true').dataset.profession).toBe(names[4])
+    const comparisonRanks = [...container.querySelectorAll('.careerComparisons .professionBarRank')].map(el => el.textContent)
+    expect(comparisonRanks).toEqual(order.map(index => `#${overall.indexOf(index) + 1}`))
+    expect(JSON.stringify(result)).toBe(before)
+  })
+
+  test('selection updates career details, four signals and skill coverage without leaving All Professions or losing focus', async () => {
+    const row = rows().find(row => row.dataset.profession === names[1])
+    await act(async () => { row.focus(); row.click() })
+    expect(container.querySelector('#results-tab-all').getAttribute('aria-selected')).toBe('true')
+    expect(row.getAttribute('aria-pressed')).toBe('true')
+    expect(document.activeElement).toBe(row)
+    expect(detail().querySelector('h3').textContent).toBe(names[1])
+    expect(detail().querySelector('.careerDetailRank').textContent).toContain('#2')
+    expect(detail().querySelector('.careerScore').textContent).toBe('56.0 / 100')
+    expect([...detail().querySelectorAll('.signalContribution b')].map(el => el.textContent)).toEqual(['3.50 points', '30.00 points', '17.50 points', '5.00 points'])
+    expect(detail().querySelector('.careerCoverage').textContent).toContain('2 of 3')
+    expect([...detail().querySelectorAll('.careerKnownSkills span')].map(el => el.textContent)).toEqual(['Python', 'Sql'])
+    expect(detail().querySelector('.careerMissingSkills').textContent).toContain('Skill-1')
+    await act(async () => detail().querySelector('.methodDetails summary').click())
+    expect(detail().querySelector('.methodDetails').open).toBe(true)
+    expect(detail().querySelector('.methodDetails').textContent).toContain('17.50 × 0.20 + 100.00 × 0.30 + 50.00 × 0.35 + 33.33 × 0.15 ≈ 56.0 / 100')
+    const composition = [...row.querySelectorAll('.careerSignalSegments span')].map(el => parseFloat(el.style.width))
+    expect(composition).toHaveLength(4)
+    composition.forEach((value, index) => expect(value).toBeCloseTo([3.5, 30, 17.5, 5][index], 8))
+    await act(async () => container.querySelector('.careerSort button[data-sort="trend"]').click())
+    expect(detail().querySelector('h3').textContent).toBe(names[1])
+    expect(detail().querySelector('.methodDetails').open).toBe(true)
+    expect(api.sendChatStream).not.toHaveBeenCalled(); expect(api.sendTrialMessage).not.toHaveBeenCalled()
+  })
+
+  test('selected-career roadmap uses the existing result tab, and Best Match preserves that selection and chart mode', async () => {
+    const hash = window.location.hash
+    await act(async () => rows().find(row => row.dataset.profession === names[2]).click())
+    await act(async () => detail().querySelector('.primaryAction').click())
+    expect(container.querySelector('#results-tab-roadmap').getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('.roadmapHint').textContent).toContain(names[2])
+    expect(container.querySelector('.roadmap').textContent).toContain('Skill-2')
+    expect(window.location.hash).toBe(hash)
+    await act(async () => button(translations.en.results.tabs.best).click())
+    expect(container.querySelector('.bestName').textContent).toBe(names[2])
+    await act(async () => button(translations.en.results.chartModes.radar).click())
+    await openAll()
+    expect(detail().querySelector('h3').textContent).toBe(names[2])
+    await act(async () => button(translations.en.results.tabs.best).click())
+    expect(container.querySelector('.radarCompare')).not.toBeNull()
+  })
+
+  test('all existing comparison charts remain reachable and selecting a comparison still opens career-specific Best Match', async () => {
+    const comparisons = container.querySelector('.careerComparisons')
+    expect(comparisons).not.toBeNull()
+    await act(async () => comparisons.querySelector('summary').click())
+    expect(comparisons.open).toBe(true)
+    expect(comparisons.querySelectorAll('.scoreCircleCard')).toHaveLength(7)
+    expect(comparisons.querySelectorAll('.professionBarRow')).toHaveLength(7)
+    expect(comparisons.querySelectorAll('.gapCompareRow')).toHaveLength(7)
+    await act(async () => [...comparisons.querySelectorAll('.professionBarRow')].find(el => el.textContent.includes(names[6])).click())
+    expect(container.querySelector('.bestName').textContent).toBe(names[6])
+  })
+
+  test('legacy or partial data discloses missing weights, inputs and alternative coverage rather than borrowing top-career skills', async () => {
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, scoring_weights: undefined, roadmaps_by_profession: undefined, classification_scores: {}, skill_scores: {}, demand_scores: {}, full_roadmap: { programming: ['top-only'] } }} /></AppProvider>))
+    await act(async () => rows().find(row => row.dataset.profession === names[1]).click())
+    expect(detail().textContent).toContain(translations.en.review.missingWeights)
+    expect(detail().textContent).toContain(translations.en.review.partialSignals)
+    expect(detail().querySelector('.careerCoverage').textContent).toContain(translations.en.review.gapUnavailable)
+    expect(detail().querySelector('.careerCoverage').textContent).not.toContain('Top-only')
+    expect(detail().querySelector('.careerScore').textContent).toBe('56.0 / 100')
+    expect(detail().textContent).not.toMatch(/NaN|Infinity|undefined/)
+    expect([...detail().querySelectorAll('.signalContribution b')].every(el => el.textContent.startsWith('—'))).toBe(true)
+    const comparisons = container.querySelector('.careerComparisons')
+    await act(async () => comparisons.querySelector('summary').click())
+    const alternative = [...comparisons.querySelectorAll('.gapCompareRow')].find(el => el.textContent.includes(names[1]))
+    expect(alternative.querySelector('.gapCompareMeta').textContent).toBe(translations.en.review.gapUnavailable)
+    expect(alternative.querySelector('.gapCompareTrack')).toBeNull()
+  })
+
+  test('missing final scores produce a localized empty ranking without fabricated careers', async () => {
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, final_scores: undefined }} /></AppProvider>))
+    expect(rows()).toHaveLength(0)
+    expect(container.querySelector('.allPanel').textContent).toContain(translations.en.review.rankingEmpty)
+    expect(detail()).toBeNull()
+  })
+
+  test('partial final scores and an unavailable saved selection resolve one stable career identity for detail, gaps and roadmap', async () => {
+    api.getRecommendationState.mockResolvedValueOnce({ progress: { selectedProfession: names[6] } })
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'partial-final-saved', final_scores: { [names[1]]: .56, [names[2]]: .4990 } }} /></AppProvider>))
+    expect(detail().querySelector('h3').textContent).toBe(names[1])
+    expect(detail().querySelector('.careerMissingSkills').textContent).toContain('Skill-1')
+    expect(detail().querySelector('.careerMissingSkills').textContent).not.toContain('Skill-4')
+    await act(async () => container.querySelector('.careerSort button[data-sort="trend"]').click())
+    expect(detail().querySelector('h3').textContent).toBe(names[1])
+    await act(async () => detail().querySelector('.primaryAction').click())
+    expect(container.querySelector('.roadmapHint').textContent).toContain(names[1])
+    expect(container.querySelector('.roadmap').textContent).toContain('Skill-1')
+    await act(async () => new Promise(resolve => setTimeout(resolve, 400)))
+    expect(api.saveRoadmapProgress).toHaveBeenLastCalledWith('partial-final-saved', expect.objectContaining({ selectedProfession: names[1] }))
+  })
+
+  test('restored career/progress survives sorting, with a keyboard-operable jump to selected details', async () => {
+    api.getRecommendationState.mockResolvedValueOnce({ progress: { selectedProfession: names[6], doneSkills: ['programming::skill-6'] } })
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'all-saved-history' }} /></AppProvider>))
+    expect(detail().querySelector('h3').textContent).toBe(names[6])
+    for (const row of rows()) { expect(row.tagName).toBe('BUTTON'); expect(row.tabIndex).toBe(0) }
+    await act(async () => container.querySelector('.careerSort button[data-sort="skill"]').click())
+    await act(async () => container.querySelector('.rankingDetailLink').click())
+    expect(document.activeElement).toBe(detail().querySelector('h3'))
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    await act(async () => detail().querySelector('.primaryAction').click())
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 1')
+  })
+})
