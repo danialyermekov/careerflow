@@ -157,3 +157,123 @@ describe('Results component', () => {
     expect(container.textContent).toContain(translations.en.beta.saveError)
   })
 })
+
+describe('editorial results navigation and Best Match', () => {
+  const result = {
+    session_id: 'editorial-test', top_profession: 'Data Analyst', alternative_profession: 'Data Scientist',
+    final_scores: { 'Data Analyst': .95, 'Data Scientist': .4 },
+    classification_scores: { 'Data Analyst': .6, 'Data Scientist': .2 },
+    skill_scores: { 'Data Analyst': .3, 'Data Scientist': .15 },
+    demand_scores: { 'Data Analyst': { trend_score: .8, market_share: .6, predicted_vacancies: 500 }, 'Data Scientist': { trend_score: .4, market_share: .2, predicted_vacancies: 200 } },
+    scoring_weights: { classifier: .2, skill_matcher: .4, demand_trend: .1, demand_market_share: .3 },
+    full_roadmap: { programming: ['python', 'sql', 'r'] }, roadmap_with_courses: { programming: { r: { courses: [] } } },
+    roadmaps_by_profession: {
+      'Data Analyst': { full: { programming: ['python', 'sql', 'r'] }, gap: { programming: ['r'] }, roadmap_with_courses: { programming: { r: { courses: [] } } } },
+      'Data Scientist': { full: { libraries: ['numpy', 'pandas', 'pytorch'] }, gap: { libraries: ['numpy', 'pytorch'] }, roadmap_with_courses: { libraries: { numpy: { courses: [] }, pytorch: { courses: [] } } } },
+    },
+    _formData: { gpa: 3.2, field_of_study: 'Computer Science', skills: ['Python', 'SQL', 'Pandas'] },
+  }
+  let container, root
+  const button = text => [...container.querySelectorAll('button')].find(el => el.textContent === text)
+  beforeEach(async () => {
+    global.IS_REACT_ACT_ENVIRONMENT = true
+    localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
+    api.getRecommendationState.mockResolvedValue({ progress: {} })
+    api.getTrialStatus.mockResolvedValue({ available: false, remaining: 0, total: 3 })
+    api.saveRoadmapProgress.mockResolvedValue({}); api.saveCourseFilterPreferences.mockResolvedValue({})
+    container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
+    await act(async () => root.render(<AppProvider><Results results={result} /></AppProvider>))
+  })
+  afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); jest.restoreAllMocks() })
+
+  test('four controlled tabs support keyboard selection and retain the selected career and chart mode', async () => {
+    const tabs = [...container.querySelectorAll('[role="tab"]')]
+    expect(tabs).toHaveLength(4)
+    await act(async () => { tabs[0].focus(); Simulate.keyDown(tabs[0], { key: 'ArrowRight' }) })
+    expect(document.activeElement).toBe(tabs[1])
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true')
+    await act(async () => [...container.querySelectorAll('.professionBarRow')].find(b => b.textContent.includes('Data Scientist')).click())
+    expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
+    expect(container.querySelector('.bestRank').textContent).toContain('Selected profession')
+    await act(async () => button(translations.en.results.chartModes.radar).click())
+    await act(async () => tabs[3].click())
+    await act(async () => tabs[0].click())
+    expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
+    expect(button(translations.en.results.chartModes.radar).getAttribute('aria-pressed')).toBe('true')
+    expect(container.querySelector('.radarCompare')).not.toBeNull()
+  })
+
+  test('signal cards and calculation inspector use server weights and correct sum/max normalization', async () => {
+    const cards = [...container.querySelectorAll('.signalContribution')]
+    expect(cards).toHaveLength(4)
+    expect(cards.map(c => c.querySelector('b').textContent)).toEqual(['15.00 points', '40.00 points', '10.00 points', '30.00 points'])
+    const details = container.querySelector('.methodDetails')
+    await act(async () => details.querySelector('summary').click())
+    expect(details.open).toBe(true)
+    expect(details.textContent).toContain('75.00 × 0.20 + 100.00 × 0.40 + 100.00 × 0.10 + 100.00 × 0.30 ≈ 95.0 / 100')
+    expect(details.textContent).toContain('0.60000')
+    expect([...container.querySelectorAll('.gapAssessment .gapChips span')].map(chip => chip.textContent)).toContain('R')
+    for (const mode of ['radar', 'gap', 'bars']) {
+      await act(async () => button(translations.en.results.chartModes[mode]).click())
+      expect(button(translations.en.results.chartModes[mode]).getAttribute('aria-pressed')).toBe('true')
+      expect(container.querySelector(mode === 'radar' ? '.radarCompare' : mode === 'gap' ? '.gapCompare' : '.professionBars')).not.toBeNull()
+    }
+    expect(container.querySelector('.professionBars')).not.toBeNull()
+    expect(result.scoring_weights.classifier).toBe(.2)
+    expect(api.sendChatStream).not.toHaveBeenCalled()
+  })
+
+  test('alternative summary, roadmap and PDF stay scoped to the selected profession', async () => {
+    await act(async () => container.querySelector('.alternativeGrid button').click())
+    expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
+    expect(container.querySelector('.bestRank').textContent).toContain('#2')
+    expect(container.querySelector('[aria-label="Skill gap assessment"]').textContent).toContain('Pytorch')
+    await act(async () => button(translations.en.results.viewFullRoadmap).click())
+    expect(container.querySelector('.roadmapHint').textContent).toContain('Data Scientist')
+    expect(container.querySelector('.roadmap .catHeader')).not.toBeNull()
+    await act(async () => container.querySelector('.roadmap .catHeader').click())
+    expect(container.querySelector('.roadmap').textContent).toContain('Numpy')
+    const printWindow = { document: { write: jest.fn(), close: jest.fn() }, focus: jest.fn(), print: jest.fn() }
+    jest.spyOn(window, 'open').mockReturnValue(printWindow)
+    await act(async () => button(translations.en.results.downloadPdf).click())
+    expect(printWindow.document.write.mock.calls[0][0]).toContain('<div class="prof-name">Data Scientist</div>')
+    expect(printWindow.document.write.mock.calls[0][0]).toContain('40.0 / 100')
+    await act(async () => button(translations.en.results.tabs.best).click())
+    expect(container.querySelectorAll('[data-tour-slot="recommendation"],[data-tour-slot="explanation"]')).toHaveLength(2)
+    await act(async () => container.querySelector('button[aria-label*="Ask"]').click())
+    expect(container.querySelector('.chatSidebar')).not.toBeNull()
+    expect(api.sendTrialMessage).not.toHaveBeenCalled()
+  })
+
+  test('legacy responses disclose missing weights and unavailable alternative gap data', async () => {
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, scoring_weights: undefined, roadmaps_by_profession: undefined }} /></AppProvider>))
+    expect(container.querySelector('.methodDetails').textContent).toContain(translations.en.review.missingWeights)
+    expect([...container.querySelectorAll('.signalContribution b')].every(b => b.textContent.startsWith('—'))).toBe(true)
+    await act(async () => container.querySelector('.alternativeGrid button').click())
+    expect(container.querySelector('[aria-label="Skill gap assessment"]').textContent).toContain('Skill-gap data is unavailable for this career.')
+  })
+
+  test('saved progress survives selection and newly available categories can be reordered and persisted', async () => {
+    api.getRecommendationState.mockResolvedValueOnce({ progress: { categoryOrder: ['programming'], doneSkills: ['libraries::numpy'] } })
+    const savedResult = { ...result, session_id: 'editorial-saved', roadmaps_by_profession: {
+      ...result.roadmaps_by_profession,
+      'Data Scientist': { ...result.roadmaps_by_profession['Data Scientist'], roadmap_with_courses: {
+        libraries: { numpy: { courses: [] }, pytorch: { courses: [] } }, cloud: { aws: { courses: [] } },
+      } },
+    } }
+    await act(async () => root.render(<AppProvider><Results results={savedResult} /></AppProvider>))
+    await act(async () => container.querySelector('.alternativeGrid button').click())
+    await act(async () => button(translations.en.results.viewFullRoadmap).click())
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 3')
+    const categories = () => [...container.querySelectorAll('.roadmap .catName')].map(el => el.textContent)
+    expect(categories()).toEqual(['LIBRARIES', 'CLOUD SERVICES'])
+    const [libraries, cloud] = container.querySelectorAll('.roadmapCat')
+    await act(async () => Simulate.dragStart(cloud))
+    await act(async () => Simulate.drop(libraries))
+    expect(categories()).toEqual(['CLOUD SERVICES', 'LIBRARIES'])
+    await act(async () => new Promise(resolve => setTimeout(resolve, 400)))
+    expect(api.saveRoadmapProgress).toHaveBeenLastCalledWith('editorial-saved', expect.objectContaining({
+      categoryOrder: ['cloud', 'libraries'], doneSkills: ['libraries::numpy'], selectedProfession: 'Data Scientist',
+    }))
+  })
+})

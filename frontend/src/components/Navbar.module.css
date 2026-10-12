@@ -110,12 +110,14 @@
   /* Let wrapped navigation occupy space rather than cover page content. */
   .nav { position: sticky; }
   .inner {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    padding: var(--space-sm) 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    padding: var(--space-sm) 16px;
   }
 
-  .logo { justify-self: center; }
+  .logo { flex-shrink: 0; }
   .actions { justify-content: center; flex-wrap: wrap; }
   .accountLink { max-width: 160px; text-align: center; }
   .accountLink, .feedbackLink { padding: 0 8px; }

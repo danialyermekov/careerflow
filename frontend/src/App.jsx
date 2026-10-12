@@ -161,7 +161,10 @@ function AppInner() {
         {page === 'results' && results && (
           <motion.main
             key="results"
-            variants={pageVariants}
+            variants={{ ...pageVariants, animate: {
+              ...pageVariants.animate,
+              transitionEnd: { filter: 'none', transform: 'none' },
+            } }}
             initial="initial"
             animate="animate"
             exit="exit"

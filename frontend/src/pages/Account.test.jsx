@@ -46,7 +46,8 @@ test.each(['en', 'ru', 'kk'])('Login page renders brand logo, title, buttons wit
     )
   })
 
-  expect(container.querySelector('.loginBrand img[alt="CareerFlow"]')).not.toBeNull()
+  expect(container.querySelector('.loginBrand').textContent).toBe('CareerFlow')
+  expect(container.querySelector('.loginBrand img')).toBeNull()
   expect(container.querySelector('h1').textContent).toBe(t.welcome)
   expect(container.querySelector('.loginSubtitle').textContent).toBe(t.loginSubtitle)
 

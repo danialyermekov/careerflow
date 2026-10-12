@@ -1,20 +1,12 @@
 .brand {
-  display: block;
-  width: 232px;
+  display: inline-block;
   max-width: 100%;
-  line-height: 0;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  /* The supplied wordmark is white; keep its original colors on carbon. */
-  background: #111418;
-}
-
-.brand img {
-  display: block;
-  width: 100%;
-  height: auto;
+  color: var(--text);
+  font: 500 1.625rem/1.1 var(--font-display);
+  letter-spacing: -.035em;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
-  .brand { width: 204px; }
+  .brand { font-size: 1.5rem; }
 }

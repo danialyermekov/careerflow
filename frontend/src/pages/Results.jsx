@@ -8,6 +8,8 @@ import { isDemoSession } from '../utils/demoProfile'
 import LLMSettings from '../components/LLMSettings'
 import GuidedTour from '../components/GuidedTour'
 import FreePreview from '../components/FreePreview'
+import ResultsNavigation from './results/ResultsNavigation'
+import BestMatchPanel from './results/BestMatchPanel'
 import { LLM_PROVIDERS, LLM_SETTINGS_EVENT } from '../utils/llmSettings'
 import {
   clearRecommendationHistory,
@@ -476,7 +478,7 @@ function ProfessionBarsChart({ professions, rows, profLabel, t, animKey, onSelec
                 <span className={styles.professionBarFactors}>
                   {rows.map(r => p[r.key] != null && (
                     <span
-                      key={r.key}
+                      key={r.key} data-signal={r.key}
                       style={{
                         width: `${(p.contributions?.[r.key] ?? 0)}%`,
                         background: BAR_COLORS[r.key],
@@ -1189,7 +1191,7 @@ while (changed) {
   }[lang] || { known: 'skills already known', youKnow: 'You know', toLearn: 'To learn' }
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+    <div className={styles.skillGapRadar} style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
 
       {/* Counter */}
       <div style={{
@@ -1303,7 +1305,7 @@ function MetricBars({ data, rows, animKey, lang }) {
       {rows.map(({ key, label, max }) => {
         if (data[key] == null) return null
         return (
-          <div key={key}>
+          <div key={key} data-signal={key} className={styles.metricRow}>
             <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'baseline', marginBottom: 6 }}>
               <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{label}</span>
             </div>
@@ -1323,7 +1325,7 @@ function ProfScores({ p, rows, animKey, lang }) {
     <div className={styles.profScores}>
       {rows.map(({ key, label, max }) =>
         p[key] != null ? (
-          <div key={key} className={styles.scoreRow}>
+          <div key={key} data-signal={key} className={styles.scoreRow}>
             <span className={styles.scoreLabel}>{label}</span>
             <AnimatedBar
               value={parseFloat(p[key])}
@@ -1481,16 +1483,17 @@ function ScoringFormulaHeader({ results, profession, t }) {
   const descriptions = [t.results.formulaLegendProfile, t.results.formulaLegendSkill, t.results.formulaLegendTrend, t.results.formulaLegendShare]
   const hasWeights = components.every(item => item.weight != null)
   return (
-    <section className={styles.formulaBanner} aria-label={t.review.scoreTitle}>
-      <h2 className={styles.formulaTitle}>{t.review.scoreTitle}</h2>
-      <p className={styles.methodNote}>{t.review.scoreNote}</p>
+    <section className={styles.formulaBanner} aria-label={t.review.weightedSignals}>
+      <h2 className={styles.formulaTitle}>{t.review.weightedSignals}</h2>
       <div className={styles.formulaLegend}>
-        {components.map(item => (
-          <div key={item.key} className={styles.signalContribution}>
+        {components.map((item, index) => (
+          <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
             <span>{item.weight != null ? `${Math.round(item.weight * 100)}% ${t.review.weight.toLowerCase()}` : '—'}</span>
+            <p>{t.review.signals[index][1]}</p>
             <b>{item.contribution == null ? '—' : item.contribution.toFixed(2)} {t.review.contribution}</b>
             <small>{(item.value * 100).toFixed(2)} × {item.weight == null ? '—' : item.weight.toFixed(2)}</small>
+            <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
           </div>
         ))}
       </div>
@@ -1541,7 +1544,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const [chatLoading,  setChatLoading]  = useState(false)
   const [deepMode,     setDeepMode]     = useState(false)
   const [copied,       setCopied]       = useState(null)
-  const [leftOpen,     setLeftOpen]     = useState(true)
   const [rightOpen,    setRightOpen]    = useState(openAdvisor)
   useEffect(() => { if (openAdvisor) setRightOpen(true) }, [openAdvisor])
   const [pdfLoading,   setPdfLoading]   = useState(false)
@@ -1720,7 +1722,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const courseFilterOptions = getCourseFilterOptions(allRoadmapCourses)
   const selectedSkillExplanation = results.skill_explanations?.[activeProf?.name] || null
 
-  const orderedCategoryKeys = (categoryOrder.length ? categoryOrder : Object.keys(roadmapAdapted))
+  const orderedCategoryKeys = [...categoryOrder, ...Object.keys(roadmapAdapted).filter(cat => !categoryOrder.includes(cat))]
     .filter(cat => roadmapAdapted[cat])
   const orderedRoadmapEntries = orderedCategoryKeys.map(cat => {
     const order = skillOrders[cat] || []
@@ -2157,7 +2159,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const moveCategory = (fromCat, toCat) => {
     if (!fromCat || !toCat || fromCat === toCat) return
     setCategoryOrder(prev => {
-      const base = (prev.length ? prev : Object.keys(roadmapAdapted)).filter(cat => roadmapAdapted[cat])
+      const base = orderedCategoryKeys
       const next = [...base]
       const from = next.indexOf(fromCat)
       const to = next.indexOf(toCat)
@@ -2479,11 +2481,13 @@ export default function Results({ results: initialResults, formData, onBack, onR
   setPdfLoading(false)
 }
 
-  const layoutClass = [
-    styles.layout,
-    !leftOpen  ? styles.layoutLeftClosed  : '',
-    !rightOpen ? styles.layoutRightClosed : '',
-  ].filter(Boolean).join(' ')
+  const layoutClass = `${styles.layout} ${!rightOpen ? styles.layoutRightClosed : ''}`
+
+  const gapData = results.roadmaps_by_profession?.[activeProfName]?.gap
+    ?? (activeProfName === top_profession && results.roadmap_with_courses
+      ? Object.fromEntries(Object.entries(results.roadmap_with_courses).map(([cat, skills]) => [cat, Object.keys(skills)]))
+      : null)
+  const missingSkills = gapData ? flattenRoadmapSkills(gapData) : null
 
   const animKey = `${activeProfName}${tab}${cardKey}`
 
@@ -2498,43 +2502,25 @@ export default function Results({ results: initialResults, formData, onBack, onR
           {aiCtaInfo.button}
         </button>
       )}
-      {/* ─ LEFT TOGGLE ─ */}
-      <button
-        className={[styles.sidebarToggle, styles.sidebarToggleLeft, !leftOpen ? styles.sidebarToggleLeftClosed : ''].join(' ')}
-        onClick={() => setLeftOpen(v => !v)}
-        title={leftOpen ? t.results.collapseLeft : t.results.expandLeft}
-      >
-        <ChevronIcon dir={leftOpen ? 'left' : 'right'}/>
-      </button>
-
-      {/* ─ RIGHT TOGGLE ─ */}
-      <button
-        className={[styles.sidebarToggle, styles.sidebarToggleRight, !rightOpen ? styles.sidebarToggleRightClosed : ''].join(' ')}
-        onClick={() => setRightOpen(v => !v)}
-        title={rightOpen ? t.results.collapseRight : t.results.expandRight}
-      >
-        <ChevronIcon dir={rightOpen ? 'right' : 'left'}/>
-      </button>
-
-      {/* ─ LEFT SIDEBAR ─ */}
-      <aside className={styles.sidebar}>
-        <button className={styles.backBtn} onClick={onBack}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          {t.results.back}
-        </button>
-
-        <div className={styles.sidebarSection}>
-          <div className={styles.sidebarLabel}>{t.results.sidebarLabels.recommendation}</div>
-          <div className={styles.sidebarProfession}>{profLabel(activeProfName)}</div>
-          {activeProf?.final_score != null && (
-            <div style={{ marginTop: 8 }}>
-              <ProgressRing value={activeProf.final_score} size={56} stroke={4} color="var(--accent)" animKey={animKey}/>
-            </div>
-          )}
-        </div>
-
+      <main className={styles.main}>
+        <header className={styles.resultsIntro}>
+          <div data-tour-slot="continue" />
+          <div className={styles.contextHeading}>
+            <button className={styles.backBtn} onClick={onBack}>{t.results.back}</button>
+            <h1>{t.results.title}</h1>
+            {(results._formData || formData)?.gpa != null && <span className={styles.profileMeta}>GPA {(results._formData || formData).gpa}</span>}
+            {(results._formData || formData)?.field_of_study && <span className={styles.profileMeta}>{(results._formData || formData).field_of_study}</span>}
+          </div>
+          <ResultsNavigation tabs={tabs} activeTab={tab} onTabChange={setTab} label={t.results.title} />
+          <div className={styles.sessionNotice}>
+            {(results._isDemo || isDemoSession(results.session_id)) && <><span className={styles.demoBadge}>{t.review.demoLabel}</span><p>{t.experience.temporary}</p></>}
+            {!user && <p>{t.beta.guestNote} <a href="#login">{t.beta.login}</a></p>}
+            {persistenceError && <p role="alert">{t.beta.saveError}</p>}
+          </div>
+        </header>
+        <details className={styles.contextTools}>
+          <summary>{t.review.contextTools}</summary>
+          <div className={styles.contextGrid}>
         <div className={styles.sidebarSection}>
           <div className={styles.sidebarLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>{t.results.yourSkillsTitle}</span>
@@ -2581,7 +2567,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
             <div className={styles.sidebarLabel}>{t.results.sidebarLabels.scores}</div>
             <div className={styles.sidebarScores}>
               {sorted.map(p => (
-                <div key={p.name}
+                <button type="button" key={p.name}
                   className={`${styles.sidebarScoreRow} ${p.name === activeProfName ? styles.sidebarScoreRowActive : ''}`}
                   onClick={() => handleSelectProf(p.name)}
                 >
@@ -2589,7 +2575,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                   <span className={styles.sidebarScoreVal}>
                     {typeof p.final_score === 'number' ? formatMatchScore(p.final_score) : '—'}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -2600,13 +2586,13 @@ export default function Results({ results: initialResults, formData, onBack, onR
             <div className={styles.sidebarLabel}>{t.results.sidebarLabels.roadmapOverview}</div>
             <div className={styles.roadmapPreview}>
               {roadmapPreview.map(({ cat, skill, count }) => (
-                <div key={cat} className={styles.roadmapPreviewItem} onClick={() => setTab('roadmap')}>
+                <button type="button" key={cat} className={styles.roadmapPreviewItem} onClick={() => setTab('roadmap')}>
                   <span className={styles.roadmapPreviewIcon}>{CATEGORY_ICONS[cat] || '◎'}</span>
                   <div className={styles.roadmapPreviewBody}>
                     <span className={styles.roadmapPreviewCat}>{catLabel(cat)}</span>
                     <span className={styles.roadmapPreviewSkill}>{skill}{count > 1 ? ` +${count - 1}` : ''}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
             <button className={styles.roadmapPreviewBtn} onClick={() => setTab('roadmap')}>
@@ -2628,16 +2614,15 @@ export default function Results({ results: initialResults, formData, onBack, onR
           )}
         </div>
 
-        <div className={styles.sidebarActions}>
+          </div>
+        </details>
+        <div className={styles.resultActions}>
           <button type="button" className={styles.actionBtnAiSidebar} onClick={handleOpenAiAdvisor}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
             {aiCtaInfo.button}
           </button>
-          <div style={{ marginBottom: 6, fontSize: '0.72rem', color: 'var(--text-3)', lineHeight: 1.35 }}>
-            {user ? t.beta.historyNote : t.beta.guestNote}
-          </div>
           <button className={styles.actionBtn} disabled={!user || results.persistent === false || results._isDemo || !stateLoaded} onClick={saveCurrentResult}>
             <CheckIcon size={12}/>
             {savedCurrent ? t.results.savedResult : t.results.saveResult}
@@ -2670,41 +2655,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
             {t.results.newAnalysis}
           </button>
         </div>
-      </aside>
-
-      {/* ─ MAIN ─ */}
-      <main className={styles.main}>
-        <header className={styles.resultsIntro}>
-          <div data-tour-slot="continue" />
-          <h1>{t.results.title}</h1>
-          {(results._isDemo || isDemoSession(results.session_id)) && <span className={styles.demoBadge}>{t.review.demoLabel}</span>}
-          <p>{t.review.scoreNote}</p>
-          {persistenceError && <p role="alert">{t.beta.saveError}</p>}
-          {!user && <p>{t.beta.guestNote} <a href="#login">{t.beta.login}</a></p>}
-          {(results._isDemo || isDemoSession(results.session_id)) && <p>{t.experience.temporary}</p>}
-          <div className={styles.mobileActions}>
-            <button type="button" className={styles.actionBtnAi} onClick={handleOpenAiAdvisor}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              {aiCtaInfo.button}
-            </button>
-            <button className={styles.actionBtn} onClick={onRetry || onBack}>{t.results.newAnalysis}</button>
-            <button className={styles.actionBtn} onClick={handleExportPdf} disabled={pdfLoading}>{t.results.downloadPdf}</button>
-          </div>
-        </header>
-        <div className={styles.tabsSticky}>
-          <div className={styles.tabs}>
-            {tabs.map(({ key, label }) => (
-              <button key={key} className={`${styles.tab} ${tab === key ? styles.tabActive : ''}`}
-                onClick={() => setTab(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.tabContent} key={`${tab}${activeProfName}${cardKey}`}>
+        <div className={styles.tabContent} id="results-panel" role="tabpanel" aria-labelledby={`results-tab-${tab}`} key={`${tab}${activeProfName}${cardKey}`}>
 
           {/* ─ BEST MATCH ─ */}
           {tab === 'history' && <section className={styles.bestCard}>
@@ -2715,67 +2666,24 @@ export default function Results({ results: initialResults, formData, onBack, onR
             const rows = orderedRows(ALL_SCORE_ROWS, 'score')
             const activeRank = [...allProfessions].sort((a, b) => b.final_score - a.final_score).findIndex(p => p.name === activeProf.name) + 1
             return (
-              <div className={styles.bestStack}>
-              <div className={styles.bestCard}>
-                <div data-tour-slot="recommendation" />
-                <div className={styles.bestHeader}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <ProgressRing value={activeProf.final_score ?? 0} size={72} stroke={5}
-                      color="#5b8dee" animKey={animKey}
-                      tooltipText={`${profLabel(activeProf.name)}\n${t.results.scoreOverview}: ${formatMatchScore(activeProf.final_score)}`}/>
-                    <div>
-                      <div className={styles.bestRank}>#{activeRank} {activeProf.name === top_profession ? t.results.bestMatch : t.results.selectedProfession}</div>
-                      <div className={styles.bestName}>{profLabel(activeProf.name)}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                    {activeProf.name === top_profession && <span className={styles.topBadge}>{t.results.bestMatch.toUpperCase()}</span>}
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {['bars', 'radar', 'gap'].map(m => (
-                        <button key={m} onClick={() => setViewMode(m)} style={{
-                          padding: '3px 10px', borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border)',
-                          background: viewMode === m ? 'var(--accent-light)' : 'transparent',
-                          color: viewMode === m ? 'var(--accent)' : 'var(--text-3)',
-                          fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-                          cursor: 'pointer', transition: 'all var(--transition)',
-                        }}>
-                          {t.results.chartModes?.[m] || m}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.aiRecommendationCta}>
-                  <div className={styles.aiRecommendationCtaContent}>
-                    <div className={styles.aiRecommendationCtaIconWrap}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                      </svg>
-                    </div>
-                    <div className={styles.aiRecommendationCtaText}>
-                      <span className={styles.aiRecommendationCtaTitle}>
-                        {aiCtaInfo.title}
-                      </span>
-                      <span className={styles.aiRecommendationCtaSubtitle}>
-                        {aiCtaInfo.subtitle}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.aiRecommendationCtaBtn}
-                    onClick={handleOpenAiAdvisor}
-                    aria-label={aiCtaInfo.buttonFull}
-                  >
-                    <span>{aiCtaInfo.buttonFull}</span>
-                    <span className={styles.aiCtaArrow}>→</span>
-                  </button>
-                </div>
-
-                <div data-tour-slot="explanation" />
-                <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />
+              <BestMatchPanel profession={activeProf} rank={activeRank} isTop={activeProf.name === top_profession}
+                name={profLabel(activeProf.name)} t={t} profLabel={profLabel}
+                alternatives={[...allProfessions].sort((a, b) => b.final_score - a.final_score).filter(p => p.name !== activeProf.name)}
+                onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
+                viewMode={viewMode} onViewMode={setViewMode} aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
+                score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
+                  color="var(--accent)" animKey={animKey} tooltipText={formatMatchScore(activeProf.final_score)} />}
+                scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />}
+                skillGap={<section className={styles.gapAssessment} aria-label={t.review.gapAssessment}>
+                  <h3>{t.review.gapAssessment}</h3><p className={styles.methodNote}>{t.review.roadmapMethod}</p>
+                  <h4>{t.review.enteredSkills}</h4>
+                  <div className={styles.gapChips}>{(results._formData?.skills || formData?.skills || []).map(skill => <span key={skill}>{skill}</span>)}</div>
+                  <h4>{t.review.missingSkills}</h4>
+                  {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : missingSkills.length === 0 ? <p>{t.review.gapEmpty}</p>
+                    : <div className={styles.gapChips}>{missingSkills.map(({ cat, skill }) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div>}
+                  <button type="button" className={styles.secondaryAction} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
+                </section>}
+                visualization={<>
                 {viewMode === 'bars' && (
                   <div className={styles.chartStack}>
                     <ProfessionBarsChart professions={sorted} rows={rows} profLabel={profLabel} t={t} animKey={animKey} onSelect={handleSelectProf}/>
@@ -2810,21 +2718,14 @@ export default function Results({ results: initialResults, formData, onBack, onR
                   </div>
                 )}
 
-                {activeProf.vacancies_per_week != null && (
-                  <div className={styles.demandRow}>
-                    <div className={styles.demandItem}>
-                      {activeProf.vacancies_per_week.toLocaleString()} {t.results.vacanciesWeek}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <ExplainabilityPanel
+                </>}
+                explanation={<ExplainabilityPanel
                 profession={activeProf}
                 profLabel={profLabel}
                 t={t}
                 skillExplanation={selectedSkillExplanation}
+                />}
               />
-              </div>
             )
           })()}
 

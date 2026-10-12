@@ -45,6 +45,10 @@ export const translations = {
       "paragraphs": [...betaTranslations.en.privacyText, experienceTranslations.en.privacy]
     },
     review: {
+      weightedSignals: 'Weighted scoring signals', visualization: 'Visualization & signal analysis', gapAssessment: 'Skill gap assessment',
+      alternatives: 'Alternative recommendations', contextTools: 'Profile context and recommendation details',
+      gapUnavailable: 'Skill-gap data is unavailable for this career.', gapEmpty: 'No missing skills in the available roadmap.',
+      enteredSkills: 'Skills entered in your profile', missingSkills: 'Missing skills to learn',
       demo: 'Use demo profile', demoLabel: 'Demo profile', demoHint: 'A Computer Science student with Python, SQL and some data analysis experience. Review or edit the sample, then get recommendations.',
       demoSharedWarning: betaTranslations.en.historyNote,
       sharedSaveWarning: betaTranslations.en.historyNote,
@@ -433,6 +437,10 @@ export const translations = {
       "paragraphs": [...betaTranslations.ru.privacyText, experienceTranslations.ru.privacy]
     },
     review: {
+      weightedSignals: 'Взвешенные сигналы рейтинга', visualization: 'Визуализация и анализ сигналов', gapAssessment: 'Анализ пробелов в навыках',
+      alternatives: 'Альтернативные рекомендации', contextTools: 'Контекст профиля и детали рекомендации',
+      gapUnavailable: 'Для этой профессии нет данных о пробелах в навыках.', gapEmpty: 'В доступном плане нет недостающих навыков.',
+      enteredSkills: 'Навыки, указанные в профиле', missingSkills: 'Недостающие навыки для изучения',
       demo: 'Использовать демо-профиль', demoLabel: 'Демо-профиль', demoHint: 'Студент Computer Science, знакомый с Python, SQL и анализом данных. Проверьте или измените пример и получите рекомендации.',
       demoSharedWarning: betaTranslations.ru.historyNote,
       sharedSaveWarning: betaTranslations.ru.historyNote,
@@ -821,6 +829,10 @@ export const translations = {
       "paragraphs": [...betaTranslations.kk.privacyText, experienceTranslations.kk.privacy]
     },
     review: {
+      weightedSignals: 'Рейтингтің салмақталған сигналдары', visualization: 'Визуализация және сигналдарды талдау', gapAssessment: 'Дағды жетіспеушілігін талдау',
+      alternatives: 'Баламалы ұсыныстар', contextTools: 'Профиль контексті және ұсыныс мәліметтері',
+      gapUnavailable: 'Бұл мамандық бойынша дағды жетіспеушілігі деректері жоқ.', gapEmpty: 'Қолжетімді жоспарда жетіспейтін дағдылар жоқ.',
+      enteredSkills: 'Профильде көрсетілген дағдылар', missingSkills: 'Үйренуге қажетті дағдылар',
       demo: 'Демо-профильді пайдалану', demoLabel: 'Демо-профиль', demoHint: 'Python, SQL және деректер талдауын білетін Computer Science студенті. Үлгіні тексеріп не өзгертіп, ұсыныс алыңыз.',
       demoSharedWarning: betaTranslations.kk.historyNote,
       sharedSaveWarning: betaTranslations.kk.historyNote,
