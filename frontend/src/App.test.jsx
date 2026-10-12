@@ -125,6 +125,107 @@ test('normal empty and partial profiles keep GPA validation and accept optional 
   expect(container.querySelector('.demoBadge')).toBeNull()
 })
 
+test('editorial landing has the compass, four-step flow, seven tracks and scroll-only section navigation', async () => {
+  await act(async () => root.render(<App />))
+  expect(container.querySelector('h1').textContent).toBe('A rigorous, auditable compass for your career in technology.')
+  expect(container.querySelectorAll('#how-it-works ol > li')).toHaveLength(4)
+  expect(container.querySelectorAll('#career-tracks article')).toHaveLength(7)
+  expect(container.querySelector('#interactive-preview').textContent).toContain('3.2')
+  expect(container.querySelector('#interactive-preview').textContent).not.toMatch(/94\.3|High Confidence|100k/)
+  const methodology = container.querySelector('a[href="#methodology"]')
+  await act(async () => methodology.click())
+  expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+  expect(document.activeElement.id).toBe('methodology')
+  expect(window.location.hash).toBe('')
+  expect(api.getRecommendation).not.toHaveBeenCalled()
+  await act(async () => button('Get started').click())
+  expect(window.location.hash).toBe('#profile')
+  expect(container.querySelector('#profile-gpa')).not.toBeNull()
+})
+
+test('profile keyboard skill entry can leave an empty combobox and reset a normal edited profile', async () => {
+  window.history.replaceState({}, '', '/#profile')
+  await act(async () => root.render(<App />))
+  const input = container.querySelector('input[aria-label="Your skills"]')
+  const preventDefault = jest.fn()
+  await act(async () => Simulate.keyDown(input, { key: 'Tab', preventDefault }))
+  expect(preventDefault).not.toHaveBeenCalled()
+  await act(async () => Simulate.change(input, { target: { value: 'Pyth' } }))
+  await act(async () => Simulate.keyDown(input, { key: 'ArrowDown' }))
+  await act(async () => Simulate.keyDown(input, { key: 'Enter' }))
+  expect(container.querySelector('button[aria-label="Remove skill: Python"]')).not.toBeNull()
+  expect(container.querySelectorAll('#career-profile input[type="checkbox"]')).toHaveLength(11)
+  expect(container.querySelectorAll('#career-profile button[aria-pressed]')).toHaveLength(25)
+  await act(async () => Simulate.change(container.querySelector('#profile-gpa'), { target: { value: '3.5' } }))
+  await act(async () => button('Reset form').click())
+  expect(container.querySelector('#profile-gpa').value).toBe('')
+  expect(container.querySelector('button[aria-label="Remove skill: Python"]')).toBeNull()
+  expect(input.value).toBe('')
+  expect(container.querySelector('details').firstElementChild.tagName).toBe('SUMMARY')
+})
+
+test('resume service failure keeps the existing text fallback and reports unrecognized files', async () => {
+  window.history.replaceState({}, '', '/#profile')
+  api.parseResume.mockRejectedValue(new Error('Parser unavailable'))
+  await act(async () => root.render(<App />))
+  await act(async () => {
+    Simulate.change(container.querySelector('input[type="file"]'), { target: { files: [new File(['Python SQL'], 'fallback.txt', { type: 'text/plain' })] } })
+    await new Promise(resolve => setTimeout(resolve, 50))
+  })
+  expect(container.querySelector('button[aria-label="Remove skill: Python"]')).not.toBeNull()
+  await act(async () => {
+    Simulate.change(container.querySelector('input[type="file"]'), { target: { files: [new File(['nothing recognized'], 'unknown.txt', { type: 'text/plain' })] } })
+    await new Promise(resolve => setTimeout(resolve, 50))
+  })
+  expect(container.textContent).toContain('For browser-only parsing, text-based PDF/TXT files work best.')
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull()
+  expect(api.getRecommendation).not.toHaveBeenCalled()
+})
+
+test('edited demo profile keeps demo ownership and a failed submission leaves input and retry available', async () => {
+  window.history.replaceState({}, '', '/#profile')
+  let rejectRecommendation
+  api.getRecommendation.mockImplementation(() => new Promise((resolve, reject) => { rejectRecommendation = reject }))
+  await act(async () => root.render(<App />))
+  await act(async () => button('Use demo profile').click())
+  expect(container.querySelector('#profile-gpa').value).toBe('3.2')
+  await act(async () => Simulate.submit(container.querySelector('#career-profile')))
+  expect(container.querySelector('button[type="submit"][aria-busy="true"]').disabled).toBe(true)
+  expect(api.getRecommendation).toHaveBeenCalledWith({ ...DEMO_PROFILE, gpa: 3.2, lang: 'en' }, { demo: true })
+  await act(async () => rejectRecommendation(new Error('Service unavailable')))
+  expect(container.querySelector('.appError').textContent).toBeTruthy()
+  expect(container.querySelector('#profile-gpa').value).toBe('3.2')
+  expect(container.querySelector('button[type="submit"][aria-busy="false"]').disabled).toBe(false)
+  await act(async () => button('Reset form').click())
+  expect(container.querySelector('#profile-gpa').value).toBe('')
+  expect(container.textContent).not.toContain('Demo profile')
+})
+
+test('profile resume import merges reviewed skills and preserves all technical and rating payload fields', async () => {
+  window.history.replaceState({}, '', '/#profile')
+  let resolveResume
+  api.parseResume.mockImplementation(() => new Promise(resolve => { resolveResume = resolve }))
+  await act(async () => root.render(<App />))
+  const file = new File(['Python SQL'], 'profile.txt', { type: 'text/plain' })
+  await act(async () => Simulate.change(container.querySelector('input[type="file"]'), { target: { files: [file] } }))
+  expect(container.querySelector('[aria-busy="true"]')).not.toBeNull()
+  await act(async () => resolveResume({ skills: ['Python', 'SQL'], role: 'Data Analyst' }))
+  expect(container.textContent).toContain('profile.txt')
+  expect(container.querySelector('button[aria-label="Remove skill: SQL"]')).not.toBeNull()
+  const checks = container.querySelectorAll('#career-profile input[type="checkbox"]')
+  for (const check of checks) await act(async () => Simulate.change(check, { target: { checked: true } }))
+  await act(async () => Simulate.change(container.querySelector('#profile-gpa'), { target: { value: '3.5' } }))
+  await act(async () => container.querySelector('button[aria-label="Communication: 5 / 5"]').click())
+  await act(async () => Simulate.submit(container.querySelector('#career-profile')))
+  expect(api.getRecommendation.mock.calls[0][0]).toEqual({
+    ...DEMO_PROFILE, skills: ['Python', 'SQL'], gpa: 3.5, lang: 'en',
+    python: 1, java: 1, c_cpp: 1, sql: 1, machine_learning: 1, data_analysis: 1,
+    cloud_computing: 1, cybersecurity: 1, web_development: 1, devops: 1, networking: 1,
+    communication: 5, leadership: 3, problem_solving: 3, teamwork: 3, adaptability: 3,
+  })
+  expect(api.getRecommendation.mock.calls[0][1]).toEqual({ demo: false })
+})
+
 test('keyboard Escape skips the demo without calling an AI provider', async () => {
   await act(async () => root.render(<App />))
   await act(async () => button('Try Live Demo').click())

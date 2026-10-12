@@ -18,6 +18,17 @@ test('public product pages have matching translated keys and roadmap items', () 
 
 const supportedLanguages = ['en', 'ru', 'kk']
 
+test.each(['en', 'ru', 'kk'])('%s supplies the complete four-step editorial landing and form labels', lang => {
+  expect(translations[lang].review.steps).toHaveLength(4)
+  expect(translations[lang].hero.trackDescriptions).toHaveLength(7)
+  for (const key of ['previewTitle', 'previewPending', 'methodology', 'tracksTitle', 'privacyText']) {
+    expect(translations[lang].hero[key]).toBeTruthy()
+  }
+  for (const key of ['addSkill', 'reset', 'selected', 'academicHint', 'step']) {
+    expect(translations[lang].form[key]).toBeTruthy()
+  }
+})
+
 test.each(['en', 'ru', 'kk'])('%s translates the complete walkthrough and preview', lang => {
   expect(Object.keys(translations[lang].experience).sort()).toEqual(Object.keys(translations.en.experience).sort())
   expect(translations[lang].experience.steps).toHaveLength(5)

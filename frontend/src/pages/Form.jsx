@@ -65,39 +65,21 @@ const DEFAULT = {
   communication: 3, leadership: 3, problem_solving: 3, teamwork: 3, adaptability: 3,
 }
 
-const ChevronIcon = ({ dir = 'left' }) => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    {dir === 'left'  && <path d="M15 18l-6-6 6-6"/>}
-    {dir === 'right' && <path d="M9 18l6-6-6-6"/>}
-  </svg>
-)
-
 export default function Form({ onSubmit, loading, initialDemo = false }) {
   const { t, lang } = useApp()
   const [form,       setForm]       = useState(initialDemo ? { ...DEMO_PROFILE, skills: [...DEMO_PROFILE.skills] } : DEFAULT)
   const [isDemo, setIsDemo] = useState(initialDemo)
   const [skillInput, setSkillInput] = useState('')
   const [errors,     setErrors]     = useState({})
-  const [tipIdx,     setTipIdx]     = useState(0)
-  const [leftOpen,   setLeftOpen]   = useState(true)
-  const [rightOpen,  setRightOpen]  = useState(true)
   const [acVisible,  setAcVisible]  = useState(false)  // autocomplete dropdown
   const [acIndex,    setAcIndex]    = useState(-1)      // selected item in dropdown
   const [parsedResume, setParsedResume] = useState({ skills: [], role: '', fileName: '' })
   const [resumeNotice, setResumeNotice] = useState('')
   const [resumeLoading, setResumeLoading] = useState(false)
 
-  const tipTimer   = useRef(null)
   const acRef      = useRef(null)
   const inputRef   = useRef(null)
   const resumeRef  = useRef(null)
-
-  const tips = t.form.tips
-
-  useEffect(() => {
-    tipTimer.current = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 5000)
-    return () => clearInterval(tipTimer.current)
-  }, [tips.length])
 
   // Close dropdown when clicked outside
   useEffect(() => {
@@ -169,6 +151,7 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
       }
     }
     if (['Enter', ',', 'Tab'].includes(e.key)) {
+      if (e.key === 'Tab' && !skillInput.trim()) return
       e.preventDefault()
       if (skillInput.trim()) addSkill(skillInput)
     }
@@ -293,169 +276,60 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
     clearParsedResume()
   }
 
-  const layoutClass = [
-    styles.pageLayout,
-    !leftOpen  ? styles.pageLayoutLeftClosed  : '',
-    !rightOpen ? styles.pageLayoutRightClosed : '',
-  ].filter(Boolean).join(' ')
-
   return (
-    <div className={layoutClass}>
-
-      {/* LEFT TOGGLE */}
-      <button
-        className={[styles.sidebarToggle, styles.sidebarToggleLeft, !leftOpen ? styles.sidebarToggleLeftClosed : ''].join(' ')}
-        onClick={() => setLeftOpen(v => !v)}
-        title={leftOpen ? t.form.collapseLeft : t.form.expandLeft}
-      >
-        <ChevronIcon dir={leftOpen ? 'left' : 'right'}/>
-      </button>
-
-      {/* RIGHT TOGGLE */}
-      <button
-        className={[styles.sidebarToggle, styles.sidebarToggleRight, !rightOpen ? styles.sidebarToggleRightClosed : ''].join(' ')}
-        onClick={() => setRightOpen(v => !v)}
-        title={rightOpen ? t.form.collapseRight : t.form.expandRight}
-      >
-        <ChevronIcon dir={rightOpen ? 'right' : 'left'}/>
-      </button>
-
-      {/* LEFT SIDEBAR */}
-      <aside className={styles.formSidebar}>
-        <div className={styles.formSidebarInner}>
-          <div className={styles.sidebarBrand}>
-            <div className={styles.sidebarBrandDot}/>
-          </div>
-
-          <div className={styles.sidebarSection}>
-            <div className={styles.sidebarLabel}>{t.form.sidebar.progress}</div>
-            <p className={styles.readiness}>{hasGpa ? t.review.ready : t.review.required}</p>
-            <p className={styles.hint}>{t.review.progressHint}</p>
-          </div>
-
-          <div className={styles.sidebarSection}>
-            <div className={styles.sidebarLabel}>{t.form.sidebar.selectedTech}</div>
-            {techChecked === 0
-              ? <div className={styles.sidebarEmpty}>{t.form.sidebar.noTech}</div>
-              : (
-                <div className={styles.sidebarTags}>
-                  {TECH_SKILLS.filter(s => form[s.key] === 1).map(s => (
-                    <span key={s.key} className={styles.sidebarTag}>{s.label}</span>
-                  ))}
-                </div>
-              )
-            }
-          </div>
-
-          <div className={styles.sidebarSection}>
-            <div className={styles.sidebarLabel}>{t.form.sidebar.softAvg}</div>
-            <div className={styles.softAvgRow}>
-              {[1,2,3,4,5].map(n => (
-                <div key={n} className={`${styles.softAvgDot} ${softAvg >= n ? styles.softAvgDotOn : ''}`}/>
-              ))}
-              <span className={styles.softAvgVal}>{softAvg.toFixed(1)}</span>
-            </div>
-          </div>
-
-          <div className={styles.tipBox}>
-            <div className={styles.tipIcon}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 8v4M12 16h.01"/>
-              </svg>
-            </div>
-            <div className={styles.tipText}>{tips[tipIdx]}</div>
-          </div>
-        </div>
-      </aside>
-
-      {/* MAIN FORM */}
+    <div className={styles.pageLayout}>
       <div className={styles.formMain}>
         <div className={styles.wrap}>
           <div className={styles.header}>
+            <p className={styles.step}>{t.form.step}</p>
             <h1 className={styles.title}>{t.form.title}</h1>
             <p className={styles.subtitle}>{t.form.subtitle}</p>
-            <p className={styles.requirementNote}>{t.review.required}<br />{t.review.optional}</p>
             <div className={styles.demoActions}>
               <button type="button" className={styles.demoButton} disabled={loading} onClick={useDemo}>{t.review.demo}</button>
-              {isDemo && <button type="button" className={styles.resetButton} disabled={loading} onClick={() => { setForm(DEFAULT); setIsDemo(false); setErrors({}); clearParsedResume() }}>{t.review.reset}</button>}
             </div>
             {isDemo && <div className={styles.demoNotice} role="status">
               <strong>{t.review.demoLabel}</strong><p>{t.review.demoHint}</p>
-              {t.review.demoSharedWarning && <p className={styles.requirementNote} style={{ marginTop: 6, color: 'var(--amber-11, #b45309)' }}>{t.review.demoSharedWarning}</p>}
-              <button type="submit" form="career-profile" className={styles.demoButton} disabled={loading}>{loading ? t.form.submitting : t.form.submit} →</button>
+              {t.review.demoSharedWarning && <p className={styles.requirementNote} style={{ marginTop: 6, color: 'var(--warning)' }}>{t.review.demoSharedWarning}</p>}
             </div>}
           </div>
 
           <form id="career-profile" className={styles.form} onSubmit={handleSubmit}>
 
-            {/* ── CV / Resume parser ── */}
-            <div className={styles.section}>
-              <div className={styles.sectionLabel}>{t.form.resume.label}</div>
-              <p className={styles.hint}>{t.form.resume.hint}</p>
-              <div className={styles.resumeBox}>
-                <input
-                  ref={resumeRef}
-                  className={styles.resumeInput}
-                  type="file"
-                  accept=".pdf,.txt,.doc,.docx,text/plain,application/pdf"
-                  onChange={e => handleResumeUpload(e.target.files?.[0])}
-                />
-                <button type="button" className={styles.resumeUploadBtn} onClick={() => resumeRef.current?.click()}>
-                  {resumeLoading ? (
-                    <span className={styles.spinner}/>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                  )}
-                  {resumeLoading ? t.form.submitting : (parsedResume.fileName || t.form.resume.upload)}
-                </button>
-                {(parsedResume.skills.length > 0 || parsedResume.role || resumeNotice) && (
-                  <div className={styles.resumeParsed}>
-                    {parsedResume.role && (
-                      <div className={styles.resumeRole}>
-                        <span>{t.form.resume.role}</span>
-                        <strong>{parsedResume.role}</strong>
-                      </div>
-                    )}
-                    <div className={styles.resumeParsedHeader}>
-                      <span>{t.form.resume.parsed}</span>
-                      <button type="button" onClick={clearParsedResume}>{t.form.resume.clear}</button>
-                    </div>
-                    {parsedResume.skills.length ? (
-                      <div className={styles.sidebarTags}>
-                        {parsedResume.skills.map(skill => (
-                          <span key={skill} className={styles.sidebarTag}>{skill}</span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className={styles.sidebarEmpty}>{resumeNotice || t.form.resume.empty}</div>
-                    )}
-                  </div>
-                )}
+            <section className={styles.section}>
+              <h2 className={styles.sectionLabel}>{t.form.personal.label}</h2>
+              <p className={styles.hint}>{t.form.academicHint}</p>
+              <div className={styles.grid2}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="profile-gpa">{t.form.personal.gpa} *</label>
+                  <input className={`${styles.input} ${errors.gpa ? styles.error : ''}`}
+                    id="profile-gpa" name="gpa" required type="number" min="2" max="4" step="0.1"
+                    value={form.gpa} placeholder="3.5" aria-invalid={!!errors.gpa} aria-describedby="gpa-hint gpa-error"
+                    onChange={e => set('gpa', e.target.value)} />
+                  <p id="gpa-hint" className={styles.hint}>{t.review.required}</p>
+                  <span id="gpa-error" className={styles.errorMsg} role={errors.gpa ? 'alert' : undefined}>{errors.gpa}</span>
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="profile-field">{t.form.personal.field}</label>
+                  <select id="profile-field" name="field_of_study" className={styles.select} value={form.field_of_study} onChange={e => set('field_of_study', e.target.value)}>
+                    {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
               </div>
-            </div>
+            </section>
 
             {/* ── Custom Skills with Autocomplete ── */}
             <div className={styles.section}>
-              <div className={styles.sectionLabel}>{t.form.skills.label}</div>
-              <p className={styles.hint}>{t.review.skillsHint}</p>
+              <div className={styles.sectionHeader}><h2 className={styles.sectionLabel}>{t.form.skills.label}</h2><span className={styles.badge}>{form.skills.length} {t.form.selected}</span></div>
+              <p className={styles.hint}>{t.form.skillsDescription}</p>
               <div className={styles.tagsInputWrap} ref={acRef}>
                 <div
                   className={`${styles.tagsInput} ${errors.skills ? styles.error : ''}`}
                   onClick={() => inputRef.current?.focus()}
                 >
-                  {form.skills.map(s => (
-                    <span key={s} className={styles.tag}>
-                      {s}
-                      <button type="button" className={styles.tagX} onClick={() => removeSkill(s)} aria-label={`${t.review.removeSkill}: ${s}`}>×</button>
-                    </span>
-                  ))}
                   <input
                     ref={inputRef}
+                    role="combobox" aria-expanded={acVisible && acFiltered.length > 0} aria-controls="skill-suggestions"
+                    aria-autocomplete="list" aria-activedescendant={acVisible && acIndex >= 0 ? `skill-option-${acIndex}` : undefined}
                     aria-label={t.form.skills.label}
                     className={styles.tagsInner}
                     value={skillInput}
@@ -466,17 +340,19 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
                     placeholder={form.skills.length ? '' : t.form.skills.placeholder}
                     autoComplete="off"
                   />
+                  <button type="button" className={styles.addButton} onClick={() => addSkill(skillInput)}>{t.form.addSkill}</button>
                 </div>
 
                 {/* Autocomplete dropdown */}
                 {acVisible && acFiltered.length > 0 && (
-                  <div className={styles.acDropdown}>
+                  <div className={styles.acDropdown} id="skill-suggestions" role="listbox" aria-label={t.form.skills.label}>
                     {acFiltered.map((s, i) => (
                       <button
                         key={s}
                         type="button"
+                        id={`skill-option-${i}`} role="option" aria-selected={i === acIndex} tabIndex={-1}
                         className={`${styles.acItem} ${i === acIndex ? styles.acItemActive : ''}`}
-                        onMouseDown={() => addSkill(s)}
+                        onMouseDown={e => { e.preventDefault(); addSkill(s) }}
                         onMouseEnter={() => setAcIndex(i)}
                       >
                         <span className={styles.acItemText}>{s}</span>
@@ -485,6 +361,12 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className={styles.tags}>
+                {form.skills.map(s => <span key={s} className={styles.tag}>{s}
+                  <button type="button" className={styles.tagX} onClick={() => removeSkill(s)} aria-label={`${t.review.removeSkill}: ${s}`}>×</button>
+                </span>)}
               </div>
 
               {/* Quick suggestions - popular skills */}
@@ -505,46 +387,18 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
               </div>
             </div>
 
-            {/* ── Personal ── */}
-            <div className={styles.section}>
-              <div className={styles.sectionLabel}>{t.form.personal.label}</div>
-              <div className={styles.grid2}>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="profile-gpa">{t.review.required}</label>
-                  <input
-                    className={`${styles.input} ${errors.gpa ? styles.error : ''}`}
-                    id="profile-gpa" required type="number" min="2" max="4" step="0.1"
-                    value={form.gpa} placeholder="3.5"
-                    onChange={e => set('gpa', e.target.value)}
-                  />
-                  {errors.gpa && <span className={styles.errorMsg}>{errors.gpa}</span>}
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="profile-field">{t.form.personal.field}</label>
-                  <select
-                    id="profile-field" className={styles.select}
-                    value={form.field_of_study}
-                    onChange={e => set('field_of_study', e.target.value)}
-                  >
-                    {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
             {/* ── Technical Skills ── */}
             <div className={styles.section}>
-              <div className={styles.sectionLabel}>{t.form.technical.label}</div>
-              <p className={styles.hint}>{t.review.technicalHint}</p>
+              <div className={styles.sectionHeader}><h2 className={styles.sectionLabel}>{t.form.technical.label}</h2><span className={styles.badge}>{techChecked} / 11</span></div>
+              <p className={styles.hint}>{t.form.knowledgeDescription}</p>
               <div className={styles.checkGrid}>
                 {TECH_SKILLS.map(({ key, label }) => (
                   <label key={key} className={styles.checkItem}>
                     <input
-                      type="checkbox" className={styles.checkbox}
+                      type="checkbox" name={key} className={styles.checkbox}
                       checked={form[key] === 1}
                       onChange={e => set(key, e.target.checked ? 1 : 0)}
                     />
-                    <span className={styles.checkBox}>{form[key] === 1 ? '✓' : ''}</span>
                     <span className={styles.checkLabel}>{label}</span>
                   </label>
                 ))}
@@ -553,8 +407,8 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
 
             {/* ── Soft Skills ── */}
             <div className={styles.section}>
-              <div className={styles.sectionLabel}>{t.form.soft.label}</div>
-              <p className={styles.hint}>{t.review.softHint}</p>
+              <div className={styles.sectionHeader}><h2 className={styles.sectionLabel}>{t.form.soft.label}</h2><span className={styles.badge}>{t.form.average} {softAvg.toFixed(1)} / 5</span></div>
+              <p className={styles.hint}>{t.form.softDescription}</p>
               <div className={styles.softGrid}>
                 {SOFT_KEYS.map(key => (
                   <div key={key} className={styles.softItem}>
@@ -563,11 +417,11 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
                       {[1,2,3,4,5].map(n => (
                         <button
                           key={n} type="button"
-                          className={`${styles.star} ${form[key] >= n ? styles.starOn : ''}`}
+                           className={`${styles.star} ${form[key] === n ? styles.starOn : ''}`}
                           onClick={() => set(key, n)}
                           aria-label={`${t.form.soft[key]}: ${n} / 5`}
                           aria-pressed={form[key] === n}
-                        >●</button>
+                         >{n}</button>
                       ))}
                     </div>
                   </div>
@@ -575,22 +429,38 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
               </div>
             </div>
 
-            <button type="submit" className={styles.submit} disabled={loading}>
+            <section className={`${styles.section} ${styles.resumeBox}`} aria-busy={resumeLoading}>
+              <h2 className={styles.sectionLabel}>{t.form.resume.label}</h2>
+              <p className={styles.hint}>{t.form.resume.hint}</p>
+              <input ref={resumeRef} className={styles.resumeInput} type="file" aria-label={t.form.resume.upload}
+                accept=".pdf,.txt,.doc,.docx,text/plain,application/pdf" onChange={e => handleResumeUpload(e.target.files?.[0])} />
+              <button type="button" className={styles.resumeUploadBtn} disabled={resumeLoading} onClick={() => resumeRef.current?.click()}>
+                {resumeLoading && <span className={styles.spinner} />}
+                {resumeLoading ? t.form.submitting : (parsedResume.fileName || t.form.resume.upload)}
+              </button>
+              {(parsedResume.skills.length > 0 || parsedResume.role || resumeNotice) && <div className={styles.resumeParsed} role="status">
+                {parsedResume.role && <p>{t.form.resume.role}: <strong>{parsedResume.role}</strong></p>}
+                <div className={styles.resumeParsedHeader}><span>{t.form.resume.parsed}</span><button type="button" onClick={clearParsedResume}>{t.form.resume.clear}</button></div>
+                <div className={styles.tags}>{parsedResume.skills.map(skill => <span key={skill} className={styles.tag}>{skill}</span>)}</div>
+                {!parsedResume.skills.length && <p>{resumeNotice || t.form.resume.empty}</p>}
+              </div>}
+            </section>
+
+            <div className={styles.actions}>
+            <button type="button" className={styles.resetButton} disabled={loading || resumeLoading} onClick={() => { setForm(DEFAULT); setIsDemo(false); setErrors({}); setSkillInput(''); setAcVisible(false); setAcIndex(-1); clearParsedResume() }}>{t.form.reset}</button>
+            <button type="submit" className={styles.submit} disabled={loading} aria-busy={loading}>
               {loading && <span className={styles.spinner}/>}
               {loading ? t.form.submitting : t.form.submit}
             </button>
+            </div>
+            <p className={styles.hint}>{hasGpa ? t.review.ready : t.review.required}<br />{t.review.optional}</p>
           </form>
         </div>
       </div>
 
-      {/* RIGHT GUIDE */}
-      <aside className={styles.formChat}>
-        <div className={styles.chatHeader}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          <span className={styles.chatTitle}>{t.form.guide.title}</span>
-        </div>
+      {/* The former side guide stays available without a second column. */}
+      <details className={styles.guide}>
+        <summary>{t.form.guide.title}</summary>
         <div className={styles.chatBody}>
           <div className={styles.chatMsg}>
             <div className={styles.chatBubble}>{t.form.guide.msg1}</div>
@@ -629,7 +499,10 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
             </div>
           </div>
         </div>
-      </aside>
+        <p>{t.review.progressHint}</p>
+        <p>{t.review.skillsHint}</p><p>{t.review.technicalHint}</p><p>{t.review.softHint}</p>
+        <ul>{t.form.tips.map(tip => <li key={tip}>{tip}</li>)}</ul>
+      </details>
     </div>
   )
 }
