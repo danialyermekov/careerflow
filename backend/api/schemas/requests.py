@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
-from typing import Optional, Literal, Annotated
+from typing import Optional, Literal, Annotated, Any
 from uuid import UUID
 
 class StudentProfile(BaseModel):
@@ -61,15 +61,21 @@ class TrialRequest(BaseModel):
 
 
 class RoadmapProgressRequest(BaseModel):
-    doneSkills: list[str] = []
-    categoryOrder: list[str] = []
-    skillOrders: dict[str, list[str]] = {}
+    doneSkills: list[str] = Field(default_factory=list)
+    categoryOrder: list[str] = Field(default_factory=list)
+    skillOrders: dict[str, list[str]] = Field(default_factory=dict)
     selectedProfession: Optional[str] = None
 
 
 class CourseFilterPreferencesRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    filters: dict = {}
+    filters: dict[str, Any] = Field(default_factory=dict)
+
+
+class CourseFilterRequest(BaseModel):
+    skills_gaps: list[str]
+    lang: str = 'en'
+    filters: dict[str, Any]
 
 class FeedbackRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')

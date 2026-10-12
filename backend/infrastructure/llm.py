@@ -1,6 +1,7 @@
 import json
 import logging
 from collections.abc import Iterator
+from core.settings import get_settings
 
 
 class LLMError(RuntimeError):
@@ -40,7 +41,7 @@ class GeminiProvider:
             api_key=api_key,
             vertexai=False,
             http_options=types.HttpOptions(
-                base_url="https://generativelanguage.googleapis.com", timeout=60000,
+                base_url=get_settings().gemini_base_url, timeout=60000,
             ),
         )
 
@@ -67,7 +68,7 @@ class GeminiProvider:
             logging.getLogger(name).setLevel(logging.WARNING)
         api_key = api_key.strip().strip('\'"')
         with genai.Client(api_key=api_key, vertexai=False, http_options=types.HttpOptions(
-            base_url='https://generativelanguage.googleapis.com', timeout=20000,
+            base_url=get_settings().gemini_base_url, timeout=20000,
             retry_options=types.HttpRetryOptions(attempts=1))) as client:
             response = client.models.generate_content(model=model, contents=self._contents(history, message),
                 config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=600,
@@ -133,7 +134,7 @@ class ClaudeProvider:
 
         # ANTHROPIC_LOG=debug must not expose request options or exception metadata.
         logging.getLogger("anthropic._base_client").setLevel(logging.WARNING)
-        return Anthropic(api_key=api_key, base_url="https://api.anthropic.com", timeout=60.0)
+        return Anthropic(api_key=api_key, base_url=get_settings().anthropic_base_url, timeout=60.0)
 
     def chat(self, api_key: str, system: str, history: list[dict[str, str]], message: str) -> str:
         with self._client(api_key) as client:

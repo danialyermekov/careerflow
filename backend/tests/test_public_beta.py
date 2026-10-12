@@ -7,7 +7,6 @@ from fastapi import HTTPException
 from api import auth
 from infrastructure import database
 from infrastructure import guest_sessions
-import main
 from core import security
 from conftest import TEST_PROFILE
 

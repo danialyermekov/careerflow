@@ -1,6 +1,14 @@
 from conftest import TEST_PROFILE
 
 
+def test_stable_json_endpoints_declare_response_contracts(client):
+    schema = client.get('/openapi.json').json()
+    for path, method, status in [('/recommend', 'post', '200'), ('/chat', 'post', '200'),
+                                  ('/api/feedback', 'get', '200'), ('/feedback', 'post', '201'),
+                                  ('/recommendation/{session_id}/state', 'get', '200')]:
+        assert schema['paths'][path][method]['responses'][status]['content']['application/json']['schema'].get('$ref')
+
+
 def test_recommendation_wire_contract(client):
     result = client.post('/recommend', json=TEST_PROFILE).json()
     assert set(result) == {

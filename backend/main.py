@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.errors import register_error_handlers
+from api.schemas.responses import ErrorResponse
 from api.routes import ai, community, recommendations, site
 from application.runtime import Runtime
 from core.config import CORS_ORIGINS
@@ -10,7 +11,9 @@ from core.security import PublicRequestLimits
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title='CareerFlow API')
+    app = FastAPI(title='CareerFlow API', responses={
+        status: {'model': ErrorResponse} for status in (400, 401, 403, 404, 413, 422, 429, 500, 503)
+    })
     app.state.runtime = Runtime()
     app.middleware('http')(site.indexing_and_canonical_host)
     register_error_handlers(app)

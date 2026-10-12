@@ -34,15 +34,21 @@ class CourseFinderService:
     def _detect_language(self, row) -> str:
         if 'language' in row and safe(row.get('language')):
             text = str(row.get('language')).strip().lower()
-            if text.startswith('en'): return 'en'
-            if text.startswith('ru'): return 'ru'
-            if text.startswith('kk') or text.startswith('kz'): return 'kk'
+            if text.startswith('en'):
+                return 'en'
+            if text.startswith('ru'):
+                return 'ru'
+            if text.startswith('kk') or text.startswith('kz'):
+                return 'kk'
             return 'other'
 
         text = f"{safe(row.get('title')) or ''} {safe(row.get('description')) or ''}"
-        if re.search(r'[ӘәҒғҚқҢңӨөҰұҮүҺһІі]', text): return 'kk'
-        if re.search(r'[А-Яа-яЁё]', text): return 'ru'
-        if re.search(r'[A-Za-z]', text): return 'en'
+        if re.search(r'[ӘәҒғҚқҢңӨөҰұҮүҺһІі]', text):
+            return 'kk'
+        if re.search(r'[А-Яа-яЁё]', text):
+            return 'ru'
+        if re.search(r'[A-Za-z]', text):
+            return 'en'
         return 'other'
 
     def _infer_price_type(self, row) -> str:
@@ -51,16 +57,22 @@ class CourseFinderService:
                 continue
             numeric = pd.to_numeric(row.get(col), errors='coerce')
             if pd.notna(numeric):
-                if col == 'is_paid': return 'paid' if float(numeric) > 0 else 'free'
-                if col == 'is_free': return 'free' if float(numeric) > 0 else 'paid'
+                if col == 'is_paid':
+                    return 'paid' if float(numeric) > 0 else 'free'
+                if col == 'is_free':
+                    return 'free' if float(numeric) > 0 else 'paid'
                 return 'free' if float(numeric) <= 0 else 'paid'
             text = str(row.get(col)).strip().lower()
-            if text in {'free', '0', '0.0', 'false', 'no', 'бесплатно', 'тегін'}: return 'free'
-            if text in {'paid', 'true', 'yes', 'платно', 'ақылы'}: return 'paid'
+            if text in {'free', '0', '0.0', 'false', 'no', 'бесплатно', 'тегін'}:
+                return 'free'
+            if text in {'paid', 'true', 'yes', 'платно', 'ақылы'}:
+                return 'paid'
         
         platform = str(safe(row.get('platform')) or '').strip().lower()
-        if platform in {'udemy', 'udacity'}: return 'paid'
-        if platform in {'stepik', 'coursera', 'edx'}: return 'free'
+        if platform in {'udemy', 'udacity'}:
+            return 'paid'
+        if platform in {'stepik', 'coursera', 'edx'}:
+            return 'free'
         return 'unknown'
 
     def _normalize_price_amount(self, row):
@@ -95,7 +107,7 @@ class CourseFinderService:
 
         # Фильтр по уровню сложности (передается списком или строкой, например: ['Beginner', 'Intermediate'])
         if 'levels' in filters and filters['levels']:
-            target_levels = [l.lower() for l in filters['levels']]
+            target_levels = [level.lower() for level in filters['levels']]
             df = df[df['_level_normalized'].str.lower().isin(target_levels)]
 
         # Фильтр по типу цены ('free', 'paid')

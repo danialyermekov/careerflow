@@ -1,5 +1,4 @@
 import json
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -10,15 +9,17 @@ from api.dependencies import get_llm, get_llm_credentials
 from api.errors import llm_http_error
 from api.routes.recommendations import recommendation_state
 from api.schemas.requests import ChatRequest, TrialRequest
+from api.schemas.responses import ChatResponse, PreviewChatResponse, PreviewStatusResponse, TranscriptionResponse
 from application import ai_trial
 from domain.chat_policy import is_career_chat_allowed, off_topic_response
+from core.logging import log_failure
 from infrastructure import guest_sessions
 from infrastructure.llm import safe_llm_error
 
 router = APIRouter()
 
 
-@router.get('/ai/preview')
+@router.get('/ai/preview', response_model=PreviewStatusResponse, response_model_exclude_unset=True)
 def preview_status(request: Request, response: Response, user=Depends(optional_user)):
     try:
         return ai_trial.status(request, response, user)
@@ -26,7 +27,7 @@ def preview_status(request: Request, response: Response, user=Depends(optional_u
         ai_trial.error('trial_unavailable')
 
 
-@router.post('/ai/preview')
+@router.post('/ai/preview', response_model=PreviewChatResponse)
 def preview_chat(payload: TrialRequest, request: Request, response: Response, user=Depends(optional_user)):
     if request.headers.get('x-demo-session') == 'true':
         result = guest_sessions.state(payload.session_id, guest_sessions.guest_owner(request))['results']
@@ -39,14 +40,14 @@ def preview_chat(payload: TrialRequest, request: Request, response: Response, us
     try:
         answer = ai_trial.answer(result, [item.model_dump() for item in payload.history], payload.message, payload.lang, model)
     except Exception as exc:
-        logging.getLogger('careerflow.preview').warning('Preview generation error: %s: %s', type(exc).__name__, exc)
+        log_failure('Preview generation', exc)
         ai_trial.finish(key, reservation, refund=True)
         ai_trial.error('trial_provider_failed')
     ai_trial.finish(key, reservation)
     return {'response': answer, 'remaining': remaining, 'provider': 'gemini'}
 
 
-@router.post('/chat')
+@router.post('/chat', response_model=ChatResponse)
 def chat(request: ChatRequest, http_request: Request, credentials: tuple[str, str] = Depends(get_llm_credentials),
          user=Depends(optional_user), llm=Depends(get_llm)):
     context = recommendation_state(request.session_id, http_request, user)['results']['context']
@@ -60,7 +61,7 @@ def chat(request: ChatRequest, http_request: Request, credentials: tuple[str, st
         raise llm_http_error(error) from None
 
 
-@router.post('/voice/transcribe')
+@router.post('/voice/transcribe', response_model=TranscriptionResponse)
 async def transcribe_voice(request: Request, lang: str = 'en',
                            credentials: tuple[str, str] = Depends(get_llm_credentials), llm=Depends(get_llm)):
     content = await request.body()

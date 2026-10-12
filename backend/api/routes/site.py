@@ -4,13 +4,14 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 
 from api import auth
+from api.schemas.responses import StatusResponse
 from application import ai_trial
-from core.config import BASE_DIR
+from core.settings import get_settings
 from infrastructure import database
 
-FRONTEND_BUILD_DIR = (BASE_DIR.parent / 'frontend' / 'build').resolve()
+FRONTEND_BUILD_DIR = get_settings().frontend_build_dir.resolve()
 PUBLIC_PAGES = {'', 'about', 'feedback', 'changelog', 'roadmap', 'privacy', 'terms', 'contact', 'disclaimer'}
-CANONICAL_ORIGIN = 'https://careerflow.live'
+CANONICAL_ORIGIN = get_settings().canonical_origin
 PUBLIC_ASSETS = {
     'robots.txt', 'sitemap.xml', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png',
     'favicon-48x48.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'careerflow-og.png', 'manifest.json',
@@ -37,12 +38,12 @@ async def indexing_and_canonical_host(request: Request, call_next):
     return response
 
 
-@health_router.get('/health')
+@health_router.get('/health', response_model=StatusResponse)
 def health():
     return {'status': 'ok'}
 
 
-@health_router.get('/ready')
+@health_router.get('/ready', response_model=StatusResponse)
 def ready():
     with database.get_connection() as conn:
         conn.execute(database.users.select().limit(0))

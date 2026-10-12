@@ -6,7 +6,7 @@ from core import config
 from infrastructure import database
 import feedback_manage
 from core import security
-from test_public_beta import identities, A, B
+from test_public_beta import A, B, identities as identities
 from conftest import TEST_PROFILE
 
 

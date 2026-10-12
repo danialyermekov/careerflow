@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 import main as app_main
 from infrastructure import database, guest_sessions
 from core import security
+from core.settings import PreviewSettings
 import sqlalchemy as sa
 from sqlalchemy.pool import StaticPool
 
@@ -17,6 +18,12 @@ EXPECTED_PROFESSIONS = {
     "Machine Learning Engineer",
     "Software Engineer",
 }
+
+
+@pytest.fixture(autouse=True)
+def isolated_preview_configuration(monkeypatch):
+    # Test environment mutations must never fall back to real local AI secrets.
+    monkeypatch.setitem(PreviewSettings.model_config, 'env_file', None)
 
 
 TEST_PROFILE = {

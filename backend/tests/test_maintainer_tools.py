@@ -1,6 +1,5 @@
 import sqlite3
 import pytest
-import sqlalchemy as sa
 from archive_sqlite import archive
 from feedback_export import export_feedback
 from infrastructure import database

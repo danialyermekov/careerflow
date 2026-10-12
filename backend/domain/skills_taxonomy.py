@@ -137,7 +137,7 @@ SYNONYMS: dict[str, str] = {
     "sklearn":          "scikit-learn",
     "scikit":           "scikit-learn",
     "sk-learn":         "scikit-learn",
-    "tf":               "tensorflow",
+    "tf":               "terraform",  # Preserve the legacy effective mapping of the duplicate key.
     "tf2":              "tensorflow",
     "torch":            "pytorch",
     "hf":               "hugging face",
@@ -195,7 +195,6 @@ SYNONYMS: dict[str, str] = {
     "docker-compose":   "docker",
     "containers":       "docker",
     "containerization": "docker",
-    "tf":               "terraform",    # ambiguous – context-resolved upstream
     "iac":              "terraform",
     "ci/cd":            "jenkins",      # generic CI/CD → Jenkins as anchor
     "cicd":             "jenkins",

@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
@@ -7,7 +8,8 @@ import os
 
 import pytest
 import sqlalchemy as sa
-from fastapi import HTTPException, Response
+from fastapi import Response
+from core.errors import ServiceError
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
@@ -144,7 +146,7 @@ def test_ip_rate_limit_and_global_concurrency(client, recommendation_response, p
     with db.get_connection() as conn:
         conn.execute(db.ai_trial_ip.delete())
         for index in range(2):
-            conn.execute(db.ai_trial_usage.insert().values(identity=str(index), used=1, lease_until=db.now() + ai_trial.timedelta(seconds=60)))
+            conn.execute(db.ai_trial_usage.insert().values(identity=str(index), used=1, lease_until=db.now() + timedelta(seconds=60)))
     assert client.post('/ai/preview', json=payload(recommendation_response['session_id'])).status_code == 429
     assert not provider.called
 
@@ -193,7 +195,7 @@ def test_postgres_concurrent_lifetime_quota(monkeypatch):
                 key, reservation, remaining, model = ai_trial.reserve(request, Response(), user)
                 ai_trial.finish(key, reservation)
                 return True
-            except HTTPException as error:
+            except ServiceError as error:
                 assert error.status_code == 429
                 return False
         with ThreadPoolExecutor(max_workers=8) as pool:
@@ -215,7 +217,7 @@ def test_postgres_concurrent_lifetime_quota(monkeypatch):
             try:
                 ai_trial.reserve(request, Response(), None)
                 return True
-            except HTTPException as error:
+            except ServiceError as error:
                 assert error.status_code in {429, 503}
                 return False
         with ThreadPoolExecutor(max_workers=8) as pool:
