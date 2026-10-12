@@ -29,33 +29,32 @@ backend/
 │   ├── demand_model_params.json
 │   ├── tfidf_vectorizer.joblib
 │   └── ...                   # Preprocessors, taxonomy data, etc.
-├── services/                 # Core domain services
-│   ├── classifier.py         # Classifier ML model wrapper (CatBoost)
-│   ├── course_finder.py      # Roadmap and course extraction logic
-│   ├── demand.py             # Market demand computation (LightGBM)
-│   ├── ai_trial.py           # Server-managed Gemini preview and PostgreSQL quotas
-│   ├── llm.py                # LLM context builder and chat handler (Claude/Gemini)
-│   ├── resume_parser.py      # Text-based PDF and TXT skill extraction
-│   └── skill_matcher.py      # Skill comparison and scoring logic
+├── api/                      # HTTP, auth dependencies and separate transport schemas
+│   ├── routes/               # recommendations, ai, community, site
+│   └── schemas/              # requests.py and responses.py
+├── application/              # Recommendation use case, lazy per-app Runtime, AI preview
+├── domain/                   # Pure ranking, roadmap, taxonomy and chat policy
+├── infrastructure/
+│   ├── ml/                   # Artifact loading/preparation, features and inference
+│   ├── database.py           # SQLAlchemy Core persistence
+│   ├── ai_trial_store.py     # PostgreSQL preview quota reservations
+│   ├── guest_sessions.py     # Process-local temporary recommendations
+│   ├── llm.py                # External Claude/Gemini integrations
+│   └── resume_parser.py      # PDF/TXT extraction
+├── core/                     # Settings, derived paths, errors, safe logging and limits
 ├── tests/                    # Pytest test cases validating API limits & logic
 │   ├── test_api.py
 │   └── test_recommendations.py
 ├── utils/                    # Utility scripts (type checking, conversions)
-├── config.py                 # Centralized configuration (Paths, Constants)
-├── auth.py                   # Supabase token verification
-├── database.py               # Private PostgreSQL schema and persistence
-├── guest_sessions.py         # Temporary guest recommendations
 ├── migrations/               # Alembic schema revisions
 ├── alembic.ini
 ├── .env.example              # Backend configuration template
-├── features.py               # Feature engineering logic for ML inference
-├── main.py                   # FastAPI Application Entry Point
+├── main.py                   # Composition root: create_app() and main:app
 ├── pyproject.toml            # Project dependencies and configurations
 ├── uv.lock                   # Locked backend dependencies
-├── roadmap.py                # Roadmap generation algorithms
-├── schemas.py                # Pydantic data models for API requests/responses
-└── top_profession.py         # Final aggregation and weighting algorithm
 ```
+
+See [architecture](../docs/architecture.md) for the dependency graph and request flows. All deployment settings are typed in `core/settings.py`; `core/config.py` contains derived artifact paths. Environment variables override `.env`, including `${VAR}` interpolation, without mutating the process environment. `MODELS_DIR`, `DATA_DIR` and `FRONTEND_BUILD_DIR` can override deployment paths; restart after changing runtime settings.
 
 ---
 
@@ -93,7 +92,7 @@ The backend requires **Python >=3.11,<3.14**, as specified in [pyproject.toml](p
 4. **Optional AI assistant:**
    Gemini Free Preview is enabled on production with up to three messages per preview identity; local installations default to disabled. Its server key is `GEMINI_DEMO_API_KEY`, with `API_KEY` as a legacy fallback **for Preview only**. BYOK never falls back to server keys, and no owner Anthropic key is required.
 
-   In the frontend AI assistant panel, select Claude or Gemini, enter a key, and select **Use key** for the currently loaded page. **Remove key** disables BYOK immediately. The frontend keeps credentials only in memory until a full refresh or page close, and sends `X-LLM-Provider` and `X-LLM-API-Key` exclusively to `/chat`, `/chat/stream`, and `/voice/transcribe`. The backend uses short-lived SDK clients and does not persist BYOK keys. Voice transcription is Gemini-only. Missing BYOK credentials return 400; BYOK provider errors are sanitized, including SSE failures. Preview exception text is currently logged separately and still needs a privacy review. See [AI Advisor](../README.md#ai-advisor) for the full flow, quotas and security limits.
+   In the frontend AI assistant panel, select Claude or Gemini, enter a key, and select **Use key** for the currently loaded page. **Remove key** disables BYOK immediately. The frontend keeps credentials only in memory until a full refresh or page close, and sends `X-LLM-Provider` and `X-LLM-API-Key` exclusively to `/chat`, `/chat/stream`, and `/voice/transcribe`. The backend uses short-lived SDK clients and does not persist BYOK keys. Voice transcription is Gemini-only. Missing BYOK credentials return 400; provider errors are sanitized, including SSE failures. Operational failures log the operation and exception type, excluding provider exception text and credentials. See [AI Advisor](../README.md#ai-advisor) for the full flow, quotas and security limits.
 
 ---
 
@@ -109,7 +108,9 @@ The interactive Swagger API documentation will be available at: [http://localhos
 **Running Tests:**
 From `backend/`, run unit/API tests without the separate running-server recommendation tests:
 ```bash
-uv run --locked --extra dev pytest --ignore=tests/test_recommendations.py
+uv run --locked --extra dev python -m pytest --ignore=tests/test_recommendations.py
+uv run --locked python -m ruff check .
+uv run --locked python -m pyright
 ```
 
 `tests/test_recommendations.py` sends guest requests to a running development backend; `CAREERFLOW_TEST_API_URL` defaults to `http://localhost:8000`. PostgreSQL integration tests require explicit `CAREERFLOW_TEST_POSTGRES=1` and a disposable database. Never run these against production. See [Testing](../README.md#testing) for frontend and CI checks.
@@ -150,3 +151,7 @@ See the root [API endpoint table](../README.md#api-endpoints) for streaming, res
 *   **Skill Matcher & Course Finder**: Uses TF-IDF/cosine skill similarity and deterministic gap/roadmap rules, then looks up courses in `data/all_courses.csv`. Language and some price handling are heuristic; price, availability and rating freshness are unverified.
 
 The exact weighting formula, dataset provenance, saved experiment metrics and limitations are documented in the root [README](../README.md#recommendation-pipeline).
+
+## Evaluation tools
+
+`uv run --locked python evaluate_speed.py` runs local guest-mode benchmarks and writes the existing report/plots. It never initializes a database or creates shared demo users. LLM timing is explicitly simulated unless the benchmark method receives BYOK credentials. `uv run --locked python optimize_weights.py --help` documents the offline optimizer, which collects scores from the configured local test API using guest credentials and reuses the production ranking function. Neither tool updates production weights or trained artifacts.
