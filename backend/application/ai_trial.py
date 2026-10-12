@@ -11,8 +11,8 @@ import sqlalchemy as sa
 from fastapi import HTTPException
 from sqlalchemy.dialects.postgresql import insert
 
-import database as db
-from services.llm import GeminiProvider, LLMService
+from infrastructure import database as db
+from infrastructure.llm import GeminiProvider, LLMService
 
 COOKIE = 'careerflow_ai_trial'
 MODELS = {'gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'}

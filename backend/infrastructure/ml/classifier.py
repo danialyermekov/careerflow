@@ -1,10 +1,8 @@
-import joblib
-import json
-from catboost import CatBoostClassifier
 import pandas as pd
 import numpy as np
-from features import classification_features
-from config import CLASSIFIER_PATH, PREPROCESSOR_PATH_CLASSIFIER, CLASS_NAMES
+from infrastructure.ml.features import classification_features
+from core.config import CLASS_NAMES
+from infrastructure.ml.artifacts import load_classifier
 from utils.python_types import to_python_types
 
 SKILL_FEATURE_LABELS = {
@@ -74,8 +72,7 @@ DERIVED_SKILL_FEATURES = {
 class ClassifierService:
     def __init__(self):
         '''Load the pre-trained classifier model and its associated preprocessor from disk.'''
-        self.model = joblib.load(CLASSIFIER_PATH)
-        self.preprocessor = joblib.load(PREPROCESSOR_PATH_CLASSIFIER) 
+        self.model, self.preprocessor = load_classifier()
 
     def _prepare_features(self, profile: dict) -> tuple[pd.DataFrame, list[str]]:
         X = pd.DataFrame([profile])

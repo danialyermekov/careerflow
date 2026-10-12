@@ -20,7 +20,7 @@ from collections import defaultdict, Counter
 import pandas as pd
 
 # ── import from taxonomy module ────────────────────────────────────────────
-from skills_taxonomy import (
+from domain.skills_taxonomy import (
     STOP_WORDS,
     SYNONYMS,
     FRAMEWORK_LANGUAGE_MAP,

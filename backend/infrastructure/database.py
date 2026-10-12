@@ -5,7 +5,7 @@ from functools import lru_cache
 from uuid import UUID, uuid4
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
-from config import DATABASE_URL
+from core.config import DATABASE_URL
 
 metadata = sa.MetaData(schema='careerflow')
 uuid_type = sa.Uuid(as_uuid=False)
@@ -218,7 +218,7 @@ def delete_recommendation_history(user_id):
     return {'deleted': True}
 
 def save_feedback(payload, user_id=None):
-    from config import DEVELOPER_USER_IDS
+    from core.config import DEVELOPER_USER_IDS
     kind = payload['type']
     with get_connection() as conn:
         conn.execute(feedback.insert().values(id=str(uuid4()), user_id=user_id, created_at=now(), updated_at=now(),
@@ -263,7 +263,7 @@ def set_feedback_vote(feedback_id, user_id, voted):
 
 
 def moderate_feedback(feedback_id, action, *, origin=None, status=None, roadmap_key=None, note=''):
-    from config import DEVELOPER_USER_IDS
+    from core.config import DEVELOPER_USER_IDS
     with get_connection() as conn:
         row = conn.execute(sa.select(feedback).where(feedback.c.id == feedback_id).with_for_update()).mappings().first()
         if row is None:

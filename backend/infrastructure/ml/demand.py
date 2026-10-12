@@ -1,33 +1,17 @@
-import joblib
-import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from config import VACANCY_DATA_PATH, MODELS_DIR, PREPROCESSOR_PATH_DEMAND
-from features import demand_features
-from lightgbm import LGBMRegressor
+from infrastructure.ml.features import demand_features
+from infrastructure.ml.artifacts import load_demand, prepare_demand_model
 
 class DemandService:
     def __init__(self):
-        self.df = pd.read_csv(VACANCY_DATA_PATH)
-        self.df['job_posted_date'] = pd.to_datetime(self.df['job_posted_date'])
-        with open(MODELS_DIR / 'lasso_features.json', 'r') as f:
-            self.features = json.load(f)
-        with open(MODELS_DIR / 'demand_model_params.json', 'r') as f:
-            self.model_params = json.load(f)
-        self.preprocessor = joblib.load(PREPROCESSOR_PATH_DEMAND)
-        self.model = LGBMRegressor(**self.model_params, verbose=-1)
+        self.df, self.features, self.model_params, self.preprocessor = load_demand()
         self._cache = {}
 
         # Precompute the trained model during startup to avoid retraining on every request
         pred_date = self._get_prediction_date()
-        df_train = self.df[self.df['job_posted_date'] <= pred_date].copy()
-        df_features = demand_features(df_train)
-        df_features = df_features.dropna()
-        X_train = df_features.drop(columns=['vacancy_count'])
-        X_train_processed = self.preprocessor.transform(X_train)
-        y_train = df_features['vacancy_count']
-        self.model.fit(X_train_processed[self.features], y_train)
+        self.model = prepare_demand_model(self.df, self.features, self.model_params, self.preprocessor, pred_date)
 
     def _get_prediction_date(self) -> pd.Timestamp:
         """

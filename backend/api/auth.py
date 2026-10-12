@@ -2,8 +2,8 @@
 from uuid import UUID
 import httpx
 from fastapi import Depends, HTTPException, Request
-from config import SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY
-import database
+from core.config import SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY
+from infrastructure import database
 
 def verify_access_token(token: str) -> dict:
     if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:

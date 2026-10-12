@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv, dotenv_values
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env', override=False)
 SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
 # Local React configuration contains public values only; Compose passes this explicitly.

@@ -11,12 +11,12 @@ from fastapi import HTTPException, Response
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
-import auth
-import database as db
+from api import auth
+from infrastructure import database as db
 import main
 from conftest import TEST_PROFILE
-from services import ai_trial
-from services.llm import GeminiProvider
+from application import ai_trial
+from infrastructure.llm import GeminiProvider
 
 
 @pytest.fixture(autouse=True)

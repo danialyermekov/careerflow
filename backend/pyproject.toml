@@ -36,23 +36,12 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-asyncio_default_fixture_loop_scope = "function"
 
 [tool.setuptools]
 py-modules = [
-    "config",
-    "auth",
-    "guest_sessions",
-    "security",
-    "database",
-    "features",
     "main",
-    "roadmap",
-    "schemas",
-    "skills_taxonomy",
-    "top_profession",
 ]
 
 [tool.setuptools.packages.find]
-include = ["services", "services.*", "utils", "utils.*"]
+include = ["api", "api.*", "application", "application.*", "domain", "domain.*", "infrastructure", "infrastructure.*", "core", "core.*", "utils", "utils.*"]
 exclude = ["tests", "tests.*"]

@@ -1,6 +1,6 @@
 from alembic import context
 import sqlalchemy as sa
-from database import get_engine, metadata
+from infrastructure.database import get_engine, metadata
 
 def configure(connection=None):
     context.configure(connection=connection, dialect_name='postgresql', target_metadata=metadata,

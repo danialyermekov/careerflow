@@ -6,11 +6,11 @@ import pandas as pd
 import pytest
 
 from conftest import TEST_PROFILE
-from services.classifier import ClassifierService
-from services.course_finder import CourseFinderService
-from services.demand import DemandService
-from services.skill_matcher import SkillMatcherService
-from top_profession import get_top_profession
+from infrastructure.ml.classifier import ClassifierService
+from infrastructure.ml.course_finder import CourseFinderService
+from infrastructure.ml.demand import DemandService
+from infrastructure.ml.skill_matcher import SkillMatcherService
+from domain.ranking import get_top_profession
 
 
 def _normalize(value):

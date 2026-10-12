@@ -1,7 +1,6 @@
-import joblib
 from sklearn.metrics.pairwise import cosine_similarity
-from config import VECTORIZER_PATH, PROFESSION_VECTORS_PATH, PROFESSION_NAMES_PATH
-from skills_taxonomy import (
+from infrastructure.ml.artifacts import load_skill_matcher
+from domain.skills_taxonomy import (
     normalize_skill,
     STOP_WORDS,
     SYNONYMS,
@@ -11,12 +10,14 @@ from skills_taxonomy import (
 
 class SkillMatcherService:
     def __init__(self):
-        with open(VECTORIZER_PATH, 'rb') as f:
-            self.vectorizer = joblib.load(f)
-        with open(PROFESSION_VECTORS_PATH, 'rb') as f:
-            self.profession_vectors = joblib.load(f)
-        with open(PROFESSION_NAMES_PATH, 'rb') as f:
-            self.profession_names = joblib.load(f)
+        self.vectorizer, self.profession_vectors, self.profession_names = load_skill_matcher()
+
+    def _student_vector(self, student_raw_skills: list[str]):
+        student_skills = {
+            normalized for raw in student_raw_skills
+            if (normalized := normalize_skill(raw)) and normalized not in STOP_WORDS
+        }
+        return student_skills, self.vectorizer.transform([" ".join(sorted(student_skills))])
 
     def get_scores(self, student_raw_skills: list[str]) -> dict:
         """Calculates cosine similarity between student skills and profession profiles.
@@ -25,19 +26,12 @@ class SkillMatcherService:
             student_raw_skills: List of length (num_student_skills)
             Returns: Dict of length (num_professions) with probabilities
         """
-        student_skills = set()
-        for raw in student_raw_skills:
-            normalized = normalize_skill(raw)
-            if normalized and normalized not in STOP_WORDS:
-                student_skills.add(normalized)
+        student_skills, student_vector = self._student_vector(student_raw_skills)
                 
         if not student_skills:
             return {name: 0.0 for name in self.profession_names}
 
         # The vectorizer includes bigrams, so set iteration order must be stable.
-        student_doc = " ".join(sorted(student_skills))
-        student_vector = self.vectorizer.transform([student_doc]) 
-
         scores = cosine_similarity(student_vector, self.profession_vectors)[0]
 
         return dict(sorted(
@@ -53,14 +47,7 @@ class SkillMatcherService:
             student_raw_skills: List of length (num_student_skills)
             Returns: List of dicts, sorted by tfidf_weight descending
         """
-        student_skills = set()
-        for raw in student_raw_skills:
-            normalized = normalize_skill(raw)
-            if normalized and normalized not in STOP_WORDS:
-                student_skills.add(normalized)
-
-        student_doc = " ".join(sorted(student_skills))
-        student_vector = self.vectorizer.transform([student_doc]) 
+        _, student_vector = self._student_vector(student_raw_skills)
 
         vocab = self.vectorizer.vocabulary_
         user_skills_ranked = []

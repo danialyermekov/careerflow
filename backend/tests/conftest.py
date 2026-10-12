@@ -2,9 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main as app_main
-import database
-import guest_sessions
-import security
+from infrastructure import database, guest_sessions
+from core import security
 import sqlalchemy as sa
 from sqlalchemy.pool import StaticPool
 
@@ -170,11 +169,10 @@ class DummyLLM:
 @pytest.fixture
 def mocked_services(monkeypatch):
     course_finder = DummyCourseFinder()
-    monkeypatch.setattr(app_main, "skill_matcher", DummySkillMatcher())
-    monkeypatch.setattr(app_main, "classifier", DummyClassifier())
-    monkeypatch.setattr(app_main, "demand", DummyDemand())
-    monkeypatch.setattr(app_main, "course_finder", course_finder)
-    monkeypatch.setattr(app_main, "llm", DummyLLM())
+    monkeypatch.setattr(app_main.app.state.runtime, 'instances', {
+        'skill_matcher': DummySkillMatcher(), 'classifier': DummyClassifier(),
+        'demand': DummyDemand(), 'course_finder': course_finder, 'llm': DummyLLM(),
+    })
     guest_sessions.sessions.clear()
     security.buckets.clear()
     return course_finder

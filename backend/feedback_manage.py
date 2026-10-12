@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from uuid import UUID
 import sqlalchemy as sa
-import database
+from infrastructure import database
 from feedback_export import export_feedback
 
 

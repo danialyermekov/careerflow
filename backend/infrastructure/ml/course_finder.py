@@ -1,18 +1,16 @@
 import pandas as pd
 import numpy as np
 import re
-import json
 import threading
 from typing import Any
-from roadmap import generate_roadmap
-from config import COURSES_PATH, ROADMAP_PATH, TOP_N_COURSES
+from domain.roadmap import generate_roadmap
+from core.config import TOP_N_COURSES
+from infrastructure.ml.artifacts import load_courses
 from utils.python_types import safe
 
 class CourseFinderService:
     def __init__(self):
-        self.courses = pd.read_csv(COURSES_PATH)
-        with open(ROADMAP_PATH, 'r') as f:
-            self.profession_profiles = json.load(f)
+        self.courses, self.profession_profiles = load_courses()
         # Thread-safe in-memory cache for course matching
         self._cache_lock = threading.Lock()
         self._course_cache = {}

@@ -5,7 +5,7 @@ import os
 import pytest
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
-import database
+from infrastructure import database
 import main
 from test_public_beta import test_full_user_isolation_and_ownership as isolation_scenario, A, B
 from test_public_feedback import test_publication_requires_consent_moderation_and_verified_origin as publication_scenario
@@ -13,7 +13,7 @@ from test_public_feedback import test_voting_is_authenticated_idempotent_scoped_
 
 @pytest.mark.skipif(os.getenv('CAREERFLOW_TEST_POSTGRES') != '1', reason='Set CAREERFLOW_TEST_POSTGRES=1 for a transactional Supabase test')
 def test_postgres_user_isolation_and_atomicity(monkeypatch, mocked_services):
-    import auth
+    from api import auth
     engine = database.get_engine()
     with engine.connect() as raw:
         transaction = raw.begin()
