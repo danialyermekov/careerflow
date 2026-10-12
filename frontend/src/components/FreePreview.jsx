@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { getTrialStatus, sendTrialMessage } from '../utils/api'
 
-export default function FreePreview({ sessionId }) {
+export default function FreePreview({ sessionId, careerContext }) {
   const { t, lang } = useApp()
   const text = t.experience
   const [quota, setQuota] = useState(null)
@@ -18,12 +18,18 @@ export default function FreePreview({ sessionId }) {
   const [messages, setMessages] = useState([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const active = useRef(false)
 
   useEffect(() => {
     let active = true
     getTrialStatus().then(value => { if (active) setQuota(value) }).catch(() => { if (active) setError('unavailable') })
     return () => { active = false }
   }, [sessionId])
+
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
 
   const handleConsentChange = event => {
     const checked = event.target.checked
@@ -38,14 +44,20 @@ export default function FreePreview({ sessionId }) {
     if (!consent || busy || !quota?.available || !quota.remaining || !message || message.length > 1000) return
     setBusy(true); setError('')
     try {
-      const reply = await sendTrialMessage(sessionId, messages, message, lang)
+      const history = careerContext ? [...messages.slice(-3), { role: 'user', content: careerContext }] : messages
+      const reply = await sendTrialMessage(sessionId, history, message, lang)
+      if (!active.current) return
       setMessages(previous => [...previous, { role: 'user', content: message }, { role: 'assistant', content: reply.response }])
       setQuota(previous => ({ ...previous, remaining: reply.remaining }))
       setInput('')
     } catch (failure) {
+      if (!active.current) return
       setError(failure.code === 'trial_exhausted' ? 'exhausted' : ['trial_busy', 'trial_rate_limited'].includes(failure.code) ? 'busy' : failure.code === 'trial_provider_failed' ? 'failed' : 'unavailable')
-      try { setQuota(await getTrialStatus()) } catch { setQuota(null) }
-    } finally { setBusy(false) }
+      try {
+        const status = await getTrialStatus()
+        if (active.current) setQuota(status)
+      } catch { if (active.current) setQuota(null) }
+    } finally { if (active.current) setBusy(false) }
   }
 
   const enabled = quota?.available && quota.remaining > 0 && consent && !busy
@@ -56,12 +68,14 @@ export default function FreePreview({ sessionId }) {
         <h3>{text.free}</h3>
         <p className="previewSubtitle">{text.freeText}</p>
         {quota && <p className="previewQuota" role="status">{text.remaining(quota.remaining, quota.total)}</p>}
+        {quota?.total > 0 && <div className="previewQuotaTrack" role="progressbar" aria-label={text.free} aria-valuemin={0} aria-valuemax={quota.total} aria-valuenow={quota.remaining}><i style={{ width: `${Math.max(0, Math.min(100, quota.remaining / quota.total * 100))}%` }} /></div>}
         {!quota && !error && <p className="previewStatus" role="status">{t.beta.loading}</p>}
         {(quota?.available === false || error === 'unavailable') && <p className="previewStatus previewUnavailable" role="status">{text.unavailable}</p>}
         {quota?.available && quota.remaining === 0 && <p className="previewStatus previewExhausted">{text.exhausted}</p>}
       </div>
 
-      <div className="previewMessages" aria-live="polite">
+      <div className="previewMessages" role="log" aria-label={t.review.advisorConversation} aria-live="polite">
+        {!messages.length && <p className="previewEmpty">{t.results.askAnything}</p>}
         {messages.map((message, index) => (
           <div key={index} className={`previewMessage ${message.role === 'assistant' ? 'previewAssistant' : 'previewUser'}`}>
             <p>
@@ -76,7 +90,7 @@ export default function FreePreview({ sessionId }) {
         <p className="previewAlert" role="alert">{text[error] || text.failed}</p>
       )}
 
-      <div className="previewSuggestions" aria-label="Suggested questions">
+      <div className="previewSuggestions" aria-label={t.review.advisorSuggestions}>
         {text.suggestions.map(question => (
           <button
             key={question}

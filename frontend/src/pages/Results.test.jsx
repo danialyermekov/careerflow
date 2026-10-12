@@ -7,6 +7,7 @@ import { translations } from '../i18n'
 import { clearLLMSettings, getLLMSettings, saveLLMSettings } from '../utils/llmSettings'
 import * as api from '../utils/api'
 import Results, { getCourseProviderUrl } from './Results'
+import * as auth from '../context/AuthContext'
 
 jest.mock('../utils/api')
 
@@ -85,13 +86,13 @@ describe('Results component', () => {
 
   test('real assistant is disabled without a key and responds immediately to save/remove', async () => {
     expect(container.textContent).toContain(translations.en.llm.noKey)
-    expect(container.querySelector('textarea[placeholder]').disabled).toBe(true)
+    expect(container.querySelector('.chatInputField').disabled).toBe(true)
     await act(async () => saveLLMSettings('anthropic', 'test-only-secret'))
-    expect(container.querySelector('textarea[placeholder]').disabled).toBe(false)
+    expect(container.querySelector('.chatInputField').disabled).toBe(false)
     expect(container.querySelector(`button[aria-label="${translations.en.results.voiceRecord}"]`).disabled).toBe(true)
     expect(container.textContent).toContain(translations.en.llm.voiceGemini)
     await act(async () => clearLLMSettings())
-    expect(container.querySelector('textarea[placeholder]').disabled).toBe(true)
+    expect(container.querySelector('.chatInputField').disabled).toBe(true)
     expect(container.textContent).toContain(translations.en.llm.noKey)
     expect(api.sendChatStream).not.toHaveBeenCalled()
   })
@@ -106,7 +107,7 @@ describe('Results component', () => {
       ? { value: new TextEncoder().encode(chunks.shift()), done: false }
       : { done: true }) }
     api.sendChatStream.mockResolvedValue({ ok: true, body: { getReader: () => reader } })
-    const input = container.querySelector('textarea[placeholder]')
+    const input = container.querySelector('.chatInputField')
     await act(async () => Simulate.change(input, { target: { value: 'Career advice', style: {}, scrollHeight: 20 } }))
     await act(async () => container.querySelector(`button[aria-label="${translations.en.results.chatSend}"]`).click())
     expect(container.textContent).toContain(translations.en.llm.errors.key_rejected)
@@ -133,7 +134,7 @@ describe('Results component', () => {
     const closeBtn = container.querySelector(`button[title="${translations.en.results.closeAiPanel}"]`)
     expect(closeBtn).not.toBeNull()
     await act(async () => closeBtn.click())
-    expect(container.querySelector('.chatSidebar')).toBeNull()
+    expect(container.querySelector('.advisorModal[open]')).toBeNull()
 
     // Click the top recommendation CTA button
     const ctaBtn = container.querySelector('button[aria-label*="Ask"]')
@@ -241,7 +242,7 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => button(translations.en.results.tabs.best).click())
     expect(container.querySelectorAll('[data-tour-slot="recommendation"],[data-tour-slot="explanation"]')).toHaveLength(2)
     await act(async () => container.querySelector('button[aria-label*="Ask"]').click())
-    expect(container.querySelector('.chatSidebar')).not.toBeNull()
+    expect(container.querySelector('.advisorModal[open] .chatSidebar')).not.toBeNull()
     expect(api.sendTrialMessage).not.toHaveBeenCalled()
   })
 
@@ -717,6 +718,237 @@ describe('editorial Learning Roadmap', () => {
     expect(skill('python').textContent).toContain(translations[lang].review.selfMarked)
     await click(container.querySelector('.roadmapAdvisor button'))
     expect(container.querySelector('.chatSidebar')).not.toBeNull()
+    expect(api.sendTrialMessage).not.toHaveBeenCalled(); expect(api.sendChatStream).not.toHaveBeenCalled()
+  })
+})
+
+describe('editorial History and Feedback', () => {
+  const result = { session_id: 'current-history', persistent: true, top_profession: 'Data Analyst', final_scores: { 'Data Analyst': .8, 'Cloud Engineer': .6 }, skill_scores: {}, classification_scores: {}, demand_scores: {}, roadmap_with_courses: {}, _formData: { skills: ['sql'], gpa: 3.4, field_of_study: 'Computer Science' } }
+  const previous = { id: 'previous-record', createdAt: '2026-10-09T12:00:00Z', selectedProfession: 'Cloud Engineer', top_profession: 'Data Analyst', results: { ...result, session_id: 'previous-history' }, progress: { done: [], categoryOrder: [], skillOrders: {} } }
+  let container, root, onHistorySelect
+  const click = async el => act(async () => el.click())
+  const openHistory = async () => click(container.querySelector('#results-tab-history'))
+  beforeEach(async () => {
+    global.IS_REACT_ACT_ENVIRONMENT = true
+    localStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
+    jest.spyOn(auth, 'useAuth').mockReturnValue({ user: { id: 'test-owner' } })
+    api.getRecommendationState.mockResolvedValue({ progress: {} })
+    api.saveRoadmapProgress.mockResolvedValue({}); api.saveCourseFilterPreferences.mockResolvedValue({})
+    api.getRecommendationHistory.mockResolvedValue({ items: [{ ...previous, id: 'current-record', results: result, selectedProfession: 'Data Analyst' }, previous] })
+    api.clearRecommendationHistory.mockResolvedValue({}); api.submitFeedback.mockResolvedValue({ submitted: true })
+    onHistorySelect = jest.fn(); container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
+    await act(async () => root.render(<AppProvider><Results results={result} onHistorySelect={onHistorySelect} /></AppProvider>))
+    await openHistory()
+  })
+  afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); jest.restoreAllMocks() })
+
+  test('current and previous cards use actual selected-career scores, dates and profile data with inspect navigation', async () => {
+    const cards = container.querySelectorAll('.historyRecord')
+    expect(cards).toHaveLength(2)
+    expect(cards[0].textContent).toContain('Current recommendation'); expect(cards[0].querySelector('.historyRecordScore strong').textContent).toBe('80.0 / 100')
+    expect(cards[0].textContent).toContain('Computer Science'); expect(cards[0].textContent).toContain('3.4')
+    expect(cards[1].textContent).toContain('Previous recommendation'); expect(cards[1].textContent).toContain('Cloud Engineer'); expect(cards[1].textContent).toContain('60.0 / 100')
+    expect(new Date(cards[1].querySelector('time').dateTime).getTime()).toBe(new Date(previous.createdAt).getTime())
+    expect(container.querySelector('.historyFeedbackLayout .feedbackColumn form')).not.toBeNull()
+    await click(cards[1].querySelector('button'))
+    expect(onHistorySelect).toHaveBeenCalledWith(expect.objectContaining({ session_id: 'previous-history' }))
+    expect(container.querySelector('#results-tab-best').getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('.bestName').textContent).toBe('Cloud Engineer')
+  })
+
+  test('history clear retains its existing confirmation and guest history does not request account storage', async () => {
+    const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    await click(container.querySelector('.historyPanel .historyClear'))
+    expect(api.clearRecommendationHistory).not.toHaveBeenCalled()
+    confirm.mockReturnValue(true)
+    await click(container.querySelector('.historyPanel .historyClear'))
+    expect(api.clearRecommendationHistory).toHaveBeenCalledTimes(1)
+    expect(container.querySelectorAll('.historyRecord')).toHaveLength(1)
+    act(() => root.unmount()); root = createRoot(container)
+    auth.useAuth.mockReturnValue({ user: null }); api.getRecommendationHistory.mockClear()
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, persistent: false }} /></AppProvider>)); await openHistory()
+    expect(container.querySelector('.historyPanel').textContent).toContain(translations.en.beta.guestNote)
+    expect(container.querySelector('.historyPanel .historyClear')).toBeNull()
+    expect(api.getRecommendationHistory).not.toHaveBeenCalled()
+  })
+
+  test('feedback draft survives tab changes and review submission retains consent and session payload', async () => {
+    const form = container.querySelector('.feedbackColumn form')
+    await act(async () => Simulate.change(form.querySelector('textarea'), { target: { value: 'Clear explanation.' } }))
+    const rating = form.querySelector('input[type="radio"][value="4"]')
+    expect(rating).not.toBeNull()
+    await act(async () => Simulate.change(rating, { target: { value: '4', checked: true } }))
+    await act(async () => Simulate.change(form.querySelector('input[type="checkbox"]'), { target: { checked: true } }))
+    await click(container.querySelector('#results-tab-roadmap')); await openHistory()
+    expect(container.querySelector('.feedbackColumn textarea').value).toBe('Clear explanation.')
+    expect(container.querySelector('.feedbackColumn input[value="4"]').checked).toBe(true)
+    await act(async () => Simulate.submit(container.querySelector('.feedbackColumn form')))
+    expect(api.submitFeedback).toHaveBeenLastCalledWith({ type: 'review', rating: 4, title: null, message: 'Clear explanation.', reproduction_steps: '', public_consent: true, session_id: 'current-history', website: '' })
+    expect(container.querySelector('.feedbackColumn [role="status"]').textContent).toContain(translations.en.product.thanks)
+  })
+})
+
+describe('editorial AI Advisor drawer', () => {
+  const result = { session_id: 'advisor-current', top_profession: 'Data Analyst', final_scores: { 'Data Analyst': .8, 'Cloud Engineer': .6 }, skill_scores: {}, classification_scores: {}, demand_scores: {}, roadmap_with_courses: {}, _formData: { skills: ['sql'] } }
+  let container, root
+  const click = async el => act(async () => el.click())
+  const drawer = () => container.querySelector('.advisorModal[open]')
+  const mode = async name => click(container.querySelector(`.advisorModes button[data-mode="${name}"]`))
+  beforeEach(async () => {
+    global.IS_REACT_ACT_ENVIRONMENT = true; global.TextDecoder = TextDecoder
+    localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
+    HTMLElement.prototype.scrollIntoView = jest.fn()
+    api.getRecommendationState.mockResolvedValue({ progress: {} }); api.getRecommendationHistory.mockResolvedValue({ items: [] })
+    api.saveRoadmapProgress.mockResolvedValue({}); api.saveCourseFilterPreferences.mockResolvedValue({})
+    api.getTrialStatus.mockResolvedValue({ available: true, remaining: 3, total: 3 })
+    api.sendTrialMessage.mockResolvedValue({ response: 'Learn SQL first.', remaining: 2 })
+    container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
+    await act(async () => root.render(<AppProvider><Results results={result} /></AppProvider>))
+  })
+  afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); jest.restoreAllMocks() })
+
+  test('opening from an alternative comparison preserves page state and exposes actual career context with no AI send', async () => {
+    await click(container.querySelector('#results-tab-all'))
+    await click(container.querySelector('.careerSelect[data-profession="Cloud Engineer"]'))
+    const underlying = container.querySelector('#results-panel'), before = underlying.textContent
+    const trigger = container.querySelector('.resultActions button')
+    await act(async () => { trigger.focus(); trigger.click() })
+    expect(drawer()).not.toBeNull(); expect(drawer().getAttribute('aria-modal')).toBe('true')
+    expect(drawer().querySelector('.advisorContext').textContent).toContain('Cloud Engineer')
+    expect(drawer().querySelector('.advisorContext').textContent).toContain('60.0 / 100')
+    expect(container.querySelector('#results-panel')).toBe(underlying); expect(underlying.textContent).toBe(before)
+    expect(container.querySelector('#results-tab-all').getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(drawer().querySelector('.chatCloseBtn'))
+    expect(document.body.style.overflow).toBe('hidden')
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true })))
+    expect(drawer()).toBeNull(); expect(document.activeElement).toBe(trigger); expect(document.body.style.overflow).not.toBe('hidden')
+    expect(api.sendTrialMessage).not.toHaveBeenCalled(); expect(api.sendChatStream).not.toHaveBeenCalled()
+  })
+
+  test('free consent, draft, quota and conversation survive closing and mode changes', async () => {
+    const trigger = container.querySelector('.aiFab')
+    await act(async () => { trigger.focus(); trigger.click() })
+    const consent = container.querySelector('.freePreview input[type="checkbox"]')
+    await act(async () => Simulate.change(consent, { target: { checked: true } }))
+    await act(async () => Simulate.change(container.querySelector('.freePreview textarea'), { target: { value: 'Which career skill next?' } }))
+    await click(container.querySelector('.freePreview button[type="submit"]'))
+    expect(container.querySelector('.previewMessages').textContent).toContain('Learn SQL first.')
+    await act(async () => Simulate.change(container.querySelector('.freePreview textarea'), { target: { value: 'Career draft' } }))
+    await mode('byok'); await mode('preview')
+    await click(container.querySelector('.chatCloseBtn'))
+    expect(drawer()).toBeNull(); expect(document.activeElement).toBe(trigger)
+    await click(trigger)
+    expect(container.querySelector('.previewMessages').textContent).toContain('Learn SQL first.')
+    expect(consent.checked).toBe(true)
+    expect(container.querySelector('.freePreview textarea').value).toBe('Career draft')
+    expect(container.querySelector('.previewQuota').textContent).toContain('2 of 3')
+    expect(api.sendTrialMessage).toHaveBeenCalledTimes(1)
+    await click(container.querySelector('.advisorBackdrop'))
+    expect(drawer()).toBeNull()
+  })
+
+  test('selected alternative context is supplied to free and BYOK requests through existing history fields', async () => {
+    await click(container.querySelector('.alternativeGrid button'))
+    await click(container.querySelector('.aiFab'))
+    await act(async () => Simulate.change(container.querySelector('.freePreview input[type="checkbox"]'), { target: { checked: true } }))
+    await click(container.querySelector('.previewSuggestions button'))
+    expect(api.sendTrialMessage.mock.calls[0][1]).toEqual([{ role: 'user', content: 'The currently selected career is Cloud Engineer. Answer this question about that career using the stored recommendation context.' }])
+    await mode('byok'); await act(async () => saveLLMSettings('gemini', 'test-key'))
+    expect(container.querySelector('.chatMessages').textContent).toContain(translations.en.results.initialChat('Data Analyst'))
+    expect(container.querySelector('.chatMessages').textContent).not.toContain(translations.en.results.initialChat('Cloud Engineer'))
+    const reader = { read: jest.fn().mockResolvedValueOnce({ value: new TextEncoder().encode('data: {"content":"Career advice"}\n\n'), done: false }).mockResolvedValue({ done: true }) }
+    api.sendChatStream.mockResolvedValue({ ok: true, body: { getReader: () => reader } })
+    await act(async () => Simulate.change(container.querySelector('.chatInputField'), { target: { value: 'Career advice', style: {}, scrollHeight: 20 } }))
+    await click(container.querySelector('.chatSend'))
+    expect(api.sendChatStream.mock.calls[0][0]).toMatchObject({ session_id: 'advisor-current', message: 'Career advice', history: [{ role: 'user', content: 'The currently selected career is Cloud Engineer. Answer this question about that career using the stored recommendation context.' }] })
+    expect(container.querySelector('.chatMessages').textContent).toContain('Career advice')
+    expect(container.textContent).not.toContain('test-key')
+  })
+
+  test('Tab stays within active mode, configuration draft survives closing, and resize remains keyboard-operable', async () => {
+    await click(container.querySelector('.aiFab')); await mode('byok')
+    const key = container.querySelector('#llm-api-key')
+    key.value = 'unsaved-key'
+    const close = drawer().querySelector('.chatCloseBtn')
+    await act(async () => { close.focus(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true })) })
+    expect(drawer().contains(document.activeElement)).toBe(true)
+    expect(document.activeElement.closest('[hidden]')).toBeNull()
+    const width = drawer().querySelector('[role="separator"]')
+    await act(async () => Simulate.keyDown(width, { key: 'ArrowLeft' }))
+    expect(width.getAttribute('aria-valuenow')).toBe('460')
+    await click(close); await click(container.querySelector('.aiFab'))
+    expect(container.querySelector('#llm-api-key').value).toBe('unsaved-key')
+  })
+
+  test('a new recommendation session resets drafts and conversations and ignores stale preview and BYOK responses', async () => {
+    await click(container.querySelector('.aiFab'))
+    let finishPreview
+    api.sendTrialMessage.mockImplementationOnce(() => new Promise(resolve => { finishPreview = resolve }))
+    await act(async () => Simulate.change(container.querySelector('.freePreview input'), { target: { checked: true } }))
+    await click(container.querySelector('.previewSuggestions button'))
+    await mode('byok'); await act(async () => saveLLMSettings('gemini', 'test-key'))
+    let finishStream
+    const reader = { read: jest.fn(() => new Promise(resolve => { finishStream = resolve })) }
+    api.sendChatStream.mockResolvedValue({ ok: true, body: { getReader: () => reader } })
+    await act(async () => Simulate.change(container.querySelector('.chatInputField'), { target: { value: 'Career advice', style: {}, scrollHeight: 20 } }))
+    await click(container.querySelector('.chatSend'))
+    const signal = api.sendChatStream.mock.calls[0][1]
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'advisor-next' }} /></AppProvider>))
+    expect(signal.aborted).toBe(true)
+    await act(async () => {
+      finishPreview({ response: 'Stale preview', remaining: 1 })
+      finishStream({ value: new TextEncoder().encode('data: {"content":"Stale stream"}\n\n'), done: false })
+    })
+    expect(container.querySelector('.previewMessages').textContent).not.toContain('Stale preview')
+    expect(container.querySelector('.chatMessages').textContent).not.toContain('Career advice')
+    expect(container.querySelector('.chatMessages').textContent).not.toContain('Stale stream')
+    expect(container.querySelector('.chatInputField').value).toBe('')
+    expect(container.querySelector('.previewQuota').textContent).toContain('3 of 3')
+    expect(getLLMSettings().apiKey).toBe('test-key')
+  })
+
+  test.each(['permission', 'transcription'])('late voice %s failures cannot overwrite the next recommendation session', async failure => {
+    const originalDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices')
+    const originalContext = window.AudioContext
+    let rejectOld
+    const node = () => ({ connect: jest.fn(), disconnect: jest.fn() })
+    const processor = node()
+    const audio = { sampleRate: 16000, destination: {}, createMediaStreamSource: node, createScriptProcessor: () => processor, createGain: () => ({ ...node(), gain: {} }), close: jest.fn().mockResolvedValue() }
+    window.AudioContext = jest.fn(() => audio)
+    const getUserMedia = failure === 'permission'
+      ? jest.fn(() => new Promise((_, reject) => { rejectOld = reject }))
+      : jest.fn().mockResolvedValue({ getTracks: () => [{ stop: jest.fn() }] })
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } })
+    api.transcribeVoice.mockImplementationOnce(() => new Promise((_, reject) => { rejectOld = reject }))
+    try {
+      await click(container.querySelector('.aiFab')); await mode('byok')
+      await act(async () => saveLLMSettings('gemini', 'test-key'))
+      const voice = container.querySelector(`button[aria-label="${translations.en.results.voiceRecord}"]`)
+      await click(voice)
+      if (failure === 'transcription') {
+        processor.onaudioprocess({ inputBuffer: { getChannelData: () => new Float32Array([.1, .1, .1]) } })
+        await click(voice)
+        expect(api.transcribeVoice).toHaveBeenCalledTimes(1)
+      }
+      await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'voice-next' }} /></AppProvider>))
+      await act(async () => rejectOld(Object.assign(new Error('Old voice failed'), { name: 'NotAllowedError', code: 'provider_unavailable' })))
+      expect(container.querySelector('.chatScope').textContent).toBe(translations.en.results.assistantScope)
+      expect(container.querySelector('.chatInputField').value).toBe('')
+    } finally {
+      window.AudioContext = originalContext
+      if (originalDevices) Object.defineProperty(navigator, 'mediaDevices', originalDevices)
+      else delete navigator.mediaDevices
+    }
+  })
+
+  test.each(['en', 'ru', 'kk'])('advisor context, modes and accessibility labels are localized in %s', async lang => {
+    act(() => root.unmount()); root = createRoot(container); localStorage.setItem('lang', lang)
+    await act(async () => root.render(<AppProvider><Results results={result} openAdvisor /></AppProvider>))
+    const text = translations[lang]
+    expect(drawer().querySelector('.advisorContext').textContent).toContain(text.professions['Data Analyst'])
+    expect(drawer().querySelector('.advisorModes').textContent).toContain(text.experience.free)
+    expect(drawer().querySelector('.chatCloseBtn').getAttribute('aria-label')).toBe(text.results.closeAiPanel)
+    expect(drawer().querySelector('.previewMessages').getAttribute('aria-label')).toBe(text.review.advisorConversation)
     expect(api.sendTrialMessage).not.toHaveBeenCalled(); expect(api.sendChatStream).not.toHaveBeenCalled()
   })
 })

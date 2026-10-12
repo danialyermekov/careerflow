@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { submitFeedback } from '../utils/api'
+import styles from './Feedback.module.css'
 
-export default function Feedback({ sessionId }) {
+export default function Feedback({ sessionId, editorial = false }) {
   const { t } = useApp()
   const text = t.product
+  const ratingId = useId()
   const [rating, setRating] = useState('')
   const [type, setType] = useState('review')
   const [title, setTitle] = useState('')
@@ -27,20 +29,22 @@ export default function Feedback({ sessionId }) {
       setStatus('success'); setMessage(''); setRating(''); setTitle(''); setSteps(''); setConsent(false)
     } catch { setStatus('error') }
   }
-  return <section className="betaCard" aria-label={text.feedback}>
+  return <section className={editorial ? styles.editorial : 'betaCard'} aria-label={text.feedback}>
     <h2>{text.shareFeedback}</h2>
-    <form onSubmit={submit}>
+    <form onSubmit={submit} aria-busy={status === 'loading'}>
       <label>{text.type}<select value={type} onChange={e => { setType(e.target.value); setRating(''); setTitle(''); setMessage(''); setSteps(''); setConsent(false); setStatus('') }}>
         {['review', 'feature', 'bug'].map(key => <option key={key} value={key}>{text[key]}</option>)}
       </select></label>
-      {type === 'review' ? <label>{text.rating}<select required value={rating} onChange={e => setRating(e.target.value)}>
+      {type === 'review' ? editorial ? <fieldset><legend>{text.rating}</legend><div className={styles.ratingOptions}>
+        {[1, 2, 3, 4, 5].map(n => <label key={n}><input type="radio" name={ratingId} required value={n} checked={rating === String(n)} onChange={e => setRating(e.target.value)} /><span>{n} <span aria-hidden="true">★</span></span></label>)}
+      </div></fieldset> : <label>{text.rating}<select required value={rating} onChange={e => setRating(e.target.value)}>
         <option value="">{text.chooseRating}</option>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {'★'.repeat(n)}</option>)}
-      </select></label> : <label>{type === 'feature' ? text.featureTitle : text.title}<input required minLength={type === 'feature' ? 5 : 1} maxLength={120} value={title} onChange={e => setTitle(e.target.value)} /></label>}
+      </select></label> : <label>{type === 'feature' ? text.featureTitle : text.title} <span aria-hidden="true">*</span><input required minLength={type === 'feature' ? 5 : 1} maxLength={120} value={title} onChange={e => setTitle(e.target.value)} /></label>}
       <label>{type === 'review' ? text.comment : type === 'feature' ? text.featureDescription : text.description}
         <textarea required={type !== 'review'} minLength={type === 'feature' ? 10 : undefined} maxLength={2000} value={message} onChange={e => setMessage(e.target.value)} />
       </label>
       {type === 'bug' && <label>{text.steps}<textarea maxLength={2000} value={steps} onChange={e => setSteps(e.target.value)} /></label>}
-      {type !== 'bug' && <label className="consentField"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />{text.consent}</label>}
+      {type !== 'bug' && <label className={editorial ? styles.consent : 'consentField'}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />{text.consent}</label>}
       <p>{text.moderationNote}</p>
       <p><a href="/privacy">{t.beta.privacy}</a> · <a href="/terms">{t.beta.terms}</a></p>
       <input name="website" type="text" hidden tabIndex={-1} autoComplete="off" />

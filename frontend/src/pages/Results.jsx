@@ -12,6 +12,8 @@ import ResultsNavigation from './results/ResultsNavigation'
 import BestMatchPanel from './results/BestMatchPanel'
 import AllProfessionsPanel from './results/AllProfessionsPanel'
 import LearningRoadmapPanel from './results/LearningRoadmapPanel'
+import HistoryFeedbackPanel from './results/HistoryFeedbackPanel'
+import AdvisorDrawer from './results/AdvisorDrawer'
 import { LLM_PROVIDERS, LLM_SETTINGS_EVENT } from '../utils/llmSettings'
 import {
   clearRecommendationHistory,
@@ -1580,6 +1582,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const [deepMode,     setDeepMode]     = useState(false)
   const [copied,       setCopied]       = useState(null)
   const [rightOpen,    setRightOpen]    = useState(openAdvisor)
+  const closeAdvisor = useCallback(() => setRightOpen(false), [])
   useEffect(() => { if (openAdvisor) setRightOpen(true) }, [openAdvisor])
   const [pdfLoading,   setPdfLoading]   = useState(false)
   const [openCats,     setOpenCats]     = useState(new Set())
@@ -1594,7 +1597,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const [savedCurrent, setSavedCurrent] = useState(false)
   const [listening, setListening] = useState(false)
   const [voiceNotice, setVoiceNotice] = useState('')
-  const [chatSize, setChatSize] = useState({ width: 360, height: null })
+  const [chatSize, setChatSize] = useState({ width: 440, height: null })
   const [courseFilters, setCourseFilters] = useState(COURSE_FILTER_DEFAULTS)
   const [filteredRoadmap, setFilteredRoadmap] = useState(null)   // ← overrides rawRoadmap courses when filters are active
   const [filterLoading,  setFilterLoading]  = useState(false)
@@ -1626,15 +1629,9 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
   const handleOpenAiAdvisor = () => {
     setRightOpen(true)
-    setTimeout(() => {
-      if (textareaRef?.current) {
-        textareaRef.current.focus()
-      }
-    }, 200)
   }
 
   const messagesEndRef = useRef(null)
-  const greetedRef     = useRef(false)
   const textareaRef    = useRef(null)
   const abortRef       = useRef(null)
   const voiceRecorderRef = useRef(null)
@@ -1723,6 +1720,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const requestedProfName = selectedProf || top_profession
   const activeProf = allProfessions.find(p => p.name === requestedProfName) || rankedProfessions[0]
   const activeProfName = activeProf?.name || requestedProfName
+  const advisorCareerContext = activeProfName !== top_profession ? t.review.advisorCareerContext(profLabel(activeProfName)) : null
 
   const rawRoadmap = results?.roadmaps_by_profession?.[activeProfName]?.roadmap_with_courses || results.roadmap_with_courses
 
@@ -1883,13 +1881,18 @@ export default function Results({ results: initialResults, formData, onBack, onR
   }, [messages])
 
   useEffect(() => {
-    if (greetedRef.current) return
-    greetedRef.current = true
+    aiVersionRef.current += 1
+    abortRef.current?.abort()
+    voiceAbortRef.current?.abort()
+    voiceRecorderRef.current?.stop().catch(() => {})
+    voiceRecorderRef.current = null
+    setChatLoading(false); setListening(false); setVoiceNotice(''); setInput('')
     const staticMsg = t.results.initialChat
       ? t.results.initialChat(profLabel(top_profession))
       : `Your top match is ${profLabel(top_profession)}.`
     setMessages([{ role: 'assistant', content: staticMsg, streaming: false }])
-  }, [])
+  // Conversation belongs to the recommendation session, not the drawer's visibility.
+  }, [results.session_id])
 
   useEffect(() => { return () => abortRef.current?.abort() }, [])
 
@@ -1911,7 +1914,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
     const userMsg         = { role: 'user', content: msg }
     // The first message is the local welcome text, not a provider conversation turn.
-    const historySnapshot = messages.slice(1).filter(m => m.content)
+    const turns = messages.slice(1).filter(m => m.content)
+    const historySnapshot = advisorCareerContext ? [...turns.slice(-39), { role: 'user', content: advisorCareerContext }] : turns
 
     setMessages(p => [...p, userMsg, { role: 'assistant', content: '', streaming: true }])
     setInput('')
@@ -1990,7 +1994,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
       setMessages(p => {
         const updated = [...p]
         updated[updated.length - 1] = {
-          role: 'assistant', content: t.llm.errors[err.code] || t.llm.errors.provider_unavailable, thoughts: '', streaming: false,
+          role: 'assistant', content: t.llm.errors[err.code] || t.llm.errors.provider_unavailable, thoughts: '', streaming: false, error: true,
         }
         return updated
       })
@@ -2255,6 +2259,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
       setListening(true)
       setVoiceNotice(t.results.voiceListening)
     } catch (err) {
+      if (version !== aiVersionRef.current) return
       setListening(false)
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
         setVoiceNotice(t.results.voicePermission)
@@ -2294,6 +2299,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
       setVoiceNotice('')
       resizeChatInput()
     } catch (err) {
+      if (version !== aiVersionRef.current) return
       if (err.name !== 'AbortError') setVoiceNotice(t.llm.errors[err.code] || t.results.voiceError)
     }
   }
@@ -2535,15 +2541,12 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
   return (
     <div className={layoutClass} style={{ '--chat-w': `${chatSize.width}px` }}>
-      {rightOpen && <button className={styles.chatOverlay} onClick={() => setRightOpen(false)} aria-label={t.results.closeAiPanel} />}
-      {!rightOpen && (
-        <button className={styles.aiFab} onClick={handleOpenAiAdvisor}>
+        <button className={styles.aiFab} hidden={rightOpen} onClick={handleOpenAiAdvisor}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           {aiCtaInfo.button}
         </button>
-      )}
       <main className={styles.main}>
         <header className={styles.resultsIntro}>
           <div data-tour-slot="continue" />
@@ -2697,13 +2700,12 @@ export default function Results({ results: initialResults, formData, onBack, onR
             {t.results.newAnalysis}
           </button>
         </div>
+        <div className={tab === 'history' ? styles.historyFeedbackLayout : undefined}>
         <div className={styles.tabContent} id="results-panel" role="tabpanel" aria-labelledby={`results-tab-${tab}`} key={tab === 'all' ? 'all' : `${tab}${activeProfName}${cardKey}`}>
 
           {/* ─ BEST MATCH ─ */}
-          {tab === 'history' && <section className={styles.bestCard}>
-            <h2>{t.results.historyTitle}</h2><p className={styles.methodNote}>{t.beta.historyNote}</p>
-            {history.length ? renderHistory(history) : <p>{t.results.noHistory}</p>}
-          </section>}
+          {tab === 'history' && <HistoryFeedbackPanel results={results} profession={activeProfName} history={history} user={user} t={t} lang={lang} profLabel={profLabel}
+            onOpen={openHistoryItem} onCurrent={() => setTab('best')} onClear={clearHistory} />}
           {tab === 'best' && activeProf && (() => {
             const rows = orderedRows(ALL_SCORE_ROWS, 'score')
             const activeRank = professionRanks[activeProf.name]
@@ -2814,34 +2816,24 @@ export default function Results({ results: initialResults, formData, onBack, onR
             />
           )}
         </div>
-        <Feedback sessionId={results.session_id} />
+        <div className={tab === 'history' ? styles.feedbackColumn : undefined}><Feedback sessionId={results.session_id} editorial={tab === 'history'} /></div>
+        </div>
       </main>
 
       {/* ─ RIGHT CHAT ─ */}
-      {rightOpen && (
-      <aside className={styles.chatSidebar} style={{ width: chatSize.width }}>
-        <span className={styles.chatResizeHandle} onMouseDown={startChatResize}/>
-        <div className={styles.chatHeader}>
-          <div className={styles.chatDot}/>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          <span className={styles.chatTitle}>{t.results.chatTitle}</span>
-          <button className={styles.chatCloseBtn} onClick={() => setRightOpen(false)} title={t.results.closeAiPanel}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-
+      <AdvisorDrawer open={rightOpen} onClose={closeAdvisor} title={t.results.chatTitle} closeLabel={t.results.closeAiPanel}
+        provider={advisorMode === 'preview' ? 'Google Gemini' : LLM_PROVIDERS.find(provider => provider.id === llmProvider)?.name || t.experience.byok}
+        context={<><strong>{profLabel(activeProfName)}</strong><span>{t.review.scoreTitle}: {activeProf?.final_score != null ? formatMatchScore(activeProf.final_score) : '—'}</span></>}
+        width={chatSize.width} widthLabel={t.review.advisorWidth} onResize={startChatResize} onWidthChange={width => setChatSize(size => ({ ...size, width }))}>
         <div className="advisorModes" aria-label={t.results.chatTitle}>
-          <button aria-pressed={advisorMode === 'preview'} onClick={() => setAdvisorMode('preview')}>{t.experience.free}</button>
-          <button aria-pressed={advisorMode === 'byok'} onClick={() => setAdvisorMode('byok')}>{t.experience.byok}</button>
+          <button type="button" data-mode="preview" aria-pressed={advisorMode === 'preview'} onClick={() => setAdvisorMode('preview')}>{t.experience.free}</button>
+          <button type="button" data-mode="byok" aria-pressed={advisorMode === 'byok'} onClick={() => setAdvisorMode('byok')}>{t.experience.byok}</button>
         </div>
-        {advisorMode === 'preview' ? <FreePreview sessionId={results.session_id} /> : <>
+        <div className={styles.advisorPreview} hidden={advisorMode !== 'preview'}><FreePreview key={results.session_id} sessionId={results.session_id} careerContext={advisorCareerContext} /></div>
+        <div className={styles.advisorByok} hidden={advisorMode !== 'byok'}>
         <p className="byokDescription">{t.experience.byokText}</p>
         <LLMSettings />
-        <div className={styles.chatMessages}>
+        <div className={styles.chatMessages} role="log" aria-live="polite" aria-label={t.review.advisorConversation}>
           {!llmProvider && <div className={styles.chatEmpty} role="status">{t.llm.noKey}</div>}
           {llmProvider && messages.length === 0 && (
             <div className={styles.chatEmpty}>
@@ -2863,7 +2855,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                   </details>
                 )}
                 <div className={`${styles.msgBubble} ${m.streaming ? styles.msgStreaming : ''}`}>
-                  {m.content}
+                  <span role={m.error ? 'alert' : undefined}>{i === 0 ? t.results.initialChat(profLabel(top_profession)) : m.content}</span>
                   {m.streaming && !m.content && (
                     <span className={styles.thinkingStatus}>
                       {t.results.analyzing}
@@ -2875,8 +2867,9 @@ export default function Results({ results: initialResults, formData, onBack, onR
                   <button
                     className={`${styles.msgCopyBtn} ${m.role === 'user' ? styles.msgCopyBtnUser : styles.msgCopyBtnAi}`}
                     title={t.results.copy}
+                    aria-label={t.results.copy}
                     onClick={() => {
-                      copyText(m.content)
+                      copyText(i === 0 ? t.results.initialChat(profLabel(top_profession)) : m.content)
                       setCopiedMsg(`msg-${i}`)
                       setTimeout(() => setCopiedMsg(null), 2000)
                     }}
@@ -2892,7 +2885,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           {llmProvider && messages.length === 1 && messages[0]?.role === 'assistant' && !messages[0]?.streaming && (
             <div className={styles.chatSuggestions}>
               {t.results.suggestions.map(q => (
-                <button key={q} className={styles.suggestion} onClick={() => sendMessage(q)}>{q}</button>
+                <button type="button" key={q} className={styles.suggestion} disabled={chatLoading} onClick={() => sendMessage(q)}>{q}</button>
               ))}
             </div>
           )}
@@ -2925,7 +2918,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 <line x1="8" y1="23" x2="16" y2="23"/>
               </svg>
             </button>
-            <button className={styles.voiceBtn} onClick={speakLastAnswer} title={t.results.voicePlay}>
+            <button className={styles.voiceBtn} onClick={speakLastAnswer} title={t.results.voicePlay} aria-label={t.results.voicePlay}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
@@ -2958,10 +2951,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
               </svg>
             </button>
           </div>
+          <p className={styles.advisorPrivacy}>{t.review.advisorByokPrivacy} <a href="/privacy">{t.experience.privacyLink}</a></p>
         </div>
-        </>}
-      </aside>
-      )}
+        </div>
+      </AdvisorDrawer>
 
       {tourStep !== null && <GuidedTour step={tourStep} onStep={changeTourStep} onClose={() => setTourStep(null)} onAdvisor={handleOpenAiAdvisor} location={tab} />}
 
