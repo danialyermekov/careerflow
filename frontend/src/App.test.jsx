@@ -96,7 +96,7 @@ test('live demo calls the real API directly and guides all five steps without an
   await act(async () => button('Next').click())
   expect(container.textContent).toContain('Tableau')
   expect(container.textContent).toContain('Completed 0 of 1 steps')
-  await act(async () => container.querySelector('button[aria-label="Tableau"][aria-pressed]').click())
+  await act(async () => Simulate.change(container.querySelector('input[type="checkbox"][aria-label="Tableau"]'), { target: { checked: true } }))
   expect(container.textContent).toContain('Completed 1 of 1 steps')
   await act(async () => button('Next').click())
   expect(container.querySelector('.guidedTour').textContent).toContain('Continue Your Journey')

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import Feedback from '../components/Feedback'
@@ -11,6 +11,7 @@ import FreePreview from '../components/FreePreview'
 import ResultsNavigation from './results/ResultsNavigation'
 import BestMatchPanel from './results/BestMatchPanel'
 import AllProfessionsPanel from './results/AllProfessionsPanel'
+import LearningRoadmapPanel from './results/LearningRoadmapPanel'
 import { LLM_PROVIDERS, LLM_SETTINGS_EVENT } from '../utils/llmSettings'
 import {
   clearRecommendationHistory,
@@ -787,6 +788,7 @@ function ExplainabilityPanel({ profession, profLabel, t, skillExplanation }) {
 }
 
 function SkillDependencyTree({ roadmap, doneSkills, formSkills, t }) {
+  const profileSkills = new Set((formSkills || []).map(normalizeSkillKey))
   const learned = new Set([
     ...(formSkills || []).map(normalizeSkillKey),
     ...Array.from(doneSkills || []).map(key => normalizeSkillKey(key.split('::')[1] || key)),
@@ -807,25 +809,26 @@ function SkillDependencyTree({ roadmap, doneSkills, formSkills, t }) {
 
   return (
     <section className={styles.dependencyPanel}>
-      <div className={styles.compareHeader}>
-        <span>{t.results.dependencyTree}</span>
+      <div className={styles.dependencyHeading}>
+        <h3>{t.results.dependencyTree}</h3>
         {next && <small>{t.results.nextStep}: {cap(next.skill)}</small>}
       </div>
+      <p className={styles.methodNote}>{t.review.dependencyNote}</p>
       <div className={styles.dependencyTree}>
         {enriched.map(item => (
-          <div key={`${item.cat}-${item.skill}`} className={`${styles.dependencyNode} ${item.isDone ? styles.dependencyDone : item.ready ? styles.dependencyReady : styles.dependencyLocked}`}>
+          <div key={`${item.cat}-${item.skill}`} data-skill={item.skill} className={`${styles.dependencyNode} ${item.isDone ? styles.dependencyDone : item.ready ? styles.dependencyReady : styles.dependencyLocked}`}>
             <div className={styles.dependencyNodeTop}>
-              <span>{cap(item.skill)}</span>
-              <strong>{item.isDone ? t.results.learned : item.ready ? t.results.ready : t.results.locked}</strong>
+              <h4>{cap(item.skill)}</h4>
+              <strong>{item.isDone ? profileSkills.has(item.key) ? t.review.fromProfile : t.review.selfMarked : item.ready ? t.results.ready : t.results.locked}</strong>
             </div>
             <div className={styles.dependencyPrereq}>
               <span>{t.results.prerequisites}</span>
               <div>
                 {item.prerequisites.length
                   ? item.prerequisites.map(dep => (
-                    <i key={dep} className={learned.has(normalizeSkillKey(dep)) ? styles.prereqDone : ''}>{cap(dep.replace(/_/g, ' '))}</i>
+                    <i key={dep} className={learned.has(normalizeSkillKey(dep)) ? styles.prereqDone : ''}>{cap(dep.replace(/_/g, ' '))} — {profileSkills.has(normalizeSkillKey(dep)) ? t.review.fromProfile : learned.has(normalizeSkillKey(dep)) ? t.review.selfMarked : t.review.prerequisiteMissing}</i>
                   ))
-                  : <i className={styles.prereqDone}>{t.results.ready}</i>}
+                  : <i>{t.review.noPrerequisites}</i>}
               </div>
             </div>
           </div>
@@ -849,12 +852,12 @@ function CourseFilters({ filters, options, onChange, onReset, loading, t }) {
     .filter((value, index, arr) => arr.findIndex(item => normalizeFilterValue(item) === normalizeFilterValue(value)) === index)
 
   return (
-    <section className={styles.courseFilterPanel}>
+    <section className={styles.courseFilterPanel} aria-busy={loading}>
       <div className={styles.compareHeader}>
         <span>{labels.title}</span>
-        <small>
+        <small role="status">
           {loading
-            ? <span style={{ opacity: 0.6, fontStyle: 'italic' }}>...</span>
+            ? t.review.loadingCourses
             : labels.active(activeCount)}
         </small>
       </div>
@@ -943,11 +946,12 @@ export function getCourseProviderUrl(course) {
 }
 
 function CourseCard({ course, t, onOpen, onCopy, copied }) {
+  const providerUrl = getCourseProviderUrl(course)
   return (
     <div className={styles.courseWrap}>
-      <div className={styles.course} style={{ cursor: 'pointer' }} onClick={() => onOpen(course)}>
+      <button type="button" className={styles.course} onClick={() => onOpen(course)}>
         <span className={styles.coursePlatform}>{course.platform}</span>
-        <span className={styles.courseTitle}>{course.title}</span>
+        <span className={styles.courseTitle}>{course.title || t.review.courseUntitled}</span>
         <span className={styles.courseMeta}>
           {course.rating > 0 && <span className={styles.courseRating}>★ {course.rating}</span>}
           {course.reviews != null && (
@@ -955,14 +959,17 @@ function CourseCard({ course, t, onOpen, onCopy, copied }) {
               {Number(course.reviews).toLocaleString()} {t.results.reviews}
             </span>
           )}
-          <span className={styles.courseReviews}>{t.results.courseLanguages?.[course.language] || course.language}</span>
-          <span className={styles.courseReviews}>{t.results.courseFilters?.levels?.[course.level] || course.level}</span>
+          {course.hasLanguage !== false && <span className={styles.courseReviews}>{t.results.courseLanguages?.[course.language] || course.language}</span>}
+          {course.hasLevel !== false && <span className={styles.courseReviews}>{t.results.courseFilters?.levels?.[course.level] || course.level}</span>}
           {formatCoursePrice(course, t) && <span className={styles.coursePrice}>{formatCoursePrice(course, t)}</span>}
         </span>
-      </div>
-      <button className={styles.courseCopyBtn} onClick={onCopy}>
-        {copied ? <CheckIcon/> : <CopyIcon/>}
       </button>
+      <div className={styles.roadmapCourseActions}>
+        {providerUrl && <a href={providerUrl} target="_blank" rel="noopener noreferrer" className={styles.secondaryAction}>{course.url ? t.results.openCourse : t.results.openCourseSearch.replace('{provider}', course.platform || t.results.courseFilters.platform)}</a>}
+        <button type="button" className={styles.courseCopyBtn} aria-label={`${t.results.copy}: ${course.title || t.review.courseUntitled}`} onClick={onCopy}>
+        {copied ? <CheckIcon/> : <CopyIcon/>}
+        </button>
+      </div>
     </div>
   )
 }
@@ -1421,29 +1428,40 @@ const isCareerChatAllowed = message => {
 
 /* ─── Course description modal ───────────────────────────────── */
 function CourseModal({ course, onClose, t }) {
+  const dialog = useRef(null)
   useEffect(() => {
-    const handler = e => { if (e.key === 'Escape') onClose() }
+    const trigger = document.activeElement
+    dialog.current.querySelector('button').focus()
+    const handler = e => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'Tab') {
+        const controls = [...dialog.current.querySelectorAll('button, a[href]')]
+        const first = controls[0], last = controls[controls.length - 1]
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+        if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    return () => { window.removeEventListener('keydown', handler); trigger?.focus() }
   }, [onClose])
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
+    <div className={`${styles.modalOverlay} ${styles.roadmapCourseModal}`} onClick={onClose}>
+      <div ref={dialog} className={styles.modalBox} role="dialog" aria-modal="true" aria-labelledby="learning-course-title" onClick={e => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div className={styles.modalMeta}>
             <span className={styles.modalPlatform}>{course.platform}</span>
-            {course.rating && (
+            {course.rating > 0 && (
               <span className={styles.modalRating}>★ {course.rating}</span>
             )}
           </div>
-          <button className={styles.modalClose} onClick={onClose}>
+          <button type="button" className={styles.modalClose} aria-label={t.review.closeCourse} onClick={onClose}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
           </button>
         </div>
-        <h3 className={styles.modalTitle}>{course.title}</h3>
+        <h3 id="learning-course-title" className={styles.modalTitle}>{course.title || t.review.courseUntitled}</h3>
         {course.description ? (
           <p className={styles.modalDesc}>{course.description}</p>
         ) : (
@@ -1568,6 +1586,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const [cardKey,      setCardKey]      = useState(0)
   const [copiedMsg,    setCopiedMsg]    = useState(null)
   const [activeCourse, setActiveCourse] = useState(null)   // ← for course modal
+  const closeCourse = useCallback(() => setActiveCourse(null), [])
   const [categoryOrder, setCategoryOrder] = useState([])
   const [skillOrders, setSkillOrders] = useState({})
   const [dragItem, setDragItem] = useState(null)
@@ -1724,6 +1743,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
           description: c.description || c.short_intro || null,
           certificate: c.certificate ?? false,
           language:    c.language,
+          hasLanguage: Boolean(c.language),
+          hasLevel:    Boolean(c.level || c.difficulty),
           level:       c.level || c.difficulty || 'Mixed',
           difficulty:  c.difficulty || c.level || 'Mixed',
           price_type:  c.price_type || 'unknown',
@@ -2771,165 +2792,27 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
           {/* ─ ROADMAP ─ */}
           {tab === 'roadmap' && (
-  <>
-    <div data-tour-slot="roadmap" />
-    <p className={styles.roadmapHint}>
-      {t.results.skillsToLearn} <strong>{profLabel(activeProfName)}</strong>
-    </p>
-    <div className={styles.roadmapProgressPanel}>
-      <span>{t.results.roadmapProgress(doneRoadmapSteps, totalRoadmapSteps)}</span>
-      <div className={styles.roadmapProgressTrack}>
-        <i style={{ width: `${totalRoadmapSteps ? Math.round(doneRoadmapSteps / totalRoadmapSteps * 100) : 0}%` }}/>
-      </div>
-    </div>
-    <p className={styles.methodNote}>{t.review.roadmapMethod}</p>
-    <p className={styles.methodNote}>{t.review.roadmapNote}</p>
-    <p className={styles.dragHint}>{t.results.dragHint}</p>
-    <CourseFilters
-      filters={courseFilters}
-      options={courseFilterOptions}
-      onChange={setCourseFilters}
-      onReset={resetCourseFilters}
-      loading={filterLoading}
-      t={t}
-    />
-    <SkillDependencyTree roadmap={roadmapAdapted} doneSkills={doneSkills} formSkills={results._formData?.skills} t={t}/>
-    <div className={styles.roadmap}>
-      {orderedRoadmapEntries.map(([cat, skills]) => {
-        const isOpen = openCats.has(cat)
-
-        // Sorting: uncompleted at top, completed at bottom
-        const sorted = [...skills].sort((a, b) => {
-          const aDone = doneSkills.has(`${cat}::${a.skill}`)
-          const bDone = doneSkills.has(`${cat}::${b.skill}`)
-          return aDone - bDone
-        })
-
-        const doneCount = skills.filter(s => doneSkills.has(`${cat}::${s.skill}`)).length
-        const firstCompletedIndex = sorted.findIndex(s => doneSkills.has(`${cat}::${s.skill}`))
-
-        return (
-          <div
-            key={cat}
-            className={styles.roadmapCat}
-            draggable
-            onDragStart={() => setDragItem({ type: 'category', cat })}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => {
-              e.preventDefault()
-              if (dragItem?.type === 'category') moveCategory(dragItem.cat, cat)
-              setDragItem(null)
-            }}
-          >
-            <button className={styles.catHeader} onClick={() => toggleCat(cat)}>
-              <span className={styles.catIcon}>{CATEGORY_ICONS[cat] || '◎'}</span>
-              <span className={styles.catName}>{catLabel(cat).toUpperCase()}</span>
-              <span className={styles.catCount}>{skillWord(skills.length)}</span>
-              {/* progress inside category */}
-              {doneCount > 0 && (
-                <span style={{
-                  fontSize: '0.68rem', fontFamily: 'var(--font-mono)',
-                  color: '#1f533c', marginLeft: 6,
-                }}>
-                  {doneCount}/{skills.length} ✓
-                </span>
-              )}
-              <span style={{ marginLeft: 'auto', color: 'var(--text-3)', display: 'flex' }}>
-                <ChevronIcon dir={isOpen ? 'up' : 'down'}/>
-              </span>
-            </button>
-
-            {isOpen && (
-              <div className={styles.skillList}>
-                {sorted.map((s, i) => {
-                  const isDone = doneSkills.has(`${cat}::${s.skill}`)
-                  const visibleCourses = filterCourses(s.courses || [], courseFilters);
-                  return (
-                    <div
-                      key={s.skill}
-                      className={styles.skillItemWrap}
-                      draggable
-                      onDragStart={e => {
-                        e.stopPropagation()
-                        setDragItem({ type: 'skill', cat, skill: s.skill })
-                      }}
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        if (dragItem?.type === 'skill' && dragItem.cat === cat) moveSkill(cat, dragItem.skill, s.skill)
-                        setDragItem(null)
-                      }}
-                    >
-                    {firstCompletedIndex === i && (
-                      <div className={styles.completedDivider}>{t.results.completedSteps}</div>
-                    )}
-                    <div className={styles.skillItem}
-                      style={{ opacity: isDone ? 0.55 : 1, transition: 'opacity 0.2s ease' }}>
-                      <div className={styles.skillTopRow}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                        {/* Clickable checkbox */}
-                        <button
-                          onClick={() => toggleSkill(cat, s.skill)}
-                          aria-label={cap(s.skill)}
-                          aria-pressed={isDone}
-                          style={{
-                            width: 18, height: 18, borderRadius: 4,
-                            border: `1.5px solid ${isDone ? '#4caf82' : 'var(--border)'}`,
-                            background: isDone ? '#4caf82' : 'transparent',
-                            flexShrink: 0, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transition: 'all 0.15s ease',
-                            padding: 0,
-                          }}
-                        >
-                          {isDone && (
-                            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                              <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8"
-                                strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          )}
-                        </button>
-                        <span className={styles.skillName} style={{
-                          margin: 0,
-                          textDecoration: isDone ? 'line-through' : 'none',
-                          color: isDone ? 'var(--text-3)' : 'var(--text)',
-                          transition: 'color 0.2s ease',
-                        }}>
-                          {cap(s.skill)}
-                        </span>
-                        </div>
-                      </div>
-
-                      {!isDone && s.courses.length > 0 && (
-                        <div className={styles.courses}>
-                          {visibleCourses.length === 0 && (
-                            <div className={styles.courseFallback}>{t.results.courseEmptyState || t.results.noCourses}</div>
-                          )}
-                          {visibleCourses.map((c, j) => (
-                            <CourseCard
-                              key={`${c.title}-${j}`}
-                              course={c}
-                              t={t}
-                              onOpen={setActiveCourse}
-                              copied={copiedMsg === `course-${j}-${i}`}
-                              onCopy={e => handleCopyCourse(e, c, `course-${j}-${i}`)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  </>
-)}
+            <LearningRoadmapPanel
+              profession={profLabel(activeProfName)} entries={orderedRoadmapEntries} total={totalRoadmapSteps} completed={doneRoadmapSteps}
+              doneSkills={doneSkills} openCats={openCats} dragItem={dragItem} onDragChange={setDragItem}
+              onMoveCategory={moveCategory} onMoveSkill={moveSkill} onToggleCategory={toggleCat} onToggleSkill={toggleSkill}
+              catLabel={catLabel} t={t}
+              fallbackNotice={activeProfName !== top_profession && !results.roadmaps_by_profession?.[activeProfName]?.roadmap_with_courses && rawRoadmap ? t.review.roadmapFallback(profLabel(top_profession)) : null}
+              dependencies={<SkillDependencyTree roadmap={roadmapAdapted} doneSkills={doneSkills} formSkills={results._formData?.skills} t={t} />}
+              filters={<CourseFilters filters={courseFilters} options={courseFilterOptions} onChange={setCourseFilters} onReset={resetCourseFilters} loading={filterLoading} t={t} />}
+              renderCourses={(item, cat) => {
+                const visibleCourses = filterCourses(item.courses || [], courseFilters)
+                return <div className={styles.courses}>
+                  {!visibleCourses.length && <p className={styles.courseFallback}>{activeCourseFilterCount(courseFilters) ? t.results.courseEmptyState : t.results.noCourses}</p>}
+                  {visibleCourses.map((course, index) => {
+                    const copyKey = `course-${cat}-${item.skill}-${index}`
+                    return <CourseCard key={`${course.title}-${index}`} course={course} t={t} onOpen={setActiveCourse} copied={copiedMsg === copyKey} onCopy={e => handleCopyCourse(e, course, copyKey)} />
+                  })}
+                </div>
+              }}
+              advisor={<div className={styles.roadmapAdvisor}><div><h3>{aiCtaInfo.title}</h3><p>{aiCtaInfo.subtitle}</p></div><button type="button" className={styles.primaryAction} onClick={handleOpenAiAdvisor}>{aiCtaInfo.button}</button></div>}
+            />
+          )}
         </div>
         <Feedback sessionId={results.session_id} />
       </main>
@@ -3084,7 +2967,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
       {/* ─ COURSE MODAL ─ */}
       {activeCourse && (
-        <CourseModal course={activeCourse} onClose={() => setActiveCourse(null)} t={t}/>
+        <CourseModal course={activeCourse} onClose={closeCourse} t={t}/>
       )}
 
       <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>

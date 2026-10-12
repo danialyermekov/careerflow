@@ -266,11 +266,11 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => button(translations.en.results.viewFullRoadmap).click())
     expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 3')
     const categories = () => [...container.querySelectorAll('.roadmap .catName')].map(el => el.textContent)
-    expect(categories()).toEqual(['LIBRARIES', 'CLOUD SERVICES'])
+    expect(categories()).toEqual(['Libraries', 'Cloud services'])
     const [libraries, cloud] = container.querySelectorAll('.roadmapCat')
     await act(async () => Simulate.dragStart(cloud))
     await act(async () => Simulate.drop(libraries))
-    expect(categories()).toEqual(['CLOUD SERVICES', 'LIBRARIES'])
+    expect(categories()).toEqual(['Cloud services', 'Libraries'])
     await act(async () => new Promise(resolve => setTimeout(resolve, 400)))
     expect(api.saveRoadmapProgress).toHaveBeenLastCalledWith('editorial-saved', expect.objectContaining({
       categoryOrder: ['cloud', 'libraries'], doneSkills: ['libraries::numpy'], selectedProfession: 'Data Scientist',
@@ -438,5 +438,285 @@ describe('editorial All Professions master-detail', () => {
     expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
     await act(async () => detail().querySelector('.primaryAction').click())
     expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 1')
+  })
+})
+
+describe('editorial Learning Roadmap', () => {
+  const pythonCourses = [
+    { title: 'Python practice', platform: 'Udemy', rating: 4.5, num_reviews: 32, course_url: 'https://example.com/python', description: 'Practice Python.', certificate: true, price_type: 'paid', price: 19, language: 'en', level: 'Beginner' },
+    { title: 'Python на русском', platform: 'Coursera', rating: 4.2, num_reviews: 9, certificate: false, price_type: 'free', price: 0, language: 'ru', difficulty: 'Intermediate' },
+  ]
+  const roadmap = { programming: { python: { courses: pythonCourses }, r: { courses: [{ title: null, platform: null, rating: null, num_reviews: null, course_url: null }] } }, libraries: { pandas: { courses: [] }, numpy: { courses: [] } }, analyst_tools: { tableau: { courses: [] } } }
+  const result = {
+    session_id: 'roadmap-test', top_profession: 'Data Analyst', alternative_profession: 'Cloud Engineer',
+    final_scores: { 'Data Analyst': .8, 'Cloud Engineer': .6 }, skill_scores: {}, classification_scores: {}, demand_scores: {},
+    full_roadmap: {}, roadmap_with_courses: roadmap, _formData: { skills: ['SQL'] },
+    roadmaps_by_profession: { 'Data Analyst': { roadmap_with_courses: roadmap }, 'Cloud Engineer': { roadmap_with_courses: { cloud: { docker: { courses: [] }, kubernetes: { courses: [] } } } } },
+  }
+  let container, root
+  const click = async el => act(async () => el.click())
+  const skill = name => container.querySelector(`.skillItemWrap[data-skill="${name}"]`)
+  const checkbox = name => container.querySelector(`input[type="checkbox"][aria-label="${name}"]`)
+  const categories = () => [...container.querySelectorAll('.roadmapCat')].map(el => el.dataset.category)
+  const courseTitles = () => [...container.querySelectorAll('.courseTitle')].map(el => el.textContent)
+  const openRoadmap = async () => click(container.querySelector('#results-tab-roadmap'))
+  const settleWrites = async () => act(async () => new Promise(resolve => setTimeout(resolve, 400)))
+  const render = async value => act(async () => root.render(<AppProvider><Results results={value} /></AppProvider>))
+
+  beforeEach(async () => {
+    global.IS_REACT_ACT_ENVIRONMENT = true
+    localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
+    HTMLElement.prototype.scrollIntoView = jest.fn()
+    api.getRecommendationState.mockResolvedValue({ progress: {} })
+    api.getTrialStatus.mockResolvedValue({ available: false, remaining: 0, total: 3 })
+    api.saveRoadmapProgress.mockResolvedValue({}); api.saveCourseFilterPreferences.mockResolvedValue({})
+    api.filterCourses.mockResolvedValue({ courses_by_skills: { python: pythonCourses } })
+    container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
+    await render(result); await openRoadmap()
+  })
+  afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); jest.restoreAllMocks() })
+
+  test('manual skill completion updates counts, prerequisites and the unchanged debounced payload', async () => {
+    expect(container.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')).toBe('0')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('0 of 5')
+    await act(async () => Simulate.change(checkbox('Python'), { target: { checked: true } }))
+    expect(checkbox('Python').checked).toBe(true)
+    expect(container.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')).toBe('20')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 5')
+    expect(container.querySelector('.roadmapOverview').textContent).toContain('4 steps remaining')
+    expect(skill('python').textContent).toContain('Manually completed')
+    expect(container.querySelector('.dependencyNode[data-skill="pandas"]').textContent).toContain('Ready')
+    await settleWrites()
+    expect(api.saveRoadmapProgress).toHaveBeenLastCalledWith('roadmap-test', { doneSkills: ['programming::python'], categoryOrder: ['programming', 'libraries', 'analyst_tools'], skillOrders: { programming: ['python', 'r'], libraries: ['pandas', 'numpy'], analyst_tools: ['tableau'] }, selectedProfession: 'Data Analyst' })
+    await act(async () => Simulate.change(checkbox('Python'), { target: { checked: false } }))
+    expect(checkbox('Python').checked).toBe(false)
+    expect(container.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')).toBe('0')
+    expect(container.querySelector('.dependencyNode[data-skill="pandas"]').textContent).toContain('Needs prerequisites')
+  })
+
+  test('dependency cards expose real missing and profile-satisfied prerequisites without imposing course gates', () => {
+    const pandas = container.querySelector('.dependencyNode[data-skill="pandas"]')
+    expect(pandas.textContent).toContain('Python'); expect(pandas.textContent).toContain('Missing')
+    const tableau = container.querySelector('.dependencyNode[data-skill="tableau"]')
+    expect(tableau.textContent).toContain('Sql'); expect(tableau.textContent).toContain('From profile')
+    expect(container.querySelector('.dependencyPanel').textContent).toContain('Recommended next step: Python')
+    expect(container.querySelector('.dependencyPanel').textContent).not.toContain('SQL Server')
+    expect(container.querySelector('.courseTitle').closest('button').disabled).toBe(false)
+  })
+
+  test('dragging categories and skills updates visible order and existing persisted order keys', async () => {
+    const [programming, , tools] = container.querySelectorAll('.roadmapCat')
+    await act(async () => Simulate.dragStart(tools))
+    await act(async () => Simulate.dragOver(programming))
+    expect(programming.className).toContain('roadmapDropTarget')
+    await act(async () => Simulate.drop(programming))
+    expect(categories()).toEqual(['analyst_tools', 'programming', 'libraries'])
+    await act(async () => Simulate.dragStart(skill('r')))
+    await act(async () => Simulate.drop(skill('python')))
+    expect([...container.querySelectorAll('[data-category="programming"] .skillName')].map(el => el.textContent)).toEqual(['R', 'Python'])
+    await settleWrites()
+    expect(api.saveRoadmapProgress).toHaveBeenLastCalledWith('roadmap-test', expect.objectContaining({ categoryOrder: ['analyst_tools', 'programming', 'libraries'], skillOrders: { programming: ['r', 'python'], libraries: ['pandas', 'numpy'], analyst_tools: ['tableau'] } }))
+  })
+
+  test('keyboard move controls retain focus, respect boundaries and use the same ordering handlers', async () => {
+    const tools = container.querySelector('[data-category="analyst_tools"]')
+    const move = tools.querySelector('button[aria-label="Move up: Analyst tools"]')
+    expect(tools.querySelector('button[aria-label="Move down: Analyst tools"]').disabled).toBe(true)
+    await act(async () => { move.focus(); move.click() })
+    expect(categories()).toEqual(['programming', 'analyst_tools', 'libraries'])
+    expect(document.activeElement).toBe(move)
+    await click(skill('r').querySelector('button[aria-label="Move up: R"]'))
+    expect([...container.querySelectorAll('[data-category="programming"] .skillName')].map(el => el.textContent)).toEqual(['R', 'Python'])
+    const header = tools.querySelector('.catHeader')
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    await click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    expect(tools.querySelector('.skillList')).toBeNull()
+  })
+
+  test('incompatible skill drops and dragging interactive controls do not reorder the roadmap', async () => {
+    const before = categories()
+    await act(async () => Simulate.dragStart(skill('r')))
+    await act(async () => Simulate.drop(skill('pandas')))
+    expect(categories()).toEqual(before)
+    expect([...container.querySelectorAll('[data-category="programming"] .skillName')].map(el => el.textContent)).toEqual(['Python', 'R'])
+    await act(async () => Simulate.dragStart(checkbox('Python')))
+    expect(container.querySelector('.roadmapDragging')).toBeNull()
+    await act(async () => Simulate.dragStart(skill('python')))
+    await act(async () => Simulate.dragOver(skill('r')))
+    await act(async () => Simulate.dragEnd(skill('python')))
+    expect(container.querySelector('.roadmapDropTarget')).toBeNull()
+    expect(container.querySelector('.roadmapDragging')).toBeNull()
+  })
+
+  test('moves to first and last positions transfer focus to an enabled control for the same item', async () => {
+    const tools = container.querySelector('[data-category="analyst_tools"]')
+    const activate = async button => act(async () => { button.focus(); button.click() })
+    const up = tools.querySelector('button[aria-label="Move up: Analyst tools"]')
+    const down = tools.querySelector('button[aria-label="Move down: Analyst tools"]')
+    await activate(up); await activate(up)
+    expect(categories()[0]).toBe('analyst_tools')
+    expect(up.disabled).toBe(true); expect(down.disabled).toBe(false)
+    expect(document.activeElement).toBe(down)
+    await activate(down); await activate(down)
+    expect(categories()[2]).toBe('analyst_tools')
+    expect(down.disabled).toBe(true); expect(up.disabled).toBe(false)
+    expect(document.activeElement).toBe(up)
+    const rUp = skill('r').querySelector('button[aria-label="Move up: R"]')
+    const rDown = skill('r').querySelector('button[aria-label="Move down: R"]')
+    await activate(rUp)
+    expect(rUp.disabled).toBe(true); expect(rDown.disabled).toBe(false)
+    expect(document.activeElement).toBe(rDown)
+    await activate(rDown)
+    expect(rDown.disabled).toBe(true); expect(rUp.disabled).toBe(false)
+    expect(document.activeElement).toBe(rUp)
+  })
+
+  test('a no-op move with a partial saved order does not steal focus from subsequent completion', async () => {
+    const partialRoadmap = { programming: { ...roadmap.programming, javascript: { courses: [] } } }
+    api.getRecommendationState.mockResolvedValueOnce({ progress: { skillOrders: { programming: ['python'] } } })
+    await render({ ...result, session_id: 'partial-skill-order', roadmap_with_courses: partialRoadmap, roadmaps_by_profession: { 'Data Analyst': { roadmap_with_courses: partialRoadmap } } })
+    const up = skill('r').querySelector('button[aria-label="Move up: R"]')
+    await act(async () => { up.focus(); up.click() })
+    expect([...container.querySelectorAll('.skillName')].map(el => el.textContent)).toEqual(['Python', 'R', 'Javascript'])
+    const completion = checkbox('Python')
+    await act(async () => { completion.focus(); Simulate.change(completion, { target: { checked: true } }) })
+    expect(up.disabled).toBe(true)
+    expect(document.activeElement).toBe(completion)
+  })
+
+  test.each([
+    [0, 'with', ['Python practice'], { has_certificate: true }],
+    [1, 'free', ['Python на русском'], { price_types: ['free'] }],
+    [2, 'ru', ['Python на русском'], { languages: ['ru'] }],
+    [3, 'Udemy', ['Python practice'], { platforms: ['Udemy'] }],
+    [4, 'Intermediate', ['Python на русском'], { levels: ['Intermediate'] }],
+  ])('filter %s retains selected values and request contract without changing the skill denominator', async (index, value, titles, backendFilters) => {
+    const controls = container.querySelectorAll('.courseFilterGrid select')
+    expect(controls).toHaveLength(5)
+    expect([...controls].every(control => control.closest('label').textContent.trim())).toBe(true)
+    await act(async () => Simulate.change(controls[index], { target: { value } }))
+    expect(controls[index].value).toBe(value)
+    expect(courseTitles()).toEqual(titles)
+    expect(api.filterCourses).toHaveBeenLastCalledWith(['python', 'r', 'pandas', 'numpy', 'tableau'], backendFilters, 'en')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('0 of 5')
+    await click(container.querySelector('.resetFilters'))
+    expect([...controls].map(control => control.value)).toEqual(['all', 'all', 'all', 'all', 'all'])
+    expect(courseTitles()).toContain('Python practice'); expect(courseTitles()).toContain('Python на русском')
+  })
+
+  test('empty backend matches and failed requests remain usable with completion and filter reset', async () => {
+    api.filterCourses.mockResolvedValueOnce({ courses_by_skills: {} })
+    await act(async () => Simulate.change(container.querySelectorAll('.courseFilterGrid select')[3], { target: { value: 'edX' } }))
+    expect(courseTitles()).toEqual([])
+    expect(container.querySelector('.roadmap').textContent).toContain(translations.en.results.courseEmptyState)
+    expect(checkbox('Python').disabled).toBe(false)
+    await click(container.querySelector('.resetFilters'))
+    api.filterCourses.mockRejectedValueOnce(new Error('Catalog unavailable'))
+    await act(async () => Simulate.change(container.querySelectorAll('.courseFilterGrid select')[1], { target: { value: 'paid' } }))
+    expect(courseTitles()).toEqual(['Python practice'])
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('0 of 5')
+  })
+
+  test('courses retain metadata, direct/search links, keyboard modal access and no automatic completion', async () => {
+    const course = container.querySelector('.courseWrap')
+    expect(course.textContent).toContain('4.5'); expect(course.textContent).toContain('32'); expect(course.textContent).toContain('English'); expect(course.textContent).toContain('Beginner'); expect(course.textContent).toContain('19.00')
+    const link = course.querySelector('a')
+    expect(link.href).toBe('https://example.com/python'); expect(link.target).toBe('_blank'); expect(link.rel).toBe('noopener noreferrer')
+    expect(container.querySelectorAll('.courseWrap')[1].querySelector('a').href).toBe('https://www.coursera.org/search?query=Python%20%D0%BD%D0%B0%20%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%BE%D0%BC')
+    const details = course.querySelector('button.course')
+    await act(async () => { details.focus(); details.click() })
+    expect(container.querySelector('[role="dialog"]').textContent).toContain('Practice Python.')
+    const close = container.querySelector('.modalClose'), modalLink = container.querySelector('.modalLink')
+    expect(document.activeElement).toBe(close)
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true })))
+    expect(document.activeElement).toBe(modalLink)
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true })))
+    expect(document.activeElement).toBe(close)
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })))
+    expect(container.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(details)
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('0 of 5')
+    const missing = skill('r').querySelector('.courseWrap')
+    expect(missing.textContent).toContain('Untitled course')
+    expect(missing.textContent).not.toMatch(/Free|English|Mixed|NaN|undefined/)
+    expect(skill('pandas').textContent).toContain(translations.en.results.noCourses)
+  })
+
+  test('restored selection, progress and filters use current-career steps and preserve shared completion keys', async () => {
+    api.getRecommendationState.mockResolvedValueOnce({ progress: { selectedProfession: 'Cloud Engineer', doneSkills: ['cloud::docker', 'programming::python'], categoryOrder: ['cloud'], skillOrders: { cloud: ['kubernetes', 'docker'] } }, filters: { price: 'paid' } })
+    await render({ ...result, session_id: 'restored-roadmap' })
+    expect(container.querySelector('.roadmapHint').textContent).toContain('Cloud Engineer')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 2')
+    const restoredCategory = container.querySelector('.roadmap .catHeader')
+    if (restoredCategory.getAttribute('aria-expanded') === 'false') await click(restoredCategory)
+    expect(checkbox('Docker').checked).toBe(true)
+    expect(container.querySelectorAll('.courseFilterGrid select')[1].value).toBe('paid')
+    await settleWrites()
+    expect(api.saveRoadmapProgress).toHaveBeenLastCalledWith('restored-roadmap', expect.objectContaining({ doneSkills: ['cloud::docker', 'programming::python'], selectedProfession: 'Cloud Engineer' }))
+    expect(api.saveCourseFilterPreferences).toHaveBeenLastCalledWith('restored-roadmap', { certificate: 'all', price: 'paid', language: 'all', platform: 'all', level: 'all' })
+    await click(container.querySelector('#results-tab-best'))
+    await click(container.querySelector('.alternativeGrid button'))
+    await openRoadmap()
+    expect(container.querySelector('.roadmapHint').textContent).toContain('Data Analyst')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 5')
+    expect(checkbox('Python').checked).toBe(true)
+  })
+
+  test('course focus and its original trigger survive Results updates while details are open', async () => {
+    const details = container.querySelector('button.course')
+    await act(async () => { details.focus(); details.click() })
+    const link = container.querySelector('.modalLink')
+    act(() => link.focus())
+    await render({ ...result })
+    expect(document.activeElement).toBe(link)
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })))
+    expect(document.activeElement).toBe(details)
+  })
+
+  test('failed progress writes retain the visible manual state and disclose the existing persistence error', async () => {
+    api.saveRoadmapProgress.mockRejectedValueOnce(new Error('Storage unavailable'))
+    await act(async () => Simulate.change(checkbox('Python'), { target: { checked: true } }))
+    await settleWrites()
+    expect(checkbox('Python').checked).toBe(true)
+    expect(container.textContent).toContain(translations.en.beta.saveError)
+  })
+
+  test('empty and missing roadmaps show honest zero progress and guests do not acquire persistence', async () => {
+    api.saveRoadmapProgress.mockClear(); api.saveCourseFilterPreferences.mockClear()
+    await render({ ...result, session_id: undefined, roadmaps_by_profession: undefined, roadmap_with_courses: undefined })
+    expect(container.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')).toBe('0')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('0 of 0')
+    expect(container.querySelector('.learningPanel').textContent).toContain('No learning steps are available in this roadmap.')
+    expect(container.querySelector('.dependencyPanel')).toBeNull()
+    expect(container.querySelectorAll('.roadmapCat')).toHaveLength(0)
+    await settleWrites()
+    expect(api.saveRoadmapProgress).not.toHaveBeenCalled(); expect(api.saveCourseFilterPreferences).not.toHaveBeenCalled()
+  })
+
+  test('legacy alternative course fallback is disclosed without changing its existing data source', async () => {
+    await render({ ...result, session_id: 'legacy-roadmap', roadmaps_by_profession: undefined })
+    await click(container.querySelector('#results-tab-best'))
+    await click(container.querySelector('.alternativeGrid button'))
+    await openRoadmap()
+    expect(container.querySelector('.learningPanel').textContent).toContain('Career-specific course data is unavailable. Showing the existing fallback roadmap for Data Analyst.')
+    expect(container.querySelector('.roadmapHint').textContent).toContain('Cloud Engineer')
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('0 of 5')
+    expect(courseTitles()).toContain('Python practice')
+  })
+
+  test.each(['en', 'ru', 'kk'])('learning controls and empty labels remain localized and operable in %s', async lang => {
+    act(() => root.unmount()); root = createRoot(container)
+    localStorage.setItem('lang', lang)
+    await render(result); await openRoadmap()
+    expect(container.querySelector('.roadmapHint').textContent).toContain(translations[lang].professions['Data Analyst'])
+    expect(container.querySelector('.roadmapProgressPanel').textContent).toContain(translations[lang].review.manualProgress)
+    expect([...container.querySelectorAll('.courseFilterGrid label > span')].map(el => el.textContent)).toEqual(['certificate', 'price', 'language', 'platform', 'level'].map(key => translations[lang].results.courseFilters[key]))
+    await act(async () => Simulate.change(checkbox('Python'), { target: { checked: true } }))
+    expect(container.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')).toBe('20')
+    expect(skill('python').textContent).toContain(translations[lang].review.selfMarked)
+    await click(container.querySelector('.roadmapAdvisor button'))
+    expect(container.querySelector('.chatSidebar')).not.toBeNull()
+    expect(api.sendTrialMessage).not.toHaveBeenCalled(); expect(api.sendChatStream).not.toHaveBeenCalled()
   })
 })
