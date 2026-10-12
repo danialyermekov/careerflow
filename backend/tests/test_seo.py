@@ -1,11 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 import main
+from api.routes import site
 
 
 @pytest.fixture
 def built_client(tmp_path, monkeypatch):
-    for page in main.PUBLIC_PAGES:
+    for page in site.PUBLIC_PAGES:
         directory = tmp_path / page
         directory.mkdir(exist_ok=True)
         (directory / 'index.html').write_text(f'<html><h1>Public {page or "home"}</h1></html>', encoding='utf8')
@@ -14,12 +15,12 @@ def built_client(tmp_path, monkeypatch):
     (tmp_path / 'sitemap.xml').write_text('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>')
     (tmp_path / 'static/js').mkdir(parents=True)
     (tmp_path / 'static/js/main.123abc.js').write_text('console.log("public bundle")')
-    monkeypatch.setattr(main, 'FRONTEND_BUILD_DIR', tmp_path)
+    monkeypatch.setattr(site, 'FRONTEND_BUILD_DIR', tmp_path)
     with TestClient(main.app) as client:
         yield client
 
 
-@pytest.mark.parametrize('page', sorted(main.PUBLIC_PAGES))
+@pytest.mark.parametrize('page', sorted(site.PUBLIC_PAGES))
 def test_public_initial_response_is_accessible_without_auth(built_client, page):
     response = built_client.get('/' + page + '?utm_source=qa')
     assert response.status_code == 200

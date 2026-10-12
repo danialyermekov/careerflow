@@ -23,6 +23,7 @@ dependencies = [
     "pandas>=3.0.2",
     "pymupdf>=1.26.0",
     "python-dotenv>=1.2.2",
+    "pydantic-settings>=2.10,<3",
     "scikit-learn>=1.8.0",
     "uvicorn>=0.46.0",
 ]
@@ -31,28 +32,34 @@ dependencies = [
 dev = [
     "httpx>=0.27.0",
     "pytest>=8.0.0",
+    "ruff>=0.11,<1",
+    "pyright>=1.1.400,<2",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-asyncio_default_fixture_loop_scope = "function"
 
 [tool.setuptools]
 py-modules = [
-    "config",
-    "auth",
-    "guest_sessions",
-    "security",
-    "database",
-    "features",
     "main",
-    "roadmap",
-    "schemas",
-    "skills_taxonomy",
-    "top_profession",
 ]
 
 [tool.setuptools.packages.find]
-include = ["services", "services.*", "utils", "utils.*"]
+include = ["api", "api.*", "application", "application.*", "domain", "domain.*", "infrastructure", "infrastructure.*", "core", "core.*", "utils", "utils.*"]
 exclude = ["tests", "tests.*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pyright]
+include = ["api", "application", "core", "domain/ranking.py", "domain/chat_policy.py", "infrastructure/ml/artifacts.py", "main.py"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"

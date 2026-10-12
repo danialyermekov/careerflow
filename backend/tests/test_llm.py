@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, Mock
 import httpx
 import pytest
 
-import database
-import guest_sessions
+from infrastructure import database
+from infrastructure import guest_sessions
 from hashlib import sha256
 import sqlalchemy as sa
 import main
 from conftest import TEST_PROFILE
-from services.llm import LLMService
+from infrastructure.llm import LLMService
 
 
 KEY = "test-only-secret-sentinel"
@@ -63,7 +63,7 @@ def test_route_forwards_request_credentials_and_normalized_history(client, monke
     service = Mock()
     service.chat.return_value = "Answer"
     service.chat_stream.return_value = iter([json.dumps({"type": "text", "content": "Answer"})])
-    monkeypatch.setattr(main, "llm", service)
+    monkeypatch.setitem(main.app.state.runtime.instances, "llm", service)
     guest_sessions.save('test-session', sha256(('a'*64).encode()).hexdigest(), {'context': 'Recommendation context'})
     history = [{"role": "assistant", "content": "Previous answer"}]
     response = client.post(path, json={**PAYLOAD, "history": history}, headers={**HEADERS, "X-LLM-Provider": provider})
@@ -156,7 +156,7 @@ def test_sdk_errors_are_sanitized_in_http_sse_and_logs(client, monkeypatch, sdk_
         sdk = sdk_clients[1].return_value.__enter__.return_value
         sdk.messages.create.side_effect = error
         sdk.messages.stream.side_effect = error
-    monkeypatch.setattr(main, "llm", LLMService())
+    monkeypatch.setitem(main.app.state.runtime.instances, "llm", LLMService())
     response = post_ai(client, path, {**HEADERS, "X-LLM-Provider": provider})
     if path.endswith("stream"):
         assert response.status_code == 200
@@ -170,7 +170,7 @@ def test_sdk_errors_are_sanitized_in_http_sse_and_logs(client, monkeypatch, sdk_
 
 
 def test_claude_audio_is_explicitly_unsupported(client, monkeypatch):
-    monkeypatch.setattr(main, "llm", LLMService())
+    monkeypatch.setitem(main.app.state.runtime.instances, "llm", LLMService())
     response = post_ai(client, "/voice/transcribe", {**HEADERS, "X-LLM-Provider": "anthropic"})
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "voice_unsupported"
@@ -179,7 +179,7 @@ def test_claude_audio_is_explicitly_unsupported(client, monkeypatch):
 def test_non_ai_requests_and_serialized_history_exclude_key(client, monkeypatch, sdk_clients):
     monkeypatch.delenv("API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    monkeypatch.setattr(main, "llm", LLMService())
+    monkeypatch.setitem(main.app.state.runtime.instances, "llm", LLMService())
     result = client.post("/recommend", json=TEST_PROFILE)
     assert result.status_code == 200
     assert not sdk_clients[0].called and not sdk_clients[1].called
@@ -213,7 +213,7 @@ def test_midstream_failure_preserves_text_then_sends_safe_error_and_one_done(cli
 
     service = Mock()
     service.chat_stream.side_effect = stream
-    monkeypatch.setattr(main, "llm", service)
+    monkeypatch.setitem(main.app.state.runtime.instances, "llm", service)
     response = client.post("/chat/stream", json=PAYLOAD, headers=HEADERS)
     assert "First chunk" in response.text
     assert '"type": "error"' in response.text
@@ -229,7 +229,7 @@ def test_gemini_invalid_key_reason_is_recognized_without_echoing_metadata(client
     sdk.models.generate_content.side_effect = APIError(400, {"error": {
         "message": KEY, "details": [{"reason": "API_KEY_INVALID", "metadata": {"key": KEY}}],
     }})
-    monkeypatch.setattr(main, "llm", LLMService())
+    monkeypatch.setitem(main.app.state.runtime.instances, "llm", LLMService())
     response = client.post("/chat", json=PAYLOAD, headers=HEADERS)
     assert response.status_code == 401
     assert response.json()["detail"]["code"] == "key_rejected"

@@ -3,7 +3,7 @@ import argparse
 import csv
 from pathlib import Path
 import sqlalchemy as sa
-from database import feedback, get_connection
+from infrastructure.database import feedback, get_connection
 
 def export_feedback(path: Path):
     # Exclusive creation avoids overwriting an existing review/export.

@@ -6,7 +6,7 @@ Algorithm
 1. Call /recommend once per labeled profile to collect raw component scores
    (classifier probability, TF-IDF skill score, demand trend, market share).
    This is expensive but done only once.
-2. Replicate the backend's min-max normalization locally.
+2. Reuse the backend's normalization and ranking locally.
 3. Grid-search weight combinations (alpha, gamma, b_trend, b_market) that sum to 1.0
    within reasonable domain bounds, without touching the API again.
 4. Score each combination using senior-level information retrieval metrics:
@@ -23,20 +23,23 @@ import json
 import httpx
 import numpy as np
 from itertools import product
-from typing import NamedTuple, Any
+from typing import NamedTuple
 
 # -- import labeled profiles from the test module ------------------
 sys.path.insert(0, ".")
-from tests.test_recommendations import ALL_LABELED_PROFILES
+from tests.test_recommendations import ALL_LABELED_PROFILES, BASE_URL, GUEST_HEADERS
+from domain.ranking import (
+    CLASSIFIER_COEF, SKILL_MATCHER_COEF, DEMAND_TREND_COEF, DEMAND_MARKET_SHARE_COEF,
+    get_top_profession,
+)
 
-BASE_URL   = "http://localhost:8000"
 PROFESSIONS = [
     "Business Analyst", "Cloud Engineer", "Data Analyst",
     "Data Engineer", "Data Scientist",
     "Machine Learning Engineer", "Software Engineer",
 ]
 
-CURRENT_WEIGHTS = (0.40, 0.40, 0.15, 0.05)  # (alpha, gamma, beta_trend, beta_market)
+CURRENT_WEIGHTS = (CLASSIFIER_COEF, SKILL_MATCHER_COEF, DEMAND_TREND_COEF, DEMAND_MARKET_SHARE_COEF)
 
 
 # ---------------------------------------------
@@ -62,7 +65,7 @@ class LabeledScores(NamedTuple):
 
 def fetch_component_scores(profile: dict) -> ComponentScores:
     """Single API call; extract the four component score dicts."""
-    r = httpx.post(f"{BASE_URL}/recommend", json=profile, timeout=30)
+    r = httpx.post(f"{BASE_URL}/recommend", json=profile, headers=GUEST_HEADERS, timeout=30)
     r.raise_for_status()
     data = r.json()
 
@@ -91,67 +94,24 @@ def collect_all_scores(labeled_profiles) -> list[LabeledScores]:
 # Scoring helpers
 # ---------------------------------------------
 
-def _minmax(d: dict[str, float]) -> dict[str, float]:
-    lo, hi = min(d.values()), max(d.values())
-    if hi == lo:
-        return {k: 0.5 for k in d}
-    return {k: (v - lo) / (hi - lo) for k, v in d.items()}
-
-
 def apply_weights(labeled: LabeledScores, weights: tuple[float, float, float, float]):
     """Return (top1, top2) profession names under the given weights."""
     alpha, gamma, beta_trend, beta_market = weights
     raw = labeled.raw
 
-    nc = _minmax(raw.classifier)
-    ns = _minmax(raw.skill)
-    nt = _minmax(raw.trend)
-    nm = _minmax(raw.market)
-
-    final = {
-        p: alpha * nc[p] + gamma * ns[p] + beta_trend * nt[p] + beta_market * nm[p]
-        for p in PROFESSIONS
-    }
-    ranked = sorted(final.items(), key=lambda x: -x[1])
-    return ranked[0][0], ranked[1][0]
+    demand = {profession: {'trend_score': raw.trend[profession], 'market_share': raw.market[profession]}
+              for profession in raw.classifier}
+    top, _, top_2 = get_top_profession(raw.classifier, demand, raw.skill,
+                                     alpha=alpha, gamma=gamma, beta_trend=beta_trend, beta_market=beta_market)
+    return top, top_2[1]
 
 
 def evaluate(dataset: list[LabeledScores], weights: tuple[float, float, float, float]) -> dict[str, float]:
-    """Compute accuracy metrics, Mean Reciprocal Rank (MRR), and confidence margin."""
+    """Compute the existing top-1/top-2 accuracy and composite report using the runtime scorer."""
     top1_hits = top2_hits = 0
-    total_reciprocal_rank = 0.0
-    margins = []
     
     for ls in dataset:
         t1, t2 = apply_weights(ls, weights)
-        
-        # Re-calculate full sorted score list to compute exact MRR and Confidence Margin
-        alpha, gamma, beta_trend, beta_market = weights
-        raw = ls.raw
-        nc = _minmax(raw.classifier)
-        ns = _minmax(raw.skill)
-        nt = _minmax(raw.trend)
-        nm = _minmax(raw.market)
-        
-        scores = {
-            p: alpha * nc[p] + gamma * ns[p] + beta_trend * nt[p] + beta_market * nm[p]
-            for p in PROFESSIONS
-        }
-        ranked = sorted(scores.items(), key=lambda x: -x[1])
-        ranked_names = [name for name, _ in ranked]
-        
-        # Mean Reciprocal Rank (MRR)
-        try:
-            rank = ranked_names.index(ls.expected) + 1
-        except ValueError:
-            rank = len(PROFESSIONS)
-        total_reciprocal_rank += 1.0 / rank
-        
-        # Confidence Margin: score of expected class minus max score of other classes
-        expected_score = scores[ls.expected]
-        other_scores = [score for p, score in scores.items() if p != ls.expected]
-        margin = expected_score - max(other_scores)
-        margins.append(margin)
         
         hit_top1 = (t1 == ls.expected)
         hit_top2 = (t1 == ls.expected or t2 == ls.expected)

@@ -14,7 +14,11 @@ jobs:
           python-version: '3.12'
       - run: uv sync --locked --extra dev
         working-directory: backend
-      - run: uv run pytest --ignore=tests/test_recommendations.py
+      - run: uv run --locked --extra dev python -m pytest --ignore=tests/test_recommendations.py
+        working-directory: backend
+      - run: uv run --locked --extra dev python -m ruff check .
+        working-directory: backend
+      - run: uv run --locked --extra dev python -m pyright
         working-directory: backend
   frontend:
     runs-on: ubuntu-latest

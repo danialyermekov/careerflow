@@ -18,19 +18,22 @@ It adheres to strict Data Science and Machine Learning standards:
 
 from __future__ import annotations
 
-import os
-import sys
 import time
-import json
 import random
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
+from uuid import uuid4
+from hashlib import sha256
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend for headless environments
 import matplotlib.pyplot as plt
 from fastapi.testclient import TestClient
+from main import create_app
+from api.schemas.requests import StudentProfile
+from domain.ranking import get_top_profession
+from infrastructure import guest_sessions
 
 # -----------------------------------------------------------------------------
 # 1. PATH CONFIGURATION
@@ -39,29 +42,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT_DIR = SCRIPT_DIR.parent
 BACKEND_DIR = ROOT_DIR / "backend"
 
-# Ensure the backend directory is in the system path to allow local imports
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.append(str(BACKEND_DIR))
-
-# Import FastAPI app and schemas for testing
-try:
-    from main import app, get_classifier, get_demand, get_skill_matcher, get_course_finder, get_llm
-    from schemas import StudentProfile
-    from database import init_db
-except ImportError as e:
-    print(f"Error importing backend components: {e}")
-    print("Please ensure this script is run from the workspace root or scripts directory.")
-    sys.exit(1)
-
-# Ensure the database is initialized
-init_db()
-
 # -----------------------------------------------------------------------------
 # 2. REPRODUCIBILITY & CONFIGURATION
 # -----------------------------------------------------------------------------
 RANDOM_STATE = 42
-random.seed(RANDOM_STATE)
-np.random.seed(RANDOM_STATE)
 
 # -----------------------------------------------------------------------------
 # 3. MOCK PROFILES GENERATION
@@ -167,6 +151,11 @@ def generate_mock_profiles() -> list[dict[str, Any]]:
             "lang": "en"
         }
     ]
+    technical_fields = ('python', 'java', 'c_cpp', 'sql', 'machine_learning', 'data_analysis',
+                        'cloud_computing', 'cybersecurity', 'web_development', 'devops', 'networking')
+    for profile in profiles:
+        for field in technical_fields:
+            profile[field] = int(profile[field] > 0)
     return profiles
 
 # -----------------------------------------------------------------------------
@@ -207,20 +196,27 @@ class BenchmarkSuite:
         Args:
             num_runs (int): Default number of iterations for each benchmark.
         """
-        self.client = TestClient(app)
+        self.app = create_app()
+        self.guest_token = uuid4().hex + uuid4().hex
         self.num_runs = num_runs
         self.profiles = generate_mock_profiles()
         
         # Warmup and Service Instantiation
         print("Initializing services and performing warmups...")
         start_init = time.perf_counter()
-        self.skill_matcher = get_skill_matcher()
-        self.classifier = get_classifier()
-        self.demand = get_demand()
-        self.course_finder = get_course_finder()
-        self.llm = get_llm()
+        self.skill_matcher = self.app.state.runtime.get('skill_matcher')
+        self.classifier = self.app.state.runtime.get('classifier')
+        self.demand = self.app.state.runtime.get('demand')
+        self.course_finder = self.app.state.runtime.get('course_finder')
+        self.llm = self.app.state.runtime.get('llm')
         init_time = (time.perf_counter() - start_init) * 1000.0
         print(f"Services successfully initialized in {init_time:.2f} ms.\n")
+
+    def _post(self, path: str, payload: dict):
+        # Model distinct clients so benchmark iterations do not measure rate-limit responses.
+        with TestClient(self.app, client=(uuid4().hex, 50000),
+                        headers={'X-Guest-Token': self.guest_token}) as client:
+            return client.post(path, json=payload)
 
     def run_recommend_endpoint_benchmark(self) -> pd.DataFrame:
         """Benchmarks the end-to-end /recommend API endpoint via the TestClient.
@@ -240,7 +236,7 @@ class BenchmarkSuite:
             profile_data = self.profiles[i % len(self.profiles)]
             
             start_time = time.perf_counter()
-            response = self.client.post("/recommend", json=profile_data)
+            response = self._post("/recommend", profile_data)
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             
             # Assertions to verify correctness
@@ -288,7 +284,7 @@ class BenchmarkSuite:
             "demand": [],
             "course_finder": [],
             "context_builder": [],
-            "db_save": []
+            "guest_save": []
         }
 
         for i in range(self.num_runs):
@@ -316,7 +312,6 @@ class BenchmarkSuite:
             timing_data["demand"].append((time.perf_counter() - t0) * 1000.0)
 
             # 4. Scoring Combiner (extremely fast, grouped with overall course finder or skipped)
-            from top_profession import get_top_profession
             top_profession, final_scores, top_2 = get_top_profession(
                 classification_scores=classification_scores,
                 demand_scores=demand_scores,
@@ -348,9 +343,8 @@ class BenchmarkSuite:
             )
             timing_data["context_builder"].append((time.perf_counter() - t0) * 1000.0)
 
-            # 7. Benchmark Database Session Save
+            # 7. Benchmark Guest Session Save
             t0 = time.perf_counter()
-            from database import save_recommendation_session, DEMO_USER_ID
             response_payload = {
                 'top_profession':        top_profession,
                 'session_id':            "benchmark-session-id",
@@ -361,19 +355,12 @@ class BenchmarkSuite:
                 'demand_scores':         demand_scores,
                 'roadmap_with_courses':  roadmap_with_courses,
             }
-            save_recommendation_session(
-                session_id="benchmark-session-id",
-                user_id=DEMO_USER_ID,
-                profile=profile.model_dump(),
-                result_payload=response_payload,
-                context=context,
-                roadmaps_by_profession=roadmaps_by_profession,
-                roadmap_with_courses=roadmap_with_courses,
-            )
-            timing_data["db_save"].append((time.perf_counter() - t0) * 1000.0)
+            response_payload.update(context=context, roadmaps_by_profession=roadmaps_by_profession)
+            guest_sessions.save(str(uuid4()), sha256(self.guest_token.encode()).hexdigest(), response_payload)
+            timing_data["guest_save"].append((time.perf_counter() - t0) * 1000.0)
 
             total_internal = sum(timing_data[k][-1] for k in timing_data)
-            print(f"Run {i+1:02d} | SkillMatch: {timing_data['skill_matcher'][-1]:5.1f}ms | Classifier: {timing_data['classifier'][-1]:5.1f}ms | Demand: {timing_data['demand'][-1]:5.1f}ms | CourseFinder: {timing_data['course_finder'][-1]:5.1f}ms | DBSave: {timing_data['db_save'][-1]:5.1f}ms | Sum: {total_internal:6.1f}ms")
+            print(f"Run {i+1:02d} | SkillMatch: {timing_data['skill_matcher'][-1]:5.1f}ms | Classifier: {timing_data['classifier'][-1]:5.1f}ms | Demand: {timing_data['demand'][-1]:5.1f}ms | CourseFinder: {timing_data['course_finder'][-1]:5.1f}ms | GuestSave: {timing_data['guest_save'][-1]:5.1f}ms | Sum: {total_internal:6.1f}ms")
 
         print("\nInternal Services Statistical Summary (ms):")
         for service, latencies in timing_data.items():
@@ -428,7 +415,7 @@ class BenchmarkSuite:
                 start_time = time.perf_counter()
                 
                 # Perform post call to filter_courses
-                response = self.client.post("/courses/filter", json={
+                response = self._post("/courses/filter", {
                     "skills_gaps": skills_subset,
                     "lang": lang,
                     "filters": filter_opts
@@ -560,8 +547,8 @@ def plot_results(
     """Generates beautiful, publication-ready statistical visualizations using Matplotlib.
 
     Saved files:
-    - scripts/recommendation_speed_breakdown.png (Submodule breakdown inside /recommend)
-    - scripts/overall_performance.png (Overall box-plot profiling distribution comparison)
+    - backend/recommendation_speed_breakdown.png (Submodule breakdown inside /recommend)
+    - backend/overall_performance.png (Overall box-plot profiling distribution comparison)
 
     Args:
         e2e_df (pd.DataFrame): Timing records from /recommend.
@@ -703,7 +690,7 @@ def generate_report(
 ) -> None:
     """Compiles and writes a detailed markdown report of the benchmark results.
 
-    Saves the final report to scripts/benchmark_report.md.
+    Saves the final report to backend/benchmark_report.md.
 
     Args:
         e2e_df (pd.DataFrame): Timing records from /recommend.
@@ -723,7 +710,7 @@ This report presents a thorough latency audit of the IT Career Recommendation Sy
 
 ## 1. End-to-End API /recommend Endpoint
 
-Measures full HTTP pipeline overhead, including request parsing, validation, multi-model execution, database record writing, and JSON serialization.
+Measures the guest HTTP pipeline, including request parsing, validation, multi-model execution, temporary guest session storage, and JSON serialization. Authenticated PostgreSQL persistence is not measured.
 
 | Metric | Latency (ms) | Description |
 | :--- | :---: | :--- |
@@ -783,8 +770,8 @@ Measurements for text chat and chunk-based streaming generation.
 
 1. **Course Finder & Routing Bottleneck**: Course matching is the primary local contributor to overall latency because it performs regex substring queries against the courses database.
    * *Optimization*: Introduce local memory caching for common skills, or migrate matching searches to Pandas vector indices or a relational SQLite full-text indexing pattern (FTS5).
-2. **Database Save overhead**: Writing the full roadmap and courses payload to SQLite on every recommendation call takes a substantial amount of time.
-   * *Optimization*: Write database entries asynchronously via a background task so it doesn't block the HTTP response return thread.
+2. **Guest Save overhead**: This benchmark measures the current in-memory guest store. It does not measure authenticated PostgreSQL persistence.
+   * *Limitation*: Guest state is process-local and expires; database persistence needs a separate disposable PostgreSQL benchmark.
 3. **LLM Jitter**: LLM request processing is highly dependent on network quality and remote provider load. Using a streaming structure with standard `/chat/stream` improves perceived speed dramatically, reducing user wait times to a **{llm_results['ttft']['mean']:.1f} ms** TTFT.
 """
 
@@ -798,6 +785,8 @@ Measurements for text chat and chunk-based streaming generation.
 # -----------------------------------------------------------------------------
 def main() -> None:
     """Main entry point representing the complete benchmarking execution loop."""
+    random.seed(RANDOM_STATE)
+    np.random.seed(RANDOM_STATE)
     print("======================================================================")
     print("IT CAREER RECOMMENDATION SYSTEM - COMPREHENSIVE PERFORMANCE EVALUATION")
     print("======================================================================")

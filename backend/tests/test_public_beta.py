@@ -4,11 +4,10 @@ import httpx
 import pytest
 import sqlalchemy as sa
 from fastapi import HTTPException
-import auth
-import database
-import guest_sessions
-import main
-import security
+from api import auth
+from infrastructure import database
+from infrastructure import guest_sessions
+from core import security
 from conftest import TEST_PROFILE
 
 A, B = str(uuid4()), str(uuid4())
@@ -114,11 +113,11 @@ def test_feedback_rate_and_body_limits(client):
 
 def test_atomic_recommendation_write_rolls_back(client, identities, monkeypatch):
     a, _ = identities
-    original = main.save_recommendation_session
+    original = database.save_recommendation_session
     def fail(**kwargs):
         kwargs['result_payload']['demand_scores']['Machine Learning Engineer']['unexpected_column'] = 1
         original(**kwargs)
-    monkeypatch.setattr(main, 'save_recommendation_session', fail)
+    monkeypatch.setattr(database, 'save_recommendation_session', fail)
     assert client.post('/recommend', json=TEST_PROFILE, headers=a).status_code == 503
     assert client.get('/recommendation/history', headers=a).json()['items'] == []
 
@@ -131,12 +130,12 @@ def test_deletion_requires_config_and_handles_failure(client, identities, monkey
     monkeypatch.setattr(auth, 'SUPABASE_SECRET_KEY', 'server-only')
     def fail(user_id):
         raise HTTPException(503, 'Retry deletion')
-    monkeypatch.setattr(main, 'delete_auth_user', fail)
+    monkeypatch.setattr(auth, 'delete_auth_user', fail)
     assert client.delete('/account', headers=a).status_code == 503
     assert client.get(f'/recommendation/{session}/state', headers=a).status_code == 403
     assert client.get('/account', headers=a).json()['deletion_pending'] is True
     delete = Mock()
-    monkeypatch.setattr(main, 'delete_auth_user', delete)
+    monkeypatch.setattr(auth, 'delete_auth_user', delete)
     assert client.delete('/account', headers=a).status_code == 200
     delete.assert_called_once_with(A)
     with database.get_connection() as conn:

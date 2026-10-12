@@ -11,7 +11,8 @@ frontend/build/
 backend/dev-server.*.log
 frontend/dev-server.*.log
 
-/docs/
+/docs/*
+!/docs/architecture.md
 /scripts/
 /CHANGELOG.md
 

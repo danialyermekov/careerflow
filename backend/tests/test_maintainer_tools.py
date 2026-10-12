@@ -1,9 +1,8 @@
 import sqlite3
 import pytest
-import sqlalchemy as sa
 from archive_sqlite import archive
 from feedback_export import export_feedback
-import database
+from infrastructure import database
 
 def test_legacy_backup_retains_demo_without_import_or_overwrite(tmp_path):
     source, target = tmp_path / 'old.sqlite3', tmp_path / 'backup.sqlite3'

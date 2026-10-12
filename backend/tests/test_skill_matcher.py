@@ -8,7 +8,7 @@ import sys
 def test_skill_vectors_are_stable_across_process_hash_seeds():
     code = """
 import json
-from services.skill_matcher import SkillMatcherService
+from infrastructure.ml.skill_matcher import SkillMatcherService
 service = SkillMatcherService()
 skills = ['Python', 'SQL', 'Pandas', 'Git', 'Excel']
 print(json.dumps({'scores': service.get_scores(skills), 'skills': service.get_user_skills_ranked(skills)}))

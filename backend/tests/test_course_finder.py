@@ -1,7 +1,7 @@
 import threading
 
-from services import course_finder as course_finder_module
-from services.course_finder import CourseFinderService
+from infrastructure.ml import course_finder as course_finder_module
+from infrastructure.ml.course_finder import CourseFinderService
 
 
 def make_course_finder(monkeypatch):

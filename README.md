@@ -85,7 +85,7 @@ Final score =
 + 0.07 * normalized demand market-share score
 ```
 
-These weights come from `backend/config.py`. In `backend/top_profession.py`, classifier values are divided by their sum; the other three signals are separately divided by their largest value across the scored careers. A zero denominator uses 1. The weighted sum is rounded to four decimal places, without a final normalization across careers. The frontend displays it as a match score out of 100, not a probability of career success. The breakdown uses these same normalized values; expandable details also show the raw API values.
+These weights and the scoring function live in `backend/domain/ranking.py`: classifier values are divided by their sum; the other three signals are separately divided by their largest value across the scored careers. A zero denominator uses 1. The weighted sum is rounded to four decimal places, without a final normalization across careers. The frontend displays it as a match score out of 100, not a probability of career success. The breakdown uses these same normalized values; expandable details also show the raw API values.
 
 Normalized user skills are sorted before vectorization because the saved TF-IDF vectorizer includes bigrams. This prevents Python set iteration order from changing scores between worker processes; the vectorizer and profession vectors are unchanged.
 
@@ -155,7 +155,7 @@ The app has two explanation layers:
 - score-level explanation: profile match, skill match, market share, trend score;
 - skill-level explanation: which skills increased or decreased the classifier confidence for the selected profession.
 
-Skill-level explainability is implemented in `backend/services/classifier.py`:
+Skill-level explainability is implemented in `backend/infrastructure/ml/classifier.py`:
 
 1. It first tries CatBoost local SHAP values.
 2. If SHAP cannot be computed for the runtime/model, it falls back to a model-aware feature-importance and counterfactual delta approach.
@@ -253,7 +253,7 @@ Only `/chat`, `/chat/stream`, and `/voice/transcribe` receive `X-LLM-Provider` (
 
 The BYOK generation request checks the key; selecting **Use key** makes no provider call. Missing BYOK keys return HTTP 400, rejected credentials HTTP 401, rate limits HTTP 429, and unavailable providers HTTP 503. After an SSE stream starts, failures are safe JSON `type: "error"` events followed by one `[DONE]`. Invalid keys remain only in memory for the user to correct or remove. Removing/changing credentials aborts in-flight frontend AI requests.
 
-Claude uses Anthropic Messages with `claude-sonnet-5-5`; deep mode uses adaptive thinking. Gemini retains the existing `google-genai` chat models and thought/text stream format. Audio transcription remains Gemini-only; Claude users can type or use browser speech playback. To add a provider, implement the same three provider methods, register it in `backend/services/llm.py`, and add its public metadata to `frontend/src/utils/llmSettings.js`.
+Claude uses Anthropic Messages with `claude-sonnet-5-5`; deep mode uses adaptive thinking. Gemini retains the existing `google-genai` chat models and thought/text stream format. Audio transcription remains Gemini-only; Claude users can type or use browser speech playback. To add a provider, implement the same three provider methods, register it in `backend/infrastructure/llm.py`, and add its public metadata to `frontend/src/utils/llmSettings.js`.
 
 Security limits: in-memory credentials do **not** protect against XSS or malicious browser extensions. Use HTTPS outside localhost. The key necessarily passes through CareerFlow's backend and the selected provider; provider-side processing and retention follow that provider's policies. BYOK errors are sanitized and SDK request/exception debug logging is suppressed. The separate preview error handler currently logs exception text, so its logs still require a privacy review; do not treat all provider failures as fully redacted. Keep reverse proxies, APM, analytics, and transport debug logging from recording `X-LLM-API-Key`, `x-api-key`, or `x-goog-api-key`. CORS permits the custom headers; it is not authentication. Supabase authentication and session ownership checks protect private results; basic request limits are process-local and require shared or edge limits before scaling.
 
@@ -283,6 +283,8 @@ The frontend supports:
 Translations cover main UI, profession names, filters, roadmap, explanations, AI advisor texts, and PDF labels.
 
 ## System Architecture
+
+The backend uses a small layered architecture: `api/` owns routers, HTTP dependencies and transport schemas; `application/` orchestrates recommendations and AI preview; `domain/` owns deterministic ranking and skill-gap rules; `infrastructure/` owns storage, model/catalog loading and external integrations; `core/` owns typed settings and operational mechanisms. `main.py` is the composition root and preserves the `main:app` deployment entrypoint. See [architecture and data flows](docs/architecture.md) for the dependency map, compatibility decisions and remaining debt.
 
 ```text
 Student profile / uploaded resume
@@ -315,14 +317,14 @@ React frontend
 
 | Layer | Tools |
 | --- | --- |
-| Backend | Python, FastAPI, Uvicorn, Pydantic |
+| Backend | Python, FastAPI, Uvicorn, Pydantic, pydantic-settings |
 | Database | Supabase PostgreSQL, SQLAlchemy Core, Alembic, psycopg 3 |
 | Authentication | Supabase Auth, Google/GitHub OAuth with PKCE |
 | ML | CatBoost, LightGBM, scikit-learn, pandas, NumPy, joblib |
 | Resume parsing | PyMuPDF |
 | Frontend | React, Framer Motion, CSS Modules |
 | AI advisor | Gemini Free Preview; optional Claude/Gemini BYOK via `anthropic` / `google-genai` |
-| Testing | Pytest, React Scripts/Jest |
+| Testing / quality | Pytest, Ruff, Pyright, React Scripts/Jest |
 | Deployment | Azure Container Apps (production); Docker / Docker Compose (local) |
 
 ## Repository Structure
@@ -337,18 +339,20 @@ careerflow/
 │   │   └── vacancy_data.csv             # Historical 2023 weekly demand observations
 │   ├── models/                          # Serialized ML models and profiles
 │   ├── migrations/                      # Versioned PostgreSQL schema changes
-│   ├── services/
-│   │   ├── classifier.py                # CatBoost scoring and SHAP/fallback explainability
-│   │   ├── course_finder.py             # Course metadata and roadmap course lookup
-│   │   ├── demand.py                    # Demand scoring
-│   │   ├── llm.py                       # Claude/Gemini chat; Gemini voice transcription
-│   │   ├── resume_parser.py             # Resume parser
-│   │   └── skill_matcher.py             # Skill matching
+│   ├── api/
+│   │   ├── routes/                     # Recommendations, AI, community, health/static serving
+│   │   └── schemas/                    # Separate Pydantic request and response models
+│   ├── application/                    # Recommendation orchestration, runtime dependencies, AI preview
+│   ├── domain/                         # Ranking, roadmap rules, skill taxonomy, chat topic policy
+│   ├── infrastructure/
+│   │   ├── ml/                         # Artifact loading, feature engineering, inference, course lookup
+│   │   ├── database.py                 # SQLAlchemy Core private persistence
+│   │   ├── ai_trial_store.py           # Transactional preview quotas
+│   │   ├── llm.py                      # Claude/Gemini providers
+│   │   └── guest_sessions.py           # Temporary guest state
+│   ├── core/                           # Typed settings, derived paths, errors, safe logs, request limits
 │   ├── tests/                           # Backend tests
-│   ├── database.py                      # Private PostgreSQL schema and persistence layer
-│   ├── main.py                          # FastAPI routes
-│   ├── roadmap.py                       # Roadmap generation
-│   ├── schemas.py                       # Pydantic schemas
+│   ├── main.py                          # App factory and stable Uvicorn entrypoint
 │   ├── .env.example                     # Backend configuration template, no secrets
 │   ├── alembic.ini
 │   ├── pyproject.toml                   # Backend dependencies
@@ -460,7 +464,7 @@ import re
 import subprocess
 import sys
 from sqlalchemy.engine import make_url
-from config import DATABASE_URL, SUPABASE_URL
+from core.config import DATABASE_URL, SUPABASE_URL
 
 ref = sys.argv[1].strip()
 if not re.fullmatch(r"[a-z0-9]{20}", ref):
@@ -660,7 +664,7 @@ Backend unit/API tests, from a development environment:
 ```bash
 cd backend
 uv sync --locked --extra dev
-uv run --locked --extra dev pytest --ignore=tests/test_recommendations.py
+uv run --locked --extra dev python -m pytest --ignore=tests/test_recommendations.py
 ```
 
 PostgreSQL integration tests are opt-in through `CAREERFLOW_TEST_POSTGRES`; they require an explicitly configured disposable database and must never target production. The complete suite also includes `test_recommendations.py`, which sends guest HTTP requests to a running backend at `http://localhost:8000` (overridable with `CAREERFLOW_TEST_API_URL`). Start a separate development backend before running these tests. The labeled recommendation cases are exploratory behavior checks, not a representative career-outcome benchmark.
