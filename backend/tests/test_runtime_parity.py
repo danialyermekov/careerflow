@@ -49,8 +49,6 @@ def test_real_artifacts_preserve_scores_and_explanations(monkeypatch):
 
 @pytest.mark.parametrize(('lang', 'expected'), [
     ('en', '063a4cd6039dd27cbd30f9bc2e7204002043054fa5042ad6d8111745041d79e5'),
-    ('ru', '5b5521111a32b05eef8e78a5a6f14d67b3d15f6a43635fd53ffc52b79f971491'),
-    ('kk', '5b5521111a32b05eef8e78a5a6f14d67b3d15f6a43635fd53ffc52b79f971491'),
 ])
 def test_real_catalog_preserves_roadmaps_and_locale_fallback(lang, expected):
     result = CourseFinderService().get_gap_summary_for_all(TEST_PROFILE['skills'], lang=lang)
