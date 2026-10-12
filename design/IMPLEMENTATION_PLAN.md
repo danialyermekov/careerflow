@@ -1,6 +1,6 @@
 # CareerFlow — Editorial Minimalist Frontend Migration Plan
 
-**Status:** analysis and proposed implementation only; awaiting approval.
+**Status:** plan approved; Stage 0 and Stage 1 completed and verified locally. Stopped for user review before Stage 2. Execution evidence is recorded below; the original audit describes the pre-implementation state.
 
 **Audit date:** 2026-10-12.
 
@@ -430,4 +430,49 @@ At report creation, `frontend/node_modules` and `backend/.venv` are absent. Appl
 
 Planning checks completed: all A–G sections and seven screen mappings present; all nine stages (0–8) include files/reuse/integrations/dependencies/breakage/tests/visual gates; Git shows only this report added alongside the pre-existing untracked exports, with no tracked or staged changes; SHA-256 comparison confirms all 17 export files match the pre-write audit baseline. Report verification does not replace runtime verification.
 
-**Approval boundary:** approve this plan and the relevant G1 decisions before any implementation. Continue one reviewed stage at a time; preserve user assets and existing behavior. No application redesign, commit, push or PR is authorized by creating this document.
+**Approval boundary:** creating this document did not authorize implementation. Subsequent user approval authorized Stage 0 and Stage 1 and an optional verified local commit. Continue one reviewed stage at a time; preserve user assets and existing behavior. Stage 2, push, merge and PR remain subject to further authorization.
+
+## Execution record — Stage 0 and Stage 1 (2026-10-12)
+
+### Approved decisions and scope
+
+- Canonical initial light identity: warm paper canvas, carbon text, restrained accent/status families, Newsreader headings and Plus Jakarta Sans UI with explicit system fallbacks. Validate contrast rather than copy conflicting export literals.
+- New users start light. Preserve saved light/dark preferences and the existing toggle, coordinating pre-React HTML, provider initialization, CSS, prerender and browser theme-color metadata.
+- Retain existing horizontal brand assets until the approved wave asset is identified. Their white lettering now sits on carbon; no generic export logo replaces them.
+- Future advisor geometry is a desktop right-side drawer around 440–480px, with accessible mobile behavior and approved Best Match beneath it. No drawer work belongs to these stages.
+- Work remained limited to shared foundations/header. No landing/profile/results layout migration, backend/ML/contracts, dependency versions, invented data or new product behavior was introduced.
+
+### Stage 0 — Baseline and isolation
+
+- Continued the existing isolated `feat/ui-redesign` worktree from approved-plan commit `ffb0050` (`Implementation plan`). Initial tracked/staged state was clean; the 17 original export files were already untracked user assets.
+- Installed locked dependencies with `npm ci --no-audit --no-fund` in `frontend/`: 1,310 packages; manifest and lockfile unchanged. Environment: Node v22.22.2, npm 10.9.7.
+- With `CI=true`, `npm test -- --runInBand` passed **14 suites / 121 tests**. `npm run build` passed compilation, **9 public prerenders** and SEO artifact checks. No baseline test/build failures. Existing output included dependency deprecations, Node's `punycode` warning and Results CourseFilter debug logs.
+- SHA-256 snapshots covered all **17 exports / 2,729,692 bytes**; the final comparison confirms every byte/hash unchanged. Original exports remain outside the task commit.
+- The parallel `careerflow-azure-cd` worktree was inspected read-only: initially `feat/azure-cd` at `6a7be24` with its pre-existing changes; final observation clean at `c5f83a6` after independent CI/CD progress. No modifying command or task file change was made in that worktree or `.github/`.
+
+### Stage 1 — Shared foundations
+
+- `frontend/src/index.css`: semantic light/dark surfaces, text, primary/accent/status families, strong control borders, 4/8/16/24/32 spacing, 1280px content width, 8/12px control/card radii, pill radius, restrained shadows, editorial heading/UI stacks, tabular control numerals and visible focus. Dark retains its prior palette; the decorative shell grid is hidden only in light.
+- `frontend/public/index.html` and `frontend/src/context/AppContext.jsx`: deterministic light default, normalization of invalid preferences, safe blocked-storage handling, saved-theme prepaint bootstrap and synchronized theme-color. Fonts reuse the existing Google Fonts loading mechanism with `display=swap`; no dependency was added.
+- `frontend/scripts/prerender.cjs` and `frontend/scripts/check-seo.cjs`: remove the forced-dark prerender and assert light default metadata for public pages/private shell while retaining existing SEO checks.
+- `frontend/src/components/Navbar.jsx` and `Navbar.module.css`: flat shared header, max-width alignment, 44px controls, labeled theme state/language group, visible keyboard focus and wrapped sticky-in-flow mobile navigation. Existing brand/home, feedback, account, language and theme actions remain wired.
+- `frontend/src/components/BrandLogo.module.css` and `frontend/src/beta.css`: carbon backing for the unchanged wordmark, shared public-form control foundations and footer width alignment.
+- `frontend/src/context/AppContext.test.jsx` and `frontend/src/publicTheme.test.js`: focused preference/remount/locale/blocked-storage/prepaint tests. `frontend/src/App.test.jsx` explicitly seeds the saved dark preference for its existing two-theme brand/navigation test.
+
+### Verification and review evidence
+
+- TDD characterization: the new focused checks initially produced **8 failures / 3 passes**, exposing the old dark/invalid defaults and missing pre-React saved preference. Final frontend gate after the contrast fix: **16 suites / 132 tests passed** with `CI=true npm test -- --runInBand`.
+- Final `CI=true npm run build`: successful compilation, **9 public pages prerendered**, SEO artifact checks passed. No new test/build failure; the pre-existing warning/debug output remains.
+- Browser production-build shell matrix covered **EN/RU/KK × light/dark** at **1440×900, 768×1024, 390×844 and 320×844**. Header actions remained visible/reachable without horizontal clipping/overflow. Saved preferences and real language/theme controls were exercised.
+- Shared-shell spot checks covered `/about/`, `/#login` and untouched `/#profile`; no horizontal overflow. Profile heading remained below the desktop header; existing inputs/upload and footer remained present. Keyboard Tab showed a visible 2px outline on the feedback action.
+- Review reported **no Critical/Important findings** and one Minor muted-text contrast issue. It was reproduced at **4.39:1** (`#6B7280` on `#F4F4F1`) and fixed once in the shared light token to `#686F7C`. Fresh rebuilt-browser checks show **4.59:1** on the nested surface, **4.88:1** on canvas and **5.06:1** on white; primary/secondary/accent text also exceed 4.5:1 across these surfaces. Control border on white measures **4.49:1**. Decorative amber stays `#D97706`; small warning ink uses `#9A4E00` for readability.
+- Google Fonts CSS advertises Latin/Latin-ext/Vietnamese for Newsreader, and additionally Cyrillic-ext for Plus Jakarta Sans, but neither supplies complete basic Cyrillic coverage. RU/KK use Georgia/Times/system serif and Segoe UI/Arial/system sans where required. With the remote font stylesheet removed and **zero webfont faces**, all six locale/theme combinations still fit the 320px navigation; Kazakh glyphs were visually inspected.
+- A **200% root text-size simulation** at 320px retained reachable unclipped controls. This is not actual browser 200% zoom. The existing reduced-motion CSS guard was inspected; OS preference emulation and Framer Motion runtime behavior were not verified.
+- Browser console checks showed no warnings/errors in the checked production-shell states; earlier font/style requests succeeded. Screenshots were saved only in the approved temporary directory, including desktop light EN, mobile dark KK and font-fallback KK captures; no new report/artifact folder was added to the repository.
+- Scoped diff and whitespace checks passed. Backend, ML, `.github/`, dependency manifests/lockfile, page-layout sources, translation files and utility/API sources remain unchanged. All 17 original export hashes passed the final integrity comparison.
+
+### Remaining differences and review boundary
+
+- This is the shared foundation checkpoint. Landing/profile/results layouts, page-specific spacing/graphics and complete seven-screen fidelity await their approved stages. The existing wordmark plaque remains until wave branding is supplied; unsupported Cyrillic glyphs use system fonts and may differ visually across platforms.
+- Actual browser 200% zoom, reduced-motion runtime emulation, backend tests and live OAuth/database/provider/voice/PDF flows were not run for this frontend-only stage. Existing mocked frontend integration tests passed; they do not establish live-service availability. Pre-existing history/feedback concerns in G2 remain documented for later approved work.
+- **Stop here for Stage 1 review. Do not start Stage 2 or push, merge or create a PR without further user authorization.**

@@ -15,6 +15,8 @@ for (const [route, metadata] of Object.entries(seo.pages)) {
   assert.equal(document.querySelectorAll('link[rel="canonical"]').length, 1)
   assert.equal(document.querySelector('link[rel="canonical"]').href, seo.origin + route)
   assert.equal(document.documentElement.lang, 'en')
+  assert.equal(document.documentElement.dataset.theme, 'light')
+  assert.equal(document.querySelector('meta[name="theme-color"]').content, '#FBFBFA')
   assert.equal(document.querySelector('meta[name="robots"]').content, 'index, follow')
   for (const [attribute, name, expected] of [
     ['property', 'og:title', metadata.title], ['property', 'og:description', metadata.description], ['property', 'og:url', seo.origin + route],
@@ -47,6 +49,7 @@ assert.deepEqual([...sitemap.querySelectorAll('loc')].map(node => node.textConte
 assert.equal(sitemap.querySelector('lastmod'), null)
 assert(fs.readFileSync(path.join(build, 'robots.txt'), 'utf8').includes('Sitemap: ' + seo.origin + '/sitemap.xml'))
 const shell = new JSDOM(fs.readFileSync(path.join(build, 'app-shell.html'), 'utf8')).window.document
+assert.equal(shell.documentElement.dataset.theme, 'light')
 assert.equal(shell.querySelector('meta[name="robots"]').content, 'noindex, follow')
 assert.equal(shell.querySelector('link[rel="canonical"]'), null)
 assert.equal(shell.querySelector('#root').textContent, '')

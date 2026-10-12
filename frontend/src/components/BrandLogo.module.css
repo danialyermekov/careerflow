@@ -1,8 +1,12 @@
 .brand {
   display: block;
-  width: 208px;
+  width: 232px;
   max-width: 100%;
   line-height: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  /* The supplied wordmark is white; keep its original colors on carbon. */
+  background: #111418;
 }
 
 .brand img {
@@ -11,11 +15,6 @@
   height: auto;
 }
 
-/* Keep the supplied white lettering readable without changing its colors. */
-:global([data-theme="light"]) .brand img {
-  filter: drop-shadow(0 0 .65px #24364d);
-}
-
 @media (max-width: 640px) {
-  .brand { width: 180px; }
+  .brand { width: 204px; }
 }

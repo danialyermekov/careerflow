@@ -48,6 +48,7 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks() })
 
 test('original horizontal branding appears in navbar and footer in both themes and keeps home navigation', async () => {
+  localStorage.setItem('theme', 'dark')
   window.history.replaceState({}, '', '/#about')
   await act(async () => root.render(<App />))
   const home = container.querySelector('nav a[aria-label="CareerFlow"]')
