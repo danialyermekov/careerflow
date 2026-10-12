@@ -5,11 +5,46 @@ const { JSDOM } = require('jsdom')
 const seo = require('../src/data/seo.json')
 const build = path.resolve(__dirname, '../build')
 const titles = new Set(), descriptions = new Set()
+function checkBranding(document) {
+  for (const [selector, href] of [
+    ['link[rel="icon"][type="image/svg+xml"]', '/branding/favicon.svg'],
+    ['link[rel="icon"][sizes="16x16 32x32 48x48"]', '/favicon.ico'],
+    ['link[rel="icon"][sizes="16x16"]', '/favicon-16x16.png'],
+    ['link[rel="icon"][sizes="32x32"]', '/favicon-32x32.png'],
+    ['link[rel="icon"][sizes="48x48"]', '/favicon-48x48.png'],
+    ['link[rel="apple-touch-icon"]', '/apple-touch-icon.png'],
+    ['link[rel="manifest"]', '/manifest.json'],
+  ]) {
+    assert.equal(document.querySelector(selector)?.getAttribute('href'), href, `Missing branding link: ${selector}`)
+    assert(fs.existsSync(path.join(build, href)), `Missing branding asset: ${href}`)
+  }
+}
+function checkPNG(filename, size) {
+  const png = fs.readFileSync(path.join(build, filename))
+  assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [size, size], filename)
+}
+for (const size of [16, 32, 48]) checkPNG(`favicon-${size}x${size}.png`, size)
+checkPNG('apple-touch-icon.png', 180)
+const manifest = JSON.parse(fs.readFileSync(path.join(build, 'manifest.json'), 'utf8'))
+for (const [src, size, purpose] of [
+  ['branding/android-chrome-192x192.png', 192, 'any'],
+  ['branding/android-chrome-512x512.png', 512, 'any'],
+  ['branding/android-chrome-maskable-512x512.png', 512, 'maskable'],
+]) {
+  assert(manifest.icons.some(icon => icon.src === src && icon.sizes === `${size}x${size}` && icon.purpose === purpose))
+  checkPNG(src, size)
+}
+const ico = fs.readFileSync(path.join(build, 'favicon.ico'))
+assert.equal(ico.readUInt16LE(2), 1)
+assert.equal(ico.readUInt16LE(4), 3)
+assert.deepEqual([0, 1, 2].map(index => [ico[6 + index * 16], ico[7 + index * 16]]), [[16, 16], [32, 32], [48, 48]])
 const css = fs.readdirSync(path.join(build, 'static/css')).filter(name => name.endsWith('.css'))
   .map(name => fs.readFileSync(path.join(build, 'static/css', name), 'utf8')).join('\n')
 for (const [route, metadata] of Object.entries(seo.pages)) {
   const html = fs.readFileSync(path.join(build, route.slice(1), 'index.html'), 'utf8')
   const document = new JSDOM(html).window.document // Scripts never run in this initial-response check.
+  checkBranding(document)
   assert.equal(document.title, metadata.title)
   assert.equal(document.querySelector('meta[name="description"]').content, metadata.description)
   assert.equal(document.querySelectorAll('link[rel="canonical"]').length, 1)
@@ -49,8 +84,9 @@ assert.deepEqual([...sitemap.querySelectorAll('loc')].map(node => node.textConte
 assert.equal(sitemap.querySelector('lastmod'), null)
 assert(fs.readFileSync(path.join(build, 'robots.txt'), 'utf8').includes('Sitemap: ' + seo.origin + '/sitemap.xml'))
 const shell = new JSDOM(fs.readFileSync(path.join(build, 'app-shell.html'), 'utf8')).window.document
+checkBranding(shell)
 assert.equal(shell.documentElement.dataset.theme, 'light')
 assert.equal(shell.querySelector('meta[name="robots"]').content, 'noindex, follow')
 assert.equal(shell.querySelector('link[rel="canonical"]'), null)
 assert.equal(shell.querySelector('#root').textContent, '')
-console.log(`SEO artifact checks passed: ${titles.size} initial HTML pages, metadata, CSS modules, JSON-LD, robots, sitemap and private shell.`)
+console.log(`SEO artifact checks passed: ${titles.size} initial HTML pages, metadata, CSS modules, JSON-LD, robots, sitemap, private shell and branding assets.`)

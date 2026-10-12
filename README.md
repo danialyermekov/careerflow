@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/careerflow-logo.svg" alt="CareerFlow — wave symbol and wordmark" width="360">
+  <img src="assets/careerflow-logo.svg" alt="CareerFlow — CF symbol and wordmark" width="420">
 </p>
 
 <h1 align="center">CareerFlow</h1>
