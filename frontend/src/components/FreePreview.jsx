@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { getTrialStatus, sendTrialMessage } from '../utils/api'
+import AdvisorComposer from './AdvisorComposer'
 
 export default function FreePreview({ sessionId, careerContext }) {
   const { t, lang } = useApp()
@@ -104,41 +105,21 @@ export default function FreePreview({ sessionId, careerContext }) {
         ))}
       </div>
 
-      <form className="previewForm" onSubmit={event => { event.preventDefault(); send() }}>
-        <label className="previewConsentCompact">
+      <AdvisorComposer className="previewForm" onSend={() => send()} sendDisabled={!enabled || !input.trim()}
+        sendLabel={busy ? t.beta.loading : t.results.chatSend}
+        consent={<label className="previewConsentCompact">
           <input
             type="checkbox"
             checked={consent}
             onChange={handleConsentChange}
           />
           <span>{text.ageConfirm}</span>
-        </label>
-
-        <div className="previewInputWrapper">
-          <textarea
-            aria-label={t.results.chatPlaceholder}
-            maxLength={1000}
-            value={input}
-            onChange={event => setInput(event.target.value)}
-            disabled={!enabled}
-            rows={2}
-            placeholder={t.results.chatPlaceholder}
-            onKeyDown={event => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault()
-                send()
-              }
-            }}
-          />
-          <button type="submit" className="previewSendButton" disabled={!enabled || !input.trim()}>
-            {busy ? t.beta.loading : t.results.chatSend}
-          </button>
-        </div>
-
-        <p className="previewDisclosure">
+        </label>}
+        textareaProps={{ 'aria-label': t.results.chatPlaceholder, maxLength: 1000, value: input,
+          onChange: event => setInput(event.target.value), disabled: !enabled, placeholder: t.results.chatPlaceholder }}
+        privacy={<p className="previewDisclosure">
           {text.disclosure} <a href="/privacy">{text.privacyLink}</a>
-        </p>
-      </form>
+        </p>} />
     </section>
   )
 }

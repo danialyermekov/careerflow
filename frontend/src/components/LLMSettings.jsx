@@ -44,8 +44,8 @@ export default function LLMSettings() {
             autoComplete="off" spellCheck={false} autoCapitalize="none" />
           <button type="submit">{t.llm.save}</button>
         </form>
+        <p>{t.llm.sessionOnly}</p>
       </details>
-      <p>{t.llm.sessionOnly}</p>
       {error && <p role="alert">{error}</p>}
     </section>
   )

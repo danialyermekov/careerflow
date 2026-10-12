@@ -1,6 +1,6 @@
 # CareerFlow — Editorial Minimalist Frontend Migration Plan
 
-**Status:** plan approved; Stages 1–7 implemented with focused automated checks and production-build verification. Stages 6 & 7 were implemented together following the accepted Stage 5 checkpoint. Stopped before Stage 8; comprehensive browser/visual acceptance remains deferred. Execution evidence is recorded below; the original audit describes the pre-implementation state.
+**Status:** plan approved; Stages 1–7 and the focused Results consistency/Advisor polish pass implemented with focused automated checks and production-build verification. Stages 6 & 7 were implemented together following the accepted Stage 5 checkpoint. Stopped before Stage 8; comprehensive browser/visual acceptance remains deferred. Execution evidence is recorded below; the original audit describes the pre-implementation state.
 
 **Audit date:** 2026-10-12.
 
@@ -635,3 +635,59 @@ Planning checks completed: all A–G sections and seven screen mappings present;
 - Existing optimistic history clearing, history-load failure appearing empty, plain-text `stripMarkdown` chat rendering, course/progress/ordering limits and provider safety checks remain. A preview request already accepted by the server may consume quota after a session change; its late reply is ignored rather than represented as a canceled server operation. BYOK keys remain page-memory-only, including configuration drafts held in password inputs while the modal is closed.
 - Deferred to **Stage 8:** full frontend suite; browser/screenshots/visual regression; theme × language × viewport/device matrices; native modal, sticky composer, physical keyboard/touch/resize/zoom/mobile-keyboard/motion acceptance; PDF and real voice hardware; live authenticated history/feedback/provider/backend persistence and requests. Focused DOM tests/build do not certify those behaviors. Backend tests are outside this frontend-only checkpoint.
 - **Stages 6 & 7 checkpoint complete with focused verification. Stop before Stage 8. One combined local commit authorized.**
+
+## Execution record — Results consistency & Advisor polish (2026-10-13)
+
+- Scope: focused presentation pass from `e26045a` on the existing isolated
+  `feat/ui-redesign` worktree; one local commit, stop before Stage 8. Detailed plan,
+  rulings and red/green evidence: `design/RESULTS_POLISH_PLAN.md`.
+- No overlapping Results task-path changes were observed in registered parallel
+  worktrees. Preserve unrelated tracked backend bytecode and untracked originals.
+- Compact shared Results header/notice and profile disclosure; remove duplicate
+  rankings, history and roadmap previews while retaining entered inputs and TF-IDF
+  token weights. PDF/share/copy/save/new-analysis remain in native keyboard-operable
+  secondary action disclosure with unchanged callbacks/availability.
+- Compact primary recommendation, real rank/score alternatives and comparison bars;
+  four signal cards show server weights, weighted contribution and maximum possible
+  contribution, with consistently scaled tracks and existing methodology disclosure.
+  Bars/Radar/Gap retain data, modes and interactions; secondary charts are disclosed.
+  UI chart colors/labels use established theme tokens; standalone PDF colors remain
+  independent. Scores, normalization and recommendation calculations are unchanged.
+- Model explanation summarizes the three strongest positive/negative contributions
+  with complete details accessible. It separates actual profile input/presence from
+  preprocessed model input, relative feature contribution, raw classifier output and
+  composite score. Negative contributions are not labeled missing skills or advice
+  against learning; no probability/causal/proficiency claims are introduced.
+- Shared controlled `AdvisorComposer` gives preview/BYOK consistent sizing, submit,
+  autosizing, focus/disabled styling and privacy placement. Existing controllers own
+  consent, quotas, drafts, messages, session resets, provider/key/stream/voice logic.
+  Thinking/mic/playback use a compact secondary toolbar; unsupported provider/browser
+  recording controls are hidden. Existing key configuration stays expandable, with
+  its complete page-memory privacy explanation inside the disclosure. No key storage,
+  validation, transmission or API/provider contract changes.
+- New labels are EN/RU/KK. History/Feedback and Learning Roadmap components/styles,
+  shared Header/branding/README, backend/ML/API/auth utilities and dependencies have
+  no task changes. Shared frame changes apply across Results; protected tab internals
+  and their existing state/behavior are retained.
+
+### Verification, review and stop boundary
+
+- Initial three new integration tests failed before implementation; focused green
+  gate passed 2 suites / 70 tests. One fresh read-only review found model inputs were
+  preprocessed, not raw profile values, and browser recording capability gating was
+  incomplete. Verified against backend/runtime guards, re-graded both as Important,
+  reproduced failures and corrected them in one red/green fix pass. No second review
+  dispatch or deferred minor finding. The targeted run also uncovered a pre-existing
+  describe-block dependency on another block's scrollIntoView stub; setup is now local.
+- Final focused command from `frontend/`: `$env:CI='true'; npm test -- --runInBand --silent --runTestsByPath src/pages/Results.test.jsx src/components/Feedback.test.jsx src/components/FreePreview.test.jsx src/components/LLMSettings.test.jsx src/App.test.jsx src/i18n.test.js src/utils/api.test.js src/utils/scoring.test.js src/utils/llmSettings.test.js` — **9 suites / 159 tests passed**, zero failures. Combined rerun was justified by review fixes; no broad frontend suite.
+- **One production build attempt, passed:** optimized CRA compilation, **9 public
+  prerenders**, SEO/metadata/CSS modules/JSON-LD/robots/sitemap/private-shell/branding
+  artifact checks. Existing Node punycode warnings are non-failing; no standalone
+  lint/typecheck command exists. Diff/whitespace checks passed. Unrelated bytecode
+  retains the three hashes recorded at the Stage 6/7 baseline.
+- Full browser/screenshot/theme × language × viewport/mobile-keyboard/accessibility
+  matrix, native sticky/modal geometry, real PDF/voice hardware, live providers and
+  authenticated persistence remain deferred to Stage 8. DOM tests/build do not certify
+  visual geometry or live-service behavior. No browser matrix was run in this pass.
+- **Focused polish checkpoint complete with automated verification. Stop before
+  Stage 8. One scoped local commit authorized; no push, merge, PR or deployment.**

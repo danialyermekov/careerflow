@@ -44,6 +44,15 @@ export const translations = {
       "close": "Close",
       "paragraphs": [...betaTranslations.en.privacyText, experienceTranslations.en.privacy]
     },
+    polish: {
+      preprocessedInput: 'Model input (preprocessed)', modelInput: 'Model input',
+      tokenWeight: 'TF-IDF weight', generalToken: 'General / non-IT token',
+      present: 'Present', absent: 'Absent', explanationUnavailable: 'Feature contribution details are unavailable for this career.',
+      actions: 'More actions', maximum: 'Maximum', signalScale: 'Bars show the share of each signal’s maximum (0–100%).',
+      profileInputs: 'Evaluation inputs', fullFeatures: 'Full feature contribution details', positive: 'Strongest positive contributions', negative: 'Strongest negative contributions',
+      profileValue: 'Profile value', classifierOutput: 'Classifier output (raw)', compositeScore: 'Composite match score', noContributions: 'No contributions in this direction.',
+      modelCaveat: 'These are relative model feature contributions, not probability changes, causal effects or advice to avoid learning a skill. Profile values describe inputs, not proficiency.',
+    },
     review: {
       rankingTitle: 'All professions & comparative ranking', rankingIntro: 'Compare profile, skill and historical market signals across the supported IT careers. Select a career to inspect its score and learning steps.',
       trackCount: n => `${n} career tracks evaluated`, coverageCount: (known, total) => `${known} of ${total} roadmap skills covered`,
@@ -452,6 +461,15 @@ export const translations = {
       "close": "Закрыть",
       "paragraphs": [...betaTranslations.ru.privacyText, experienceTranslations.ru.privacy]
     },
+    polish: {
+      preprocessedInput: 'Вход модели (после обработки)', modelInput: 'Вход модели',
+      tokenWeight: 'Вес TF-IDF', generalToken: 'Общий / не-IT термин',
+      present: 'Есть', absent: 'Нет', explanationUnavailable: 'Сведения о вкладе признаков для этой профессии недоступны.',
+      actions: 'Другие действия', maximum: 'Максимум', signalScale: 'Полосы показывают долю от максимума каждого сигнала (0–100%).',
+      profileInputs: 'Входные данные оценки', fullFeatures: 'Полные сведения о вкладе признаков', positive: 'Наибольший положительный вклад', negative: 'Наибольший отрицательный вклад',
+      profileValue: 'Значение в профиле', classifierOutput: 'Выход классификатора (исходный)', compositeScore: 'Итоговая оценка соответствия', noContributions: 'Нет вкладов в этом направлении.',
+      modelCaveat: 'Это относительные вклады признаков модели, а не изменения вероятности, причинные эффекты или совет не изучать навык. Значения профиля описывают входные данные, а не уровень владения.',
+    },
     review: {
       rankingTitle: 'Все профессии и сравнительный рейтинг', rankingIntro: 'Сравните сигналы профиля, навыков и исторического рынка для поддерживаемых IT-профессий. Выберите профессию, чтобы изучить её оценку и учебные шаги.',
       trackCount: n => `Оценено карьерных направлений: ${n}`, coverageCount: (known, total) => `Покрыто навыков учебного плана: ${known} из ${total}`,
@@ -859,6 +877,15 @@ export const translations = {
       "privacy": "Құпиялық",
       "close": "Жабу",
       "paragraphs": [...betaTranslations.kk.privacyText, experienceTranslations.kk.privacy]
+    },
+    polish: {
+      preprocessedInput: 'Модель кірісі (өңделген)', modelInput: 'Модель кірісі',
+      tokenWeight: 'TF-IDF салмағы', generalToken: 'Жалпы / IT емес термин',
+      present: 'Бар', absent: 'Жоқ', explanationUnavailable: 'Бұл мамандық үшін белгілер үлесінің мәліметтері қолжетімсіз.',
+      actions: 'Қосымша әрекеттер', maximum: 'Ең көбі', signalScale: 'Жолақтар әр сигналдың ең үлкен мәніне қатысты үлесін көрсетеді (0–100%).',
+      profileInputs: 'Бағалаудың кіріс деректері', fullFeatures: 'Белгілер үлесінің толық мәліметтері', positive: 'Ең үлкен оң үлестер', negative: 'Ең үлкен теріс үлестер',
+      profileValue: 'Профиль мәні', classifierOutput: 'Классификатор нәтижесі (бастапқы)', compositeScore: 'Жалпы сәйкестік бағасы', noContributions: 'Бұл бағытта үлестер жоқ.',
+      modelCaveat: 'Бұлар — модель белгілерінің салыстырмалы үлестері, ықтималдық өзгерістері, себептік әсерлер немесе дағдыны үйренбеу туралы кеңес емес. Профиль мәндері меңгеру деңгейін емес, кіріс деректерді сипаттайды.',
     },
     review: {
       rankingTitle: 'Барлық мамандықтар және салыстырмалы рейтинг', rankingIntro: 'Қолдау көрсетілетін IT-мамандықтардың профиль, дағды және тарихи нарық сигналдарын салыстырыңыз. Бағасы мен оқу қадамдарын көру үшін мамандықты таңдаңыз.',

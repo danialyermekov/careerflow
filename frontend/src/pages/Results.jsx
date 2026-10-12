@@ -8,6 +8,7 @@ import { isDemoSession } from '../utils/demoProfile'
 import LLMSettings from '../components/LLMSettings'
 import GuidedTour from '../components/GuidedTour'
 import FreePreview from '../components/FreePreview'
+import AdvisorComposer from '../components/AdvisorComposer'
 import ResultsNavigation from './results/ResultsNavigation'
 import BestMatchPanel from './results/BestMatchPanel'
 import AllProfessionsPanel from './results/AllProfessionsPanel'
@@ -37,10 +38,21 @@ const CATEGORY_ICONS = {
   os: '⊞',
 }
 const BAR_COLORS = {
+  skill_match: 'var(--text)',
+  profile_match: 'var(--accent)',
+  trend_score: 'var(--text-3)',
+  market_share: 'var(--text-2)',
+}
+const PDF_BAR_COLORS = {
   skill_match:   '#5b8dee',
   profile_match: '#9b6ddf',
   trend_score:   '#4caf82',
   market_share:  '#f0943a',
+}
+const PROFILE_TECH_LABELS = {
+  python: 'Python', java: 'Java', c_cpp: 'C/C++', sql: 'SQL', machine_learning: 'Machine Learning',
+  data_analysis: 'Data Analysis', cloud_computing: 'Cloud Computing', cybersecurity: 'Cybersecurity',
+  web_development: 'Web Development', devops: 'DevOps', networking: 'Networking',
 }
 const BAR_TOOLTIPS = {
   en: {
@@ -549,7 +561,10 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
         <svg width={size} height={size} viewBox={`-44 -44 ${size + 88} ${size + 88}`}
           style={{ opacity, transition: 'opacity .35s ease' }}>
           {rings.map((d, i) => (
-            <path key={i} d={d} fill="none" stroke="var(--border)" strokeWidth={i === rings.length - 1 ? 1.5 : 1}/>
+            <g key={i}>
+              <path d={d} fill="none" stroke="var(--border)" strokeWidth={i === rings.length - 1 ? 1.5 : 1}/>
+              <text x={cx + 4} y={cy - r * levels[i]} fill="var(--text-3)" fontSize="11" fontFamily="var(--font-sans)">{Math.round(levels[i] * 100)}</text>
+            </g>
           ))}
           {axes.map((p, i) => {
             const end = point(i, 1)
@@ -562,18 +577,19 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
                   y={point(i, 1.27).y}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize="10"
+                  fontSize="12"
                   fill="var(--text-2)"
-                  fontFamily="var(--font-mono)"
+                  fontFamily="var(--font-sans)"
                 >
+                  <title>{label}</title>
                   {label.length > 15 ? label.slice(0, 14) + '…' : label}
                 </text>
               </g>
             )
           })}
-          <path d={poly('final_score')} fill="#5b8dee" fillOpacity=".17" stroke="#5b8dee" strokeWidth="2.5"/>
-          <path d={poly('skill_match')} fill="none" stroke="#4caf82" strokeWidth="1.8" strokeDasharray="5 4"/>
-          <path d={poly('profile_match')} fill="none" stroke="#9b6ddf" strokeWidth="1.8" strokeDasharray="2 4"/>
+          <path d={poly('final_score')} fill="var(--accent)" fillOpacity=".17" stroke="var(--accent)" strokeWidth="2.5"/>
+          <path d={poly('skill_match')} fill="none" stroke="var(--text)" strokeWidth="1.8" strokeDasharray="5 4"/>
+          <path d={poly('profile_match')} fill="none" stroke="var(--text-2)" strokeWidth="1.8" strokeDasharray="2 4"/>
           {axes.map((p, i) => {
             const pos = point(i, Math.min(p.final_score || 0, 1))
             const tooltipText = `${profLabel(p.name)}\n${t.results.scoreOverview}: ${formatMatchScore(p.final_score)}\n${rows.map(r => `${r.label}: ${pct(p[r.key], r.max)} / 100`).join('\n')}`
@@ -583,7 +599,7 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
                 cx={pos.x}
                 cy={pos.y}
                 r="6"
-                fill="#5b8dee"
+                fill="var(--accent)"
                 stroke="var(--bg)"
                 strokeWidth="2"
                 onMouseEnter={() => setTooltip({ x: pos.x, y: pos.y, text: tooltipText })}
@@ -593,9 +609,9 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
           })}
         </svg>
         <div className={styles.radarLegend}>
-          <span><i style={{ background: '#5b8dee' }}/>{t.results.scoreOverview}</span>
-          <span><i style={{ background: '#4caf82' }}/>{t.results.skillMatch}</span>
-          <span><i style={{ background: '#9b6ddf' }}/>{t.results.classification}</span>
+          <span><i style={{ background: 'var(--accent)' }}/>{t.results.scoreOverview}</span>
+          <span><i style={{ background: 'var(--text)' }}/>{t.results.skillMatch}</span>
+          <span><i style={{ background: 'var(--text-2)' }}/>{t.results.classification}</span>
         </div>
         {tooltip && (
           <div className={styles.chartTooltip} style={{ left: tooltip.x + 42, top: tooltip.y + 24 }}>
@@ -657,122 +673,47 @@ function ScoreCircleGrid({ professions, rows, profLabel, t, onSelect }) {
   )
 }
 
-function SkillImpactChart({ explanation, profName, t }) {
-  const isShap = !!explanation?.shap_explanations
-  const rawItems = explanation?.shap_explanations || explanation?.items || []
-  if (!rawItems.length) return null
-
-  // Standardize the items so the rendering and lists work seamlessly
-  const items = rawItems.map(item => {
-    if (isShap) {
-      const val = item.influence_percent
-      const present = item.raw_value > 0
-      let direction = 'positive'
-      if (val < 0) {
-        direction = present ? 'negative' : 'missing'
-      }
-      const absVal = Math.abs(val)
-      let magnitude = 'slightly'
-      if (absVal >= 15.0) {
-        magnitude = 'strongly'
-      } else if (absVal >= 5.0) {
-        magnitude = 'moderately'
-      }
-
-      return {
-        skill: item.label || item.feature_name,
-        feature: item.feature_name,
-        value: val,
-        abs_value: absVal,
-        present: present,
-        direction: direction,
-        magnitude: magnitude,
-        text: val >= 0 
-          ? `${item.label || item.feature_name} slightly increased confidence.`
-          : `${item.label || item.feature_name} gap slightly reduced confidence.`,
-      }
-    } else {
-      const totalAbsVal = rawItems.reduce((sum, i) => sum + Math.abs(i.value || 0), 0)
-      const pct = totalAbsVal > 1e-9 ? ((item.value || 0) / totalAbsVal) * 100 : 0
-      return {
-        ...item,
-        value: pct,
-        abs_value: Math.abs(pct),
-      }
-    }
-  })
-
-  const maxAbsPercent = Math.max(...items.map(item => item.abs_value), 0.001)
-  const positive = items.filter(item => item.value > 0)
-  const negative = items.filter(item => item.value < 0)
-  const methodText = explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback
-  const magnitude = item => t.results.impactMagnitude?.[item.magnitude] || item.magnitude
-  const itemText = item => {
-    const isSoft = ['communication', 'leadership', 'problem_solving', 'teamwork', 'adaptability'].includes(item.feature)
-    const isPresent = !!item.present
-    if (item.direction === 'positive') return t.results.skillPositiveText?.(item.skill, magnitude(item), profName, isSoft, isPresent) || item.text
-    if (item.direction === 'missing') return t.results.skillMissingText?.(item.skill, magnitude(item), profName, isSoft, isPresent) || item.text
-    return t.results.skillNegativeText?.(item.skill, magnitude(item), profName, isSoft, isPresent) || item.text
-  }
-
-  return (
-    <div className={styles.skillExplainBlock}>
-      <div className={styles.skillExplainHeader}>
-        <div>
-          <strong>{t.results.skillImpactTitle}</strong>
-          <span>{methodText}</span>
-        </div>
-        <button className={styles.infoPill} type="button" title={t.results.shapTooltip}>{explanation.method === 'catboost_shap' ? 'SHAP' : (t.results.infoPill || 'Info')}</button>
-      </div>
-      <p className={styles.explainText}>
-        {positive[0] ? itemText(positive[0]) : t.results.noPositiveSkills}{' '}
-        {negative[0] ? itemText(negative[0]) : t.results.noMissingSkills}
-      </p>
-      <div className={styles.skillImpactChart}>
-        {items.map(item => {
-          const barWidth = Math.max(2, (item.abs_value / maxAbsPercent) * 50)
-          const positiveImpact = item.value >= 0
-          return (
-            <div key={item.feature || item.skill} className={styles.skillImpactRow} title={itemText(item)}>
-              <span className={styles.skillImpactName}>{item.skill}</span>
-              <span className={styles.skillImpactTrack}>
-                <span className={styles.skillImpactBaseline} />
-                <i
-                  className={positiveImpact ? styles.skillImpactPositive : styles.skillImpactNegative}
-                  style={
-                    positiveImpact
-                      ? { left: '50%', width: `${barWidth}%`, position: 'absolute', height: '100%', borderRadius: '0 999px 999px 0' }
-                      : { right: '50%', width: `${barWidth}%`, position: 'absolute', height: '100%', borderRadius: '999px 0 0 999px' }
-                  }
-                />
-              </span>
-              <span className={styles.skillImpactValue}>{positiveImpact ? '+' : ''}{item.value.toFixed(2)}%</span>
-            </div>
-          )
-        })}
-      </div>
-      <div className={styles.skillImpactLegend}>
-        {t.results.shapLegend || "Positive values (+) increase the probability of this career track, while negative values (-) decrease it."}
-      </div>
-      <div className={styles.skillImpactLists}>
-        <div>
-          <strong>{t.results.topPositiveSkills}</strong>
-          {positive.length ? positive.slice(0, 4).map(item => (
-            <p key={item.feature || item.skill}>{itemText(item)}</p>
-          )) : <p>{t.results.noPositiveSkills}</p>}
-        </div>
-        <div>
-          <strong>{t.results.topMissingSkills}</strong>
-          {negative.length ? negative.slice(0, 4).map(item => (
-            <p key={item.feature || item.skill}>{itemText(item)}</p>
-          )) : <p>{t.results.noMissingSkills}</p>}
-        </div>
-      </div>
+function SkillImpactChart({ explanation, profile, t }) {
+  const isShap = !!explanation?.shap_explanations?.length
+  const rawItems = isShap ? explanation.shap_explanations : explanation?.items || []
+  if (!rawItems.length) return <p className={styles.methodNote}>{t.polish.explanationUnavailable}</p>
+  const totalAbs = rawItems.reduce((sum, item) => sum + Math.abs(item.value || 0), 0)
+  const items = rawItems.map(item => ({
+    name: isShap ? item.label || item.feature_name : item.skill,
+    feature: isShap ? item.feature_name : item.feature,
+    input: profile?.[isShap ? item.feature_name : item.feature] ?? (!isShap && typeof item.present === 'boolean' ? (item.present ? t.polish.present : t.polish.absent) : '—'),
+    modelInput: isShap && typeof item.raw_value === 'number' ? item.raw_value.toPrecision(5) : null,
+    presence: isShap && Object.hasOwn(PROFILE_TECH_LABELS, item.feature_name) && [0, 1].includes(profile?.[item.feature_name])
+      ? (profile[item.feature_name] ? t.polish.present : t.polish.absent) : null,
+    value: isShap ? item.influence_percent : totalAbs > 1e-9 ? (item.value || 0) / totalAbs * 100 : 0,
+  }))
+  const maxAbs = Math.max(...items.map(item => Math.abs(item.value)), .001)
+  const strongest = sign => items.filter(item => sign * item.value > 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3)
+  const rows = (list, full = false) => <div className={styles.skillImpactChart}>{list.map(item => <div key={item.feature || item.name} className={styles.skillImpactRow}>
+    <span className={styles.skillImpactName}>{item.name}<small>{t.polish.profileValue}: {item.input}{item.presence && ` · ${item.presence}`}</small>
+      {full && item.modelInput != null && <small>{explanation.method === 'catboost_shap' ? t.polish.preprocessedInput : t.polish.modelInput}: {item.modelInput}</small>}
+    </span>
+    <span className={styles.skillImpactTrack} aria-hidden="true"><span className={styles.skillImpactBaseline} />
+      <i className={item.value >= 0 ? styles.skillImpactPositive : styles.skillImpactNegative}
+        style={{ [item.value >= 0 ? 'left' : 'right']: '50%', width: `${Math.abs(item.value) / maxAbs * 50}%` }} />
+    </span>
+    <span className={styles.skillImpactValue}>{item.value > 0 ? '+' : ''}{item.value.toFixed(2)}%</span>
+  </div>)}</div>
+  return <div className={styles.skillExplainBlock}>
+    <p className={styles.methodNote}>{explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback}</p>
+    <div className={styles.featureSummary}>
+      {[1, -1].map(sign => <section key={sign} className={sign > 0 ? styles.positiveSummary : styles.negativeSummary}>
+        <h3>{sign > 0 ? t.polish.positive : t.polish.negative}</h3>
+        {strongest(sign).length ? rows(strongest(sign)) : <p className={styles.methodNote}>{t.polish.noContributions}</p>}
+      </section>)}
     </div>
-  )
+    <p className={styles.methodNote}>{t.results.shapLegend}</p>
+    <p className={styles.methodNote}>{t.polish.modelCaveat}</p>
+    <details className={styles.featureDetails}><summary>{t.polish.fullFeatures} ({items.length})</summary>{rows(items, true)}</details>
+  </div>
 }
 
-function ExplainabilityPanel({ profession, profLabel, t, skillExplanation }) {
+function ExplainabilityPanel({ profession, profLabel, t, skillExplanation, classifierOutput, profile }) {
   if (!profession) return null
 
   return (
@@ -784,7 +725,11 @@ function ExplainabilityPanel({ profession, profLabel, t, skillExplanation }) {
       <p className={styles.explainText}>
         {t.results.whyTop ? t.results.whyTop(profLabel(profession.name)) : profLabel(profession.name)}
       </p>
-      <SkillImpactChart explanation={skillExplanation} profName={profLabel(profession.name)} t={t}/>
+      <dl className={styles.modelScores}>
+        <div><dt>{t.polish.classifierOutput}</dt><dd>{typeof classifierOutput === 'number' ? classifierOutput.toPrecision(5) : '—'}</dd></div>
+        <div><dt>{t.polish.compositeScore}</dt><dd>{formatMatchScore(profession.final_score)}</dd></div>
+      </dl>
+      <SkillImpactChart explanation={skillExplanation} profile={profile} t={t}/>
     </section>
   )
 }
@@ -1224,7 +1169,7 @@ while (changed) {
         marginBottom: 8, fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
         color: 'var(--text-2)',
       }}>
-        <span style={{ color: '#4caf82', fontWeight: 700 }}>{knownCount}</span>
+        <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{knownCount}</span>
         {' / '}{totalCount}{' '}
         {text.known}
       </div>
@@ -1245,12 +1190,12 @@ while (changed) {
         })}
 
         {/* Benchmark - full profession profile */}
-        <path d={idealPath} fill="#4caf82" fillOpacity="0.08"
-          stroke="#4caf82" strokeWidth="1.5" strokeDasharray="4 3" />
+        <path d={idealPath} fill="var(--text-2)" fillOpacity="0.08"
+          stroke="var(--text-2)" strokeWidth="1.5" strokeDasharray="4 3" />
 
         {/* Student - only what is known */}
-        <path d={studentPath} fill="#5b8dee" fillOpacity="0.25"
-          stroke="#5b8dee" strokeWidth="2.5" />
+        <path d={studentPath} fill="var(--accent)" fillOpacity="0.25"
+          stroke="var(--accent)" strokeWidth="2.5" />
 
         {/* Points on each axis */}
         {axes.map((ax, i) => {
@@ -1260,7 +1205,7 @@ while (changed) {
             <g key={i}>
               {has && (
                 <circle cx={p.x} cy={p.y} r={5}
-                  fill="#5b8dee"
+                  fill="var(--accent)"
                   stroke="var(--bg)" strokeWidth={2} />
               )}
               {/* hover zone stays for all */}
@@ -1278,8 +1223,9 @@ while (changed) {
           const has = studentValues[i] === 1.0
           return (
             <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle"
-              fontSize="10" fontFamily="var(--font-mono)" fontWeight="600"
-              fill={has ? '#5b8dee' : 'var(--text-3)'}>
+              fontSize="12" fontFamily="var(--font-sans)" fontWeight="600"
+              fill={has ? 'var(--accent)' : 'var(--text-3)'}>
+              <title>{ax.label}</title>
               {ax.label.length > 10 ? ax.label.slice(0, 9) + '…' : ax.label}
             </text>
           )
@@ -1287,14 +1233,14 @@ while (changed) {
 
         {/* Legend */}
         <g transform={`translate(${cx - 85}, ${size + 18})`}>
-          <circle cx="5" cy="5" r="4" fill="#5b8dee" />  {/* ← was #4caf82, became blue */}
-          <text x="14" y="9" fontSize="10" fill="var(--text-2)" fontFamily="var(--font-mono)">
+          <circle cx="5" cy="5" r="4" fill="var(--accent)" />
+          <text x="14" y="9" fontSize="12" fill="var(--text-2)" fontFamily="var(--font-sans)">
             {text.youKnow}
           </text>
         </g>
         <g transform={`translate(${cx + 20}, ${size + 18})`}>
-          <circle cx="5" cy="5" r="4" fill="#4caf82" />
-          <text x="14" y="9" fontSize="10" fill="var(--text-2)" fontFamily="var(--font-mono)">
+          <circle cx="5" cy="5" r="4" fill="var(--text-2)" />
+          <text x="14" y="9" fontSize="12" fill="var(--text-2)" fontFamily="var(--font-sans)">
             {text.toLearn}
           </text>
         </g>
@@ -1306,14 +1252,14 @@ while (changed) {
           position: 'absolute',
           left: tooltip.x + 44, top: tooltip.y + 20,
           background: 'var(--surface)',
-          border: `1px solid ${tooltip.has ? '#4caf8240' : '#f0943a40'}`,
-          borderRadius: '6px', padding: '5px 10px',
-          fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
+          border: '1px solid var(--border-control)',
+          borderRadius: 'var(--radius-sm)', padding: '8px 12px',
+          fontSize: '0.8125rem', fontFamily: 'var(--font-sans)',
           color: 'var(--text)', pointerEvents: 'none',
           whiteSpace: 'nowrap', zIndex: 10,
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         }}>
-          <span style={{ color: tooltip.has ? '#4caf82' : '#f0943a', fontWeight: 700 }}>
+          <span style={{ color: tooltip.has ? 'var(--accent)' : 'var(--text-2)', fontWeight: 700 }}>
             {tooltip.has ? '✓' : '✗'}
           </span>{' '}{tooltip.label}
         </div>
@@ -1493,6 +1439,8 @@ function CourseModal({ course, onClose, t }) {
 function DeepModeBtn({ active, onClick, disabled, lang, t }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       className={`${styles.deepModeBtn} ${active ? styles.deepModeBtnActive : ''}`}
       onClick={onClick}
       disabled={disabled}
@@ -1526,14 +1474,15 @@ function ScoringFormulaHeader({ results, profession, t }) {
         {components.map((item, index) => (
           <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
-            <span>{item.weight != null ? `${Math.round(item.weight * 100)}% ${t.review.weight.toLowerCase()}` : '—'}</span>
+            <span>{item.weight != null ? `${(item.weight * 100).toFixed(2)}% ${t.review.weight.toLowerCase()}` : '—'}</span>
             <p>{t.review.signals[index][1]}</p>
             <b>{item.contribution == null ? '—' : item.contribution.toFixed(2)} {t.review.contribution}</b>
-            <small>{(item.value * 100).toFixed(2)} × {item.weight == null ? '—' : item.weight.toFixed(2)}</small>
+            <small className={styles.signalMaximum}>{t.polish.maximum}: {item.weight == null ? '—' : (item.weight * 100).toFixed(2)} {t.review.contribution}</small>
             <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
           </div>
         ))}
       </div>
+      <p className={styles.methodNote}>{t.polish.signalScale}</p>
       <details className={styles.methodDetails}>
         <summary>{t.review.calculation}</summary>
         <p>{t.review.normalization}</p>
@@ -1562,6 +1511,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const [stateLoaded, setStateLoaded] = useState(false)
   const [persistenceError, setPersistenceError] = useState(false)
   const voiceSupported = LLM_PROVIDERS.find(p => p.id === llmProvider)?.voice
+  const voiceAvailable = voiceSupported && !!navigator.mediaDevices?.getUserMedia && !!(window.AudioContext || window.webkitAudioContext)
+    && (window.isSecureContext !== false || ['localhost', '127.0.0.1'].includes(window.location.hostname))
 
   const [results,      setResults]      = useState(initialResults)
   const [tab,          setTab]          = useState('best')
@@ -1783,12 +1734,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
     const [cat, skill] = key.split('::')
     return roadmapAdapted[cat]?.some(item => item.skill === skill)
   }).length
-
-  const roadmapPreview = Object.entries(roadmapAdapted).map(([cat, skills]) => ({
-    cat,
-    skill: skills[0]?.skill ? cap(skills[0].skill) : '',
-    count: skills.length,
-  }))
 
   const toggleSkill = (cat, skillName) => {
   const key = `${cat}::${skillName}`
@@ -2189,19 +2134,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
     clearRecommendationHistory().catch(() => {})
   }
 
-  const renderHistory = items => (
-    <div className={styles.historyList}>
-      {items.map(item => (
-        <button key={item.id} className={styles.historyItem} onClick={() => openHistoryItem(item)}>
-          <span>{profLabel(item.selectedProfession || item.top_profession)}</span>
-          {(item.results?._isDemo || isDemoSession(item.results?.session_id)) && <strong className={styles.demoBadge}>{t.review.demoLabel}</strong>}
-          <small>{t.review.historyTime}: {new Date(item.createdAt).toLocaleString(lang === 'kk' ? 'kk-KZ' : lang === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'medium' })}</small>
-          <small>{item.results?._formData?.skills?.length ?? 0} {t.review.historySkills} · #{item.id.slice(0, 8)}</small>
-        </button>
-      ))}
-    </div>
-  )
-
   const moveCategory = (fromCat, toCat) => {
     if (!fromCat || !toCat || fromCat === toCat) return
     setCategoryOrder(prev => {
@@ -2351,14 +2283,14 @@ export default function Results({ results: initialResults, formData, onBack, onR
       <span class="score-label">${r.label}</span>
       <div class="score-bar-wrap">
         <div class="score-bar">
-          <div class="score-fill" style="width:${Math.round(parseFloat(activeProf[r.key]) / r.max * 100)}%;background:${BAR_COLORS[r.key]}"></div>
+          <div class="score-fill" style="width:${Math.round(parseFloat(activeProf[r.key]) / r.max * 100)}%;background:${PDF_BAR_COLORS[r.key]}"></div>
         </div>
         <span class="score-pct">${Math.round(parseFloat(activeProf[r.key]) / r.max * 100)} / 100</span>
       </div>
     </div>`).join('')
 
   const allScoreLines = sorted.map(p => {
-    const factors = rows.map(r => `<span style="background:${BAR_COLORS[r.key]};width:${(p.contributions?.[r.key] ?? 0)}%"></span>`).join('')
+    const factors = rows.map(r => `<span style="background:${PDF_BAR_COLORS[r.key]};width:${(p.contributions?.[r.key] ?? 0)}%"></span>`).join('')
     return `<div class="all-score-row">
       <span class="all-score-name">${esc(profLabel(p.name))}</span>
       <div class="all-score-track"><i style="width:${pct(p.final_score)}%"></i><b>${factors}</b></div>
@@ -2391,7 +2323,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
     .filter(r => activeProf?.[r.key] != null)
     .map(r => `<div class="explain-row">
       <span>${esc(r.label)}</span>
-      <div><i style="width:${pct(activeProf[r.key], r.max)}%;background:${BAR_COLORS[r.key]}"></i></div>
+      <div><i style="width:${pct(activeProf[r.key], r.max)}%;background:${PDF_BAR_COLORS[r.key]}"></i></div>
       <b>${pct(activeProf[r.key], r.max)} / 100</b>
     </div>`)
     .join('')
@@ -2558,15 +2490,28 @@ export default function Results({ results: initialResults, formData, onBack, onR
           </div>
           <ResultsNavigation tabs={tabs} activeTab={tab} onTabChange={setTab} label={t.results.title} />
           <div className={styles.sessionNotice}>
-            {(results._isDemo || isDemoSession(results.session_id)) && <><span className={styles.demoBadge}>{t.review.demoLabel}</span><p>{t.experience.temporary}</p></>}
-            {!user && <p>{t.beta.guestNote} <a href="#login">{t.beta.login}</a></p>}
+            {(results._isDemo || isDemoSession(results.session_id)) && <span className={styles.demoBadge}>{t.review.demoLabel}</span>}
+            {!user ? <p>{t.beta.guestNote} <a href="#login">{t.beta.login}</a></p>
+              : (results._isDemo || isDemoSession(results.session_id)) && <p>{t.experience.temporary}</p>}
             {persistenceError && <p role="alert">{t.beta.saveError}</p>}
           </div>
         </header>
+        <div className={styles.resultsTools}>
         <details className={styles.contextTools}>
           <summary>{t.review.contextTools}</summary>
           <div className={styles.contextGrid}>
-        <div className={styles.sidebarSection}>
+        <section className={styles.profileInputs}>
+          <h3>{t.polish.profileInputs}</h3>
+          <div className={styles.gapChips}>
+            {((results._formData || formData)?.skills || []).map(skill => <span key={skill}>{skill}</span>)}
+          </div>
+          <p>{t.form.knowledgeDescription}</p>
+          <div className={styles.gapChips}>{Object.entries(PROFILE_TECH_LABELS).filter(([key]) => [0, 1].includes((results._formData || formData)?.[key])).map(([key, label]) =>
+            <span key={key}>{label}: {(results._formData || formData)[key] ? t.polish.present : t.polish.absent}</span>)}</div>
+          <dl>{Object.entries(t.form.soft).filter(([key]) => typeof (results._formData || formData)?.[key] === 'number').map(([key, label]) =>
+            <div key={key}><dt>{label}</dt><dd>{(results._formData || formData)[key]} / 5</dd></div>)}</dl>
+        </section>
+        {!!results.user_skills_ranked?.length && <div className={styles.sidebarSection}>
           <div className={styles.sidebarLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>{t.results.yourSkillsTitle}</span>
             <button
@@ -2596,7 +2541,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 style={{
                   opacity: s.status === 'General/Non-IT Token' ? 0.65 : 1
                 }}
-                title={s.status === 'General/Non-IT Token' ? "General/Non-IT Token" : `TF-IDF Weight: ${s.tfidf_weight}`}
+                title={s.status === 'General/Non-IT Token' ? t.polish.generalToken : `${t.polish.tokenWeight}: ${s.tfidf_weight}`}
               >
                 {s.skill}
                 <span className={styles.skillWeightBadge}>
@@ -2605,59 +2550,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
               </span>
             ))}
           </div>
-        </div>
-
-        {sorted.length > 1 && (
-          <div className={styles.sidebarSection}>
-            <div className={styles.sidebarLabel}>{t.results.sidebarLabels.scores}</div>
-            <div className={styles.sidebarScores}>
-              {sorted.map(p => (
-                <button type="button" key={p.name}
-                  className={`${styles.sidebarScoreRow} ${p.name === activeProfName ? styles.sidebarScoreRowActive : ''}`}
-                  onClick={() => handleSelectProf(p.name)}
-                >
-                  <span className={styles.sidebarScoreKey}>{profLabel(p.name)}</span>
-                  <span className={styles.sidebarScoreVal}>
-                    {typeof p.final_score === 'number' ? formatMatchScore(p.final_score) : '—'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {roadmapPreview.length > 0 && (
-          <div className={styles.sidebarSection}>
-            <div className={styles.sidebarLabel}>{t.results.sidebarLabels.roadmapOverview}</div>
-            <div className={styles.roadmapPreview}>
-              {roadmapPreview.map(({ cat, skill, count }) => (
-                <button type="button" key={cat} className={styles.roadmapPreviewItem} onClick={() => setTab('roadmap')}>
-                  <span className={styles.roadmapPreviewIcon}>{CATEGORY_ICONS[cat] || '◎'}</span>
-                  <div className={styles.roadmapPreviewBody}>
-                    <span className={styles.roadmapPreviewCat}>{catLabel(cat)}</span>
-                    <span className={styles.roadmapPreviewSkill}>{skill}{count > 1 ? ` +${count - 1}` : ''}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button className={styles.roadmapPreviewBtn} onClick={() => setTab('roadmap')}>
-              {t.results.viewFullRoadmap}
-            </button>
-          </div>
-        )}
-
-        <div className={styles.sidebarSection}>
-          <div className={styles.sidebarLabel}>{t.results.historyTitle}</div>
-          <p className={styles.historyNote}>{t.beta.historyNote}</p>
-          {history.length === 0 ? (
-            <div className={styles.sidebarEmpty}>{t.results.noHistory}</div>
-          ) : (
-            renderHistory(history.slice(0, 4))
-          )}
-          {history.length > 0 && (
-            <button className={styles.historyClear} onClick={clearHistory}>{t.results.clearHistory}</button>
-          )}
-        </div>
+        </div>}
 
           </div>
         </details>
@@ -2668,6 +2561,9 @@ export default function Results({ results: initialResults, formData, onBack, onR
             </svg>
             {aiCtaInfo.button}
           </button>
+          <details className={styles.actionsDisclosure}>
+          <summary>{t.polish.actions}</summary>
+          <div className={styles.actionsMenu}>
           <button className={styles.actionBtn} disabled={!user || results.persistent === false || results._isDemo || !stateLoaded} onClick={saveCurrentResult}>
             <CheckIcon size={12}/>
             {savedCurrent ? t.results.savedResult : t.results.saveResult}
@@ -2699,6 +2595,9 @@ export default function Results({ results: initialResults, formData, onBack, onR
             </svg>
             {t.results.newAnalysis}
           </button>
+          </div>
+          </details>
+        </div>
         </div>
         <div className={tab === 'history' ? styles.historyFeedbackLayout : undefined}>
         <div className={styles.tabContent} id="results-panel" role="tabpanel" aria-labelledby={`results-tab-${tab}`} key={tab === 'all' ? 'all' : `${tab}${activeProfName}${cardKey}`}>
@@ -2712,7 +2611,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
             return (
               <BestMatchPanel profession={activeProf} rank={activeRank} isTop={activeProf.name === top_profession}
                 name={profLabel(activeProf.name)} t={t} profLabel={profLabel}
-                alternatives={rankedProfessions.filter(p => p.name !== activeProf.name)}
+                alternatives={rankedProfessions.filter(p => p.name !== activeProf.name)} ranks={professionRanks}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 viewMode={viewMode} onViewMode={setViewMode} aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
                 score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
@@ -2731,33 +2630,32 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 {viewMode === 'bars' && (
                   <div className={styles.chartStack}>
                     <ProfessionBarsChart professions={sorted} rows={rows} profLabel={profLabel} t={t} animKey={animKey} onSelect={handleSelectProf}/>
-                    <div className={styles.activeMetricPanel}>
+                    <details className={styles.chartDetails}><summary>{t.results.factors}</summary><div className={styles.activeMetricPanel}>
                       <div className={styles.compareHeader}>
                         <span>{profLabel(activeProf.name)}</span>
                         <small>{t.results.factors}</small>
                       </div>
                       <ProfScores p={activeProf} rows={rows} animKey={animKey} lang={lang}/>
-                    </div>
+                    </div></details>
                   </div>
                 )}
                 {viewMode === 'radar' && (
-                  <div style={{ display: 'flex', gap: 24, alignItems: 'center', padding: '16px 0 8px', flexWrap: 'wrap' }}>
+                  <div className={styles.chartStack}>
                     <MultiProfessionRadar professions={sorted} profLabel={profLabel} rows={rows} t={t} animKey={animKey}/>
-                    <MetricBars data={activeProf} rows={rows} animKey={animKey} lang={lang}/>
+                    <details className={styles.chartDetails}><summary>{t.results.factors}</summary><MetricBars data={activeProf} rows={rows} animKey={animKey} lang={lang}/></details>
                   </div>
                 )}
                 {viewMode === 'gap' && (
-                  <div style={{ padding: '16px 0 8px' }}>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginBottom: 12 }}>
+                  <div className={styles.chartStack}>
+                    <p className={styles.methodNote}>
                       {t.results.gapLegend}
                     </p>
-                    <div style={{
-                        display: 'flex', gap: 24, alignItems: 'center',
-                        padding: '16px 0 8px', flexWrap: 'wrap',
-                      }}>
+                    <div className={styles.chartStack}>
                         <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf}/>
+                        <details className={styles.chartDetails}><summary>{t.review.additionalComparisons}</summary>
                         <SkillGapRadar results={results} formData={results._formData} profession={activeProf.name} animKey={animKey} lang={lang} />
                         <MetricBars data={activeProf} rows={rows} animKey={animKey} lang={lang} />
+                        </details>
                       </div>
                   </div>
                 )}
@@ -2768,6 +2666,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 profLabel={profLabel}
                 t={t}
                 skillExplanation={selectedSkillExplanation}
+                classifierOutput={results.classification_scores?.[activeProf.name]}
+                profile={results._formData || formData}
                 />}
               />
             )
@@ -2901,14 +2801,18 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <div ref={messagesEndRef}/>
         </div>
 
-        <div className={styles.chatBottom}>
-          <div className={styles.chatToolbar}>
+        <AdvisorComposer className={styles.chatBottom} sendClassName={styles.chatSend} textareaRef={textareaRef}
+          onSend={() => sendMessage()} sendLabel={t.results.chatSend} sendDisabled={!llmProvider || chatLoading || !input.trim()}
+          toolbar={<div className={styles.chatToolbar}>
             <DeepModeBtn active={deepMode} disabled={!llmProvider} onClick={() => setDeepMode(v => !v)} lang={lang} t={t}/>
             <button
+              type="button"
+              hidden={!voiceAvailable}
               className={`${styles.voiceBtn} ${listening ? styles.voiceBtnActive : ''}`}
               onClick={listening ? stopVoiceInput : startVoiceInput}
               disabled={!llmProvider || !voiceSupported}
               aria-label={t.results.voiceRecord}
+              aria-pressed={listening}
               title={listening ? t.results.voiceStop : t.results.voiceRecord}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -2918,41 +2822,18 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 <line x1="8" y1="23" x2="16" y2="23"/>
               </svg>
             </button>
-            <button className={styles.voiceBtn} onClick={speakLastAnswer} title={t.results.voicePlay} aria-label={t.results.voicePlay}>
+            <button type="button" className={styles.voiceBtn} hidden={!window.speechSynthesis} disabled={!messages.some(m => m.role === 'assistant' && m.content && !m.streaming)} onClick={speakLastAnswer} title={t.results.voicePlay} aria-label={t.results.voicePlay}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
               </svg>
             </button>
-          </div>
-          <div className={styles.chatScope}>{voiceNotice || (llmProvider && !voiceSupported ? t.llm.voiceGemini : t.results.assistantScope)}</div>
-          <div className={styles.chatInput}>
-            <textarea
-              ref={textareaRef}
-              className={styles.chatInputField}
-              value={input}
-              disabled={!llmProvider}
-              aria-label={t.results.chatPlaceholder}
-              rows={1}
-              onChange={e => {
-                setInput(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-              }}
-              placeholder={t.results.chatPlaceholder}
-            />
-            <button className={styles.chatSend} aria-label={t.results.chatSend} onClick={() => sendMessage()} disabled={!llmProvider || chatLoading || !input.trim()}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-              </svg>
-            </button>
-          </div>
-          <p className={styles.advisorPrivacy}>{t.review.advisorByokPrivacy} <a href="/privacy">{t.experience.privacyLink}</a></p>
-        </div>
+          </div>}
+          status={<div className={styles.chatScope}>{voiceNotice || (llmProvider && !voiceSupported ? t.llm.voiceGemini : t.results.assistantScope)}</div>}
+          textareaProps={{ className: styles.chatInputField, value: input, disabled: !llmProvider,
+            'aria-label': t.results.chatPlaceholder, placeholder: t.results.chatPlaceholder, onChange: e => setInput(e.target.value) }}
+          privacy={<p className={styles.advisorPrivacy}>{t.review.advisorByokPrivacy} <a href="/privacy">{t.experience.privacyLink}</a></p>} />
         </div>
       </AdvisorDrawer>
 

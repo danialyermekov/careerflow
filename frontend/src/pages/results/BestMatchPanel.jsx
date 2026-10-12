@@ -3,7 +3,7 @@ import { formatMatchScore } from '../../utils/scoring'
 
 export default function BestMatchPanel({ profession, rank, isTop, name, t, score, scoring, visualization,
   skillGap, explanation, alternatives, profLabel, onSelect, onRoadmap, onCompare, viewMode, onViewMode,
-  aiCtaInfo, onAdvisor }) {
+  aiCtaInfo, onAdvisor, ranks }) {
   return <div className={styles.bestPanel}>
     <section className={styles.recommendationHero}>
       <div data-tour-slot="recommendation" />
@@ -31,8 +31,8 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
       </div>
     </section>
 
-    <div data-tour-slot="explanation" />
-    {scoring}
+    <div data-tour-slot="explanation">{scoring}</div>
+    {explanation}
 
     <section aria-label={t.review.visualization}>
       <header className={styles.analysisHeading}>
@@ -52,13 +52,15 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
         {skillGap}
       </div>
     </section>
-    {explanation}
     <section className={styles.alternatives} aria-label={t.review.alternatives}>
       <header className={styles.analysisHeading}><h2>{t.review.alternatives}</h2>
         <button type="button" className={styles.secondaryAction} onClick={onCompare}>{t.results.compareAll}</button>
       </header>
       <div className={styles.alternativeGrid}>{alternatives.map(p => <button key={p.name} type="button" onClick={() => onSelect(p.name)}>
+        <span className={styles.alternativeRank}>#{ranks[p.name]}</span>
         <span>{profLabel(p.name)}</span><strong>{formatMatchScore(p.final_score)}</strong>
+        <span className={styles.alternativeTrack} aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, (p.final_score ?? 0) * 100))}%` }} /></span>
+        <span className={styles.alternativeLink}>{t.review.viewCareerDetails} →</span>
       </button>)}</div>
     </section>
   </div>

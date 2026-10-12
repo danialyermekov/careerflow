@@ -109,7 +109,7 @@ describe('Results component', () => {
     api.sendChatStream.mockResolvedValue({ ok: true, body: { getReader: () => reader } })
     const input = container.querySelector('.chatInputField')
     await act(async () => Simulate.change(input, { target: { value: 'Career advice', style: {}, scrollHeight: 20 } }))
-    await act(async () => container.querySelector(`button[aria-label="${translations.en.results.chatSend}"]`).click())
+    await act(async () => container.querySelector(`.advisorByok button[aria-label="${translations.en.results.chatSend}"]`).click())
     expect(container.textContent).toContain(translations.en.llm.errors.key_rejected)
     expect(container.textContent).not.toContain('test-only-secret')
     expect(getLLMSettings().apiKey).toBe('test-only-secret')
@@ -178,6 +178,7 @@ describe('editorial results navigation and Best Match', () => {
   const button = text => [...container.querySelectorAll('button')].find(el => el.textContent === text)
   beforeEach(async () => {
     global.IS_REACT_ACT_ENVIRONMENT = true
+    HTMLElement.prototype.scrollIntoView = jest.fn()
     localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
     api.getRecommendationState.mockResolvedValue({ progress: {} })
     api.getTrialStatus.mockResolvedValue({ available: false, remaining: 0, total: 3 })
@@ -222,6 +223,89 @@ describe('editorial results navigation and Best Match', () => {
     expect(container.querySelector('.professionBars')).not.toBeNull()
     expect(result.scoring_weights.classifier).toBe(.2)
     expect(api.sendChatStream).not.toHaveBeenCalled()
+  })
+
+  test('compact context retains inputs without duplicated rankings/history/roadmap and actions remain accessible', async () => {
+    const context = container.querySelector('.contextTools')
+    expect(context.querySelector('.sidebarScores')).toBeNull()
+    expect(context.querySelector('.roadmapPreview')).toBeNull()
+    expect(context.textContent).not.toContain(translations.en.results.historyTitle)
+    expect(context.textContent).toContain('Python')
+    expect(container.querySelector('.sessionNotice').textContent.split(translations.en.beta.guestNote)).toHaveLength(2)
+    const actions = container.querySelector('.actionsDisclosure')
+    expect(actions).not.toBeNull()
+    await act(async () => actions.querySelector('summary').click())
+    expect(actions.open).toBe(true)
+    for (const label of ['downloadPdf', 'copyRoadmap', 'shareResults', 'saveResult', 'newAnalysis']) {
+      expect([...actions.querySelectorAll('button')].some(b => b.textContent === translations.en.results[label])).toBe(true)
+    }
+    expect([...container.querySelectorAll('.signalMaximum')].map(el => el.textContent)).toEqual([
+      'Maximum: 20.00 points', 'Maximum: 40.00 points', 'Maximum: 10.00 points', 'Maximum: 30.00 points',
+    ])
+    expect(container.querySelector('.alternativeGrid button').textContent).toContain('#2')
+  })
+
+  test('feature explanation separates raw profile values and signed contributions from classifier and composite scores', async () => {
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'polish-shap',
+      _formData: { ...result._formData, python: 1, sql: 0, teamwork: 3 }, skill_explanations: {
+      'Data Analyst': { method: 'catboost_shap', shap_explanations: [
+        { feature_name: 'gpa', label: 'GPA', raw_value: -1.25, influence_percent: 10 },
+        { feature_name: 'python', label: 'Python', raw_value: .8, influence_percent: -40 },
+        { feature_name: 'sql', label: 'SQL', raw_value: -.6, influence_percent: 30 },
+        { feature_name: 'teamwork', label: 'Teamwork', raw_value: -.4, influence_percent: -20 },
+      ] },
+    } }} /></AppProvider>))
+    const panel = container.querySelector('.explainCard')
+    expect(panel.textContent).toContain('0.60000')
+    expect(panel.textContent).toContain('95.0 / 100')
+    const positives = panel.querySelector('.positiveSummary')
+    expect(positives.textContent.indexOf('SQL')).toBeLessThan(positives.textContent.indexOf('GPA'))
+    const details = panel.querySelector('.featureDetails')
+    expect(details.open).toBe(false)
+    await act(async () => details.querySelector('summary').click())
+    expect(details.querySelectorAll('.skillImpactRow')).toHaveLength(4)
+    expect(details.textContent).toContain('-40.00%')
+    expect(details.textContent).toContain('Profile value: 1')
+    expect(details.textContent).toContain('Profile value: 3.2')
+    expect(details.textContent).toContain('Model input (preprocessed): -1.2500')
+    expect(details.textContent).toContain('0 · Absent')
+    expect(panel.querySelector('.featureSummary').textContent).not.toMatch(/gap.*reduced confidence|slightly increased confidence|avoid learning/i)
+    expect(panel.textContent).toContain(translations.en.polish.modelCaveat)
+  })
+
+  test('both advisor modes share the controlled composer without adding preview provider controls', async () => {
+    await act(async () => container.querySelector('.aiFab').click())
+    expect(container.querySelectorAll('[data-advisor-composer]')).toHaveLength(2)
+    expect(container.querySelector('.advisorPreview [data-advisor-composer] .deepModeBtn')).toBeNull()
+    expect(container.querySelector('.advisorByok [data-advisor-composer] .deepModeBtn')).not.toBeNull()
+    expect(container.querySelector('.advisorByok [data-advisor-composer] .voiceBtn').hidden).toBe(true)
+    await act(async () => saveLLMSettings('gemini', 'polish-test-key'))
+    expect(container.querySelector('.advisorByok [data-advisor-composer] .voiceBtn').hidden).toBe(true)
+    expect(api.sendChatStream).not.toHaveBeenCalled()
+  })
+
+  test('recording appears only with a supported provider and browser recording capabilities', async () => {
+    const devices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices')
+    const audioContext = window.AudioContext
+    try {
+      Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined })
+      window.AudioContext = undefined
+      await act(async () => { saveLLMSettings('gemini', 'polish-browser-key'); container.querySelector('.aiFab').click() })
+      const microphone = () => container.querySelector(`button[aria-label="${translations.en.results.voiceRecord}"]`)
+      expect(microphone().hidden).toBe(true)
+      const getUserMedia = jest.fn()
+      Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } })
+      window.AudioContext = jest.fn()
+      await act(async () => root.render(<AppProvider><Results results={result} /></AppProvider>))
+      expect(microphone().hidden).toBe(false)
+      await act(async () => saveLLMSettings('anthropic', 'polish-browser-key'))
+      expect(microphone().hidden).toBe(true)
+      expect(getUserMedia).not.toHaveBeenCalled()
+    } finally {
+      window.AudioContext = audioContext
+      if (devices) Object.defineProperty(navigator, 'mediaDevices', devices)
+      else delete navigator.mediaDevices
+    }
   })
 
   test('alternative summary, roadmap and PDF stay scoped to the selected profession', async () => {
