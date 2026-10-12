@@ -237,7 +237,7 @@ test.each(['contact', 'about', 'privacy', 'terms', 'feedback'])('%s uses clickab
   await act(async () => root.render(<App />))
   expect(container.querySelector('main a[href="mailto:contact@careerflow.live"]')).not.toBeNull()
   expect(container.textContent).not.toContain('founder@careerflow.live')
-  expect(container.querySelector('footer a[href="mailto:contact@careerflow.live"]')).not.toBeNull()
+  expect(container.querySelector('footer a[href="/contact"]')).not.toBeNull()
 })
 
 test('a direct result URL reloads the saved result through the existing state endpoint', async () => {
@@ -268,43 +268,58 @@ test('PDF uses the selected career, score units and historical market context', 
 })
 
 
-test.each([
-  ['en', 'Contact', 'Developed and maintained by Danial Yermekov.', 'Privacy'],
-  ['ru', 'Контакт', 'Разработку и поддержку осуществляет Danial Yermekov.', 'Конфиденциальность'],
-  ['kk', 'Байланыс', 'Әзірлеу мен қолдауды Danial Yermekov жүзеге асырады.', 'Құпиялық'],
-])('footer shows project contacts and maintainer and opens privacy in %s', async (lang, contact, maintainer, privacy) => {
+test.each(['en', 'ru', 'kk'])('compact footer retains unique public destinations and contact email access in %s', async lang => {
   localStorage.setItem('lang', lang)
-  const showModal = jest.fn()
   await act(async () => root.render(<App />))
   const footer = container.querySelector('footer')
   expect(footer.textContent).toContain('© 2026 CareerFlow')
-  expect(footer.textContent).toContain(maintainer)
-  for (const [label, href] of [
-    ['GitHub', 'https://github.com/danialyermekov/Career-Recommendation-System'],
-    ['LinkedIn', 'https://www.linkedin.com/in/danial-yermekov/'],
-  ]) {
-    const link = footer.querySelector(`a[href="${href}"]`)
-    expect(link).not.toBeNull()
-    expect(link.textContent).toBe(label)
-    expect(link.target).toBe('_blank')
-    expect(link.rel).toBe('noopener noreferrer')
-  }
-  expect(footer.querySelector('a[href="https://careerflow.live"]')).not.toBeNull()
-  const email = footer.querySelector('a[href="mailto:contact@careerflow.live"]')
-  expect(email).not.toBeNull()
-  expect(email.textContent).toBe(`${contact}: contact@careerflow.live`)
-  const dialog = container.querySelector('dialog')
-  dialog.showModal = showModal
-  await act(async () => button(privacy).click())
-  expect(showModal).toHaveBeenCalledTimes(1)
-  expect(dialog.getAttribute('aria-labelledby')).toBe('privacy-title')
-  if (lang === 'en') {
-    expect(dialog.textContent).toContain('Every private API request verifies your Supabase session and checks ownership')
-    expect(dialog.textContent).toContain('until refresh')
-    expect(dialog.textContent).toContain('only for the AI request')
-  }
-  expect(dialog.textContent).toContain('PostgreSQL')
-  expect(dialog.querySelector('form').getAttribute('method')).toBe('dialog')
+  expect([...footer.querySelectorAll('a')].map(link => link.getAttribute('href'))).toEqual([
+    '/', '/about', '/changelog', '/roadmap', 'https://github.com/danialyermekov/careerflow', '/contact', '/privacy', '/terms', '/disclaimer',
+  ])
+  expect(footer.querySelectorAll('nav h2')).toHaveLength(2)
+  const github = footer.querySelector('a[target="_blank"]')
+  expect(github.rel).toBe('noopener noreferrer')
+  expect(container.querySelector('nav').textContent).not.toContain(require('./i18n').translations[lang].beta.beta)
+  expect(footer.textContent).not.toContain(require('./i18n').translations[lang].beta.beta)
+  window.history.pushState({}, '', '/contact')
+  await act(async () => window.dispatchEvent(new PopStateEvent('popstate')))
+  expect(container.querySelector('main a[href="mailto:contact@careerflow.live"]')).not.toBeNull()
+  window.history.pushState({}, '', '/privacy')
+  await act(async () => window.dispatchEvent(new PopStateEvent('popstate')))
+  expect(container.querySelector('main').textContent).toContain('PostgreSQL')
+  if (lang === 'en') expect(container.querySelector('main').textContent).toContain('only for the AI request')
+})
+
+test.each(['en', 'ru', 'kk'])('public updates distinguish verified availability dates from launch dates in %s', async lang => {
+  localStorage.setItem('lang', lang)
+  window.history.replaceState({}, '', '/changelog')
+  await act(async () => root.render(<App />))
+  const entries = [...container.querySelectorAll('.releaseTimeline > li')]
+  expect(entries).toHaveLength(2)
+  expect(entries.map(entry => entry.querySelector('time').dateTime)).toEqual(['2026-10-09', '2026-10-07'])
+  const text = require('./productI18n').productTranslations[lang]
+  expect(entries[0].textContent).toContain(text.availabilityVerified)
+  expect(entries[0].textContent).toContain(text.accountRelease)
+  expect(entries[1].textContent).toContain(text.launchDate)
+  expect(entries[0].querySelector('a').href).toBe('https://github.com/danialyermekov/careerflow/commit/94a6c61305198e9d0163bfb193189076cd022e11')
+  expect(container.querySelector('.releaseTimeline').textContent).not.toContain(text.roadmapItems['frontend-refresh'])
+})
+
+test.each(['en', 'ru', 'kk'])('roadmap distinguishes completed capabilities, active refresh and exploratory ideas in %s', async lang => {
+  localStorage.setItem('lang', lang)
+  window.history.replaceState({}, '', '/roadmap')
+  await act(async () => root.render(<App />))
+  const groups = [...container.querySelectorAll('.roadmapGroup')]
+  const text = require('./productI18n').productTranslations[lang]
+  expect(groups.map(group => group.querySelector('h2').textContent)).toEqual([text.completed, text.inProgress, text.planned, text.exploring])
+  expect(groups[0].querySelector('#private-accounts')).not.toBeNull()
+  expect(groups[0].querySelector('#community-feedback')).not.toBeNull()
+  expect(groups[1].querySelector('#frontend-refresh')).not.toBeNull()
+  expect(groups[2].querySelectorAll('li')).toHaveLength(0)
+  expect(groups[2].textContent).toContain(text.noPlannedItems)
+  expect(groups[3].querySelector('#market-refresh')).not.toBeNull()
+  expect(groups[3].querySelector('#more-careers')).not.toBeNull()
+  expect(groups[3].querySelector('#recommendation-quality')).not.toBeNull()
 })
 
 test.each(['about', 'contact', 'privacy', 'terms', 'disclaimer', 'feedback', 'changelog', 'roadmap', 'login'])('public %s route stays available without signing in', async page => {

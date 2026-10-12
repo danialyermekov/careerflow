@@ -32,7 +32,6 @@ export default function Navbar({ onLogoClick }) {
           <BrandLogo />
         </a>
         <div className={styles.actions}>
-          <span className={styles.beta}>{t.beta.beta}</span>
           <a className={styles.feedbackLink} href="/feedback">{t.product.feedbackNav}</a>
           <a className={styles.accountLink} href={user ? '/#account' : '/#login'} onClick={() => {
             if (!user && !['#login', '#account'].includes(window.location.hash)) sessionStorage.setItem('careerflow-auth-return', window.location.hash || window.location.pathname)
