@@ -2,7 +2,7 @@ import styles from '../Results.module.css'
 import { formatMatchScore } from '../../utils/scoring'
 
 export default function AllProfessionsPanel({ professions, selected, ranks, topName, profLabel, t,
-  sortOptions, sortBy, onSort, onSelect, onOpenDetails }) {
+  sortOptions, sortBy, onSort, onSelect, onOpenDetails, marketTrackCount }) {
   const criterion = { skill: 'skill_match', profile: 'profile_match', trend: 'trend_score', market: 'market_share' }[sortBy]
   const sortLabel = sortOptions.find(option => option.key === sortBy)?.label
   const secondary = profession => {
@@ -10,7 +10,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
       ? t.review.coverageCount(profession.skillCoverage.known.length, profession.skillCoverage.total) : t.review.gapUnavailable
     const signal = profession.breakdown.find(item => item.key === criterion)
     if (!signal.available) return `${sortLabel}: —`
-    return sortBy === 'market' ? t.review.marketShareValue(signal.raw, professions.length)
+    return sortBy === 'market' ? t.review.marketShareValue(signal.raw, marketTrackCount)
       : `${sortLabel} · ${t.review.index}: ${(signal.value * 100).toFixed(1)} / 100`
   }
   return <section className={styles.allPanel} aria-label={t.results.tabs.all}>

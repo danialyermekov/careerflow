@@ -743,7 +743,7 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
           <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
             <b>{!item.available || item.contribution == null ? '—' : t.review.pointsOf(item.contribution.toFixed(2), Math.round(item.weight * 100))}</b>
-            {item.key === 'market_share' && item.available && <small>{t.review.marketShareValue(item.raw, Object.keys(results.final_scores).length)}</small>}
+            {item.key === 'market_share' && item.available && <small>{t.review.marketShareValue(item.raw, Object.keys(results.demand_scores || {}).length)}</small>}
             <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
           </div>
         ))}
@@ -1890,6 +1890,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           {/* ─ ALL PROFESSIONS ─ */}
           {tab === 'all' && (
             <AllProfessionsPanel professions={sorted} selected={activeProf} ranks={professionRanks} topName={top_profession}
+              marketTrackCount={Object.keys(results.demand_scores || {}).length}
               profLabel={profLabel} t={t} sortOptions={SORT_OPTIONS} sortBy={sortBy} onSort={setSortBy}
               onSelect={setSelectedProf} onOpenDetails={() => { detailFocusRequested.current = true; setTab('best') }}
             />
