@@ -2101,9 +2101,11 @@
 .methodDetails summary { cursor: pointer; color: var(--text); padding: 6px 0; }
 .methodDetails p { margin: 14px 0; }
 .scoreEquation { display: block; color: var(--accent); overflow-wrap: anywhere; margin: 12px 0; }
-.methodTableWrap { overflow-x: auto; }
-.methodTable { width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; }
-.methodTable th { overflow-wrap: anywhere; }
+.methodTableWrap { overflow-x: auto; padding: 4px; margin: 0 -4px; overscroll-behavior-x: contain; }
+.methodTableWrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.methodTable { width: 100%; min-width: 640px; border-collapse: collapse; text-align: left; }
+.methodTable th { overflow-wrap: normal; }
+.methodTable td { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .methodTable th, .methodTable td { padding: 9px; border-bottom: 1px solid var(--border); font-size: .82rem; }
 .historyNote { font-size: .8rem; color: var(--text-2); line-height: 1.65; margin: 8px 0 14px; }
 .historyItem { text-align: left; }
@@ -2378,6 +2380,15 @@
 .bestPanel .methodDetails { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); padding: 8px 16px; font-size: .9375rem; }
 .bestPanel .methodDetails summary { min-height: 44px; padding: 8px 0; }
 .methodologyDetails { border-top: 1px solid var(--border); margin-top: 12px; }
+.technicalGroup { margin: 20px 0 12px; }
+.technicalGroup + .technicalGroup { border-top: 1px solid var(--border); padding-top: 16px; }
+.technicalGroup h3, .technicalGroup summary { color: var(--text); font: 600 1rem/1.5 var(--font-sans); }
+.technicalGroup strong { color: var(--text); }
+.inputTable { min-width: 560px; }
+.inputTable th { max-width: 240px; overflow-wrap: anywhere; }
+.inputTable td { white-space: normal; min-width: 120px; overflow-wrap: anywhere; color: var(--text); }
+.tableScrollHint { display: none; }
+@media (max-width: 768px) { .tableScrollHint { display: block; font-size: .8125rem; } }
 .bestPanel .methodTable th, .bestPanel .methodTable td { font-size: .875rem; padding: 12px 8px; }
 .bestPanel .scoreEquation { font-size: .875rem; font-variant-numeric: tabular-nums; }
 .analysisHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }

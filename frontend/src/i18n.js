@@ -59,6 +59,7 @@ export const translations = {
       shapDenominator: 'Each percentage is that feature’s signed SHAP value divided by the sum of absolute SHAP values for this career.',
     },
     review: {
+      scoreCalculation: 'Score calculation', modelInputs: 'Model inputs', enteredValue: 'Entered', usedByModel: 'Used by model', scrollTable: 'Scroll horizontally to see all columns.', displayPrecision: 'Contributions and indices are displayed to two decimals; small nonzero indices retain five significant digits. Raw scoring values retain the supplied precision; displayed components may differ slightly from the rounded total.', modelInputsNote: 'Entered values and processed classifier features are shown side by side. A dash means no corresponding value is supplied; it does not mean zero. Processed values use five significant digits.',
       technicalDetails: 'Technical details', index: 'Relative index',
       skillGaps: 'Skills to develop', knownSkills: 'Listed in your profile',
       openCareer: name => `Open ${name}`, rankNote: 'Numbers show overall rank',
@@ -499,6 +500,7 @@ export const translations = {
       shapDenominator: 'Каждый процент — вклад признака SHAP со знаком, делённый на сумму абсолютных вкладов SHAP для этой профессии.',
     },
     review: {
+      scoreCalculation: 'Расчёт балла', modelInputs: 'Входы модели', enteredValue: 'Введено', usedByModel: 'Использовано моделью', scrollTable: 'Прокрутите таблицу по горизонтали, чтобы увидеть все столбцы.', displayPrecision: 'Вклады и индексы показаны с двумя знаками после запятой; малые ненулевые индексы — с пятью значащими цифрами. Исходные значения сохраняют полученную точность; сумма отображаемых вкладов может немного отличаться от округлённого итога.', modelInputsNote: 'Введённые значения и обработанные признаки классификатора показаны рядом. Прочерк означает, что соответствующее значение не передано, а не ноль. Обработанные значения показаны с пятью значащими цифрами.',
       technicalDetails: 'Технические сведения', index: 'Относительный индекс',
       skillGaps: 'Навыки для развития', knownSkills: 'Указано в профиле',
       openCareer: name => `Открыть: ${name}`, rankNote: 'Номера — места в общем рейтинге',
@@ -939,6 +941,7 @@ export const translations = {
       shapDenominator: 'Әр пайыз — осы мамандық үшін белгінің таңбалы SHAP үлесі абсолют SHAP үлестерінің қосындысына бөлінген мән.',
     },
     review: {
+      scoreCalculation: 'Ұпай есебі', modelInputs: 'Модель кірістері', enteredValue: 'Енгізілген', usedByModel: 'Модель қолданған', scrollTable: 'Барлық бағанды көру үшін кестені көлденең айналдырыңыз.', displayPrecision: 'Үлестер мен индекстер екі ондық таңбамен, өте кіші нөл емес индекстер бес мәнді цифрмен көрсетілген. Бастапқы мәндер берілген дәлдікті сақтайды; көрсетілген үлестер қосындысы дөңгелектелген қорытындыдан аздап өзгеше болуы мүмкін.', modelInputsNote: 'Енгізілген мәндер мен классификатор өңдеген белгілер қатар көрсетілген. Сызықша тиісті мән берілмегенін білдіреді, нөлді емес. Өңделген мәндер бес мәнді цифрмен көрсетілген.',
       technicalDetails: 'Техникалық мәліметтер', index: 'Салыстырмалы индекс',
       skillGaps: 'Дамытатын дағдылар', knownSkills: 'Профильде көрсетілген',
       openCareer: name => `${name}: ашу`, rankNote: 'Сандар — жалпы рейтингтегі орындар',

@@ -236,7 +236,7 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => details.querySelector('summary').click())
     expect(details.open).toBe(true)
     expect(details.textContent).toContain('75.00 × 0.20 + 100.00 × 0.40 + 100.00 × 0.10 + 100.00 × 0.30 ≈ 95.0 / 100')
-    expect(details.textContent).toContain('0.60000')
+    expect(details.querySelector('.methodTable').textContent).toContain('0.6')
     expect(details.querySelector('.methodologyDetails').open).toBe(false)
     expect(details.querySelector('.methodTableWrap').tabIndex).toBe(0)
     expect(details.querySelector('.methodologyDetails').textContent).toContain(translations.en.review.normalization)
@@ -246,6 +246,13 @@ describe('editorial results navigation and Best Match', () => {
     expect(details.textContent).toContain('profile contributes up to 20, skills up to 40, trend up to 10 and demand share up to 30')
     expect(result.scoring_weights.classifier).toBe(.2)
     expect(api.sendChatStream).not.toHaveBeenCalled()
+  })
+
+  test.each([[0, '0.00 / 100'], [1e-10, '6.6667e-8 / 100']])('technical indices distinguish zero from small values (%s)', async (value, expected) => {
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, skill_scores: { ...result.skill_scores, 'Data Analyst': value } }} /></AppProvider>))
+    const row = container.querySelector('.methodTable tbody tr:nth-child(2)')
+    expect(row.querySelectorAll('td')[0].textContent).toBe(String(value))
+    expect(row.querySelectorAll('td')[1].textContent).toBe(expected)
   })
 
   test('compact context retains inputs without duplicated rankings/history/roadmap and actions remain accessible', async () => {
@@ -339,6 +346,11 @@ describe('editorial results navigation and Best Match', () => {
     expect(panel.textContent).toContain('Profile value: 3.2')
     expect(panel.textContent).not.toContain('Model input (preprocessed)')
     expect(container.querySelector('.methodologyDetails').textContent).toContain('-1.2500')
+    const inputs = [...container.querySelectorAll('.technicalGroup')].find(el => el.querySelector('summary')?.textContent === translations.en.review.modelInputs)
+    expect(inputs.open).toBe(false)
+    const gpaRow = [...inputs.querySelectorAll('tbody tr')].find(row => row.querySelector('code').textContent === 'gpa')
+    expect([...gpaRow.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['3.2', '-1.2500'])
+    expect(inputs.querySelectorAll('tbody tr code')).toHaveLength(6)
     expect(panel.textContent).toContain(translations.en.polish.shapDenominator)
     expect(panel.querySelector('.featureSummary').textContent).not.toMatch(/gap.*reduced confidence|slightly increased confidence|avoid learning/i)
     expect(panel.textContent).toContain(translations.en.polish.modelCaveat)
@@ -578,7 +590,7 @@ describe('editorial All Professions master-detail', () => {
     expect(details.querySelector('.gapAssessment').textContent).not.toContain('Top-only')
     expect(details.textContent).not.toMatch(/NaN|Infinity|undefined/)
     expect(details.querySelector('.scoreEquation')).toBeNull()
-    expect([...details.querySelectorAll('.methodTable tbody tr')].every(row => row.querySelector('td').textContent === '—')).toBe(true)
+    expect([...details.querySelector('.methodTable').querySelectorAll('tbody tr')].every(row => row.querySelector('td').textContent === '—')).toBe(true)
     expect([...details.querySelectorAll('.signalContribution b')].every(el => el.textContent.startsWith('—'))).toBe(true)
   })
 

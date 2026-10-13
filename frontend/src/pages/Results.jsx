@@ -734,6 +734,8 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
   }
   const descriptions = [t.results.formulaLegendProfile, t.results.formulaLegendSkill, t.results.formulaLegendTrend, t.results.formulaLegendShare]
   const hasWeights = components.every(item => item.weight != null)
+  const modelInputs = results.skill_explanations?.[profession]?.shap_explanations || []
+  const inputKeys = [...new Set([...Object.keys(profile || {}), ...modelInputs.map(item => item.feature_name)])]
   return (
     <section className={styles.formulaBanner} aria-label={t.review.weightedSignals}>
       <h2 className={styles.formulaTitle}>{t.review.weightedSignals}</h2>
@@ -751,36 +753,53 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
         <summary>{t.review.calculationTitle}</summary>
         <p>{hasWeights ? t.review.weightExplanation(components.map(item => Number((item.weight * 100).toFixed(2)))) : t.review.missingWeights}</p>
         <details className={styles.methodologyDetails}><summary>{t.review.technicalDetails}</summary>
-        {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
-          {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
-        </code> : <p>{hasWeights ? t.review.partialSignals : t.review.missingWeights}</p>}
-        <div className={styles.methodTableWrap} tabIndex={0} role="region" aria-label={t.review.calculationTitle}>
-          <table className={styles.methodTable}>
-             <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.index}</th><th>{t.review.weight}</th><th>{t.review.contribution}</th></tr></thead>
-            <tbody>{components.map(item => <tr key={item.key}>
-              <th scope="row">{labels[item.key]}</th><td>{item.available ? item.raw.toPrecision(5) : '—'}</td><td>{item.available ? `${(item.value * 100).toFixed(2)} / 100` : '—'}</td>
-              <td>{item.weight == null ? '—' : `${Number((item.weight * 100).toFixed(2))}%`}</td><td>{!item.available || item.contribution == null ? '—' : t.review.pointsValue(item.contribution)}</td>
-            </tr>)}</tbody>
-          </table>
-        </div>
-           <h3>{t.review.dataTitle}</h3>
-           <p>{t.review.normalization}</p>
-           {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
-           {components.find(item => item.key === 'market_share' && item.available) && <p>{t.review.marketShareValue(results.demand_scores[profession].market_share, Object.keys(results.demand_scores).length)}</p>}
-           <p>{t.review.marketNote}</p>
-           <a href="/#methodology">{t.review.sources}</a>
-           <h3>{t.polish.profileInputs}</h3>
-           <dl className={styles.evaluationInputs}>{Object.entries(profile || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{Array.isArray(value) ? value.join(', ') || '—' : String(value)}</dd></div>)}</dl>
-           <h3>{t.polish.classifierOutput}</h3>
-           <p>{results.classification_scores?.[profession]?.toPrecision(5) ?? '—'}</p>
-           {!!results.skill_explanations?.[profession]?.shap_explanations?.length && <>
-             <h3>{t.polish.preprocessedInput}</h3>
-             <dl className={styles.evaluationInputs}>{results.skill_explanations[profession].shap_explanations.map(item => <div key={item.feature_name}><dt>{t.form.technicalLabels[item.feature_name] || t.form.soft[item.feature_name] || item.label || item.feature_name}</dt><dd>{typeof item.raw_value === 'number' ? item.raw_value.toPrecision(5) : '—'}</dd></div>)}</dl>
-           </>}
-           {!!results.user_skills_ranked?.length && <>
-             <h3>{t.polish.calculatedSkills}</h3><p>{t.results.skillsTooltip}</p>
-             <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
-           </>}
+          <section className={styles.technicalGroup} aria-label={t.review.scoreCalculation}>
+            <h3>{t.review.scoreCalculation}</h3>
+            {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
+              {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
+            </code> : <p>{hasWeights ? t.review.partialSignals : t.review.missingWeights}</p>}
+            <p className={styles.tableScrollHint}>{t.review.scrollTable}</p>
+            <div className={styles.methodTableWrap} tabIndex={0} role="region" aria-label={t.review.scoreCalculation}>
+              <table className={styles.methodTable}>
+                <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.index}</th><th>{t.review.weight}</th><th>{t.review.contribution}</th></tr></thead>
+                <tbody>{components.map(item => <tr key={item.key}>
+                  <th scope="row">{labels[item.key]}</th><td>{item.available ? String(item.raw) : '—'}</td><td>{item.available ? `${item.value !== 0 && Math.abs(item.value * 100) < .005 ? (item.value * 100).toPrecision(5) : (item.value * 100).toFixed(2)} / 100` : '—'}</td>
+                  <td>{item.weight == null ? '—' : `${Number((item.weight * 100).toFixed(2))}%`}</td><td>{!item.available || item.contribution == null ? '—' : t.review.pointsValue(item.contribution)}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+            <p>{t.review.normalization}</p>
+            <p>{t.review.displayPrecision}</p>
+          </section>
+          <section className={styles.technicalGroup} aria-label={t.review.dataTitle}>
+            <h3>{t.review.dataTitle}</h3>
+            {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
+            {components.find(item => item.key === 'market_share' && item.available) && <p>{t.review.marketShareValue(results.demand_scores[profession].market_share, Object.keys(results.demand_scores).length)}</p>}
+            <p>{t.review.marketNote}</p>
+            <a href="/#methodology">{t.review.sources}</a>
+          </section>
+          <details className={styles.technicalGroup}>
+            <summary>{t.review.modelInputs}</summary>
+            <p>{t.review.modelInputsNote}</p>
+            <dl className={styles.evaluationInputs}><div><dt>{t.polish.classifierOutput}</dt><dd>{results.classification_scores?.[profession]?.toPrecision(5) ?? '—'}</dd></div></dl>
+            <div className={styles.methodTableWrap} tabIndex={0} role="region" aria-label={t.review.modelInputs}>
+              <table className={`${styles.methodTable} ${styles.inputTable}`}>
+                <thead><tr><th>{t.polish.signal}</th><th>{t.review.enteredValue}</th><th>{t.review.usedByModel}</th></tr></thead>
+                <tbody>{inputKeys.map(key => {
+                  const input = modelInputs.find(item => item.feature_name === key)
+                  const value = profile?.[key]
+                  return <tr key={key}><th scope="row"><code>{key}</code></th>
+                    <td>{value == null ? '—' : Array.isArray(value) ? value.join(', ') || '—' : String(value)}</td>
+                    <td>{typeof input?.raw_value === 'number' ? input.raw_value.toPrecision(5) : '—'}</td>
+                  </tr>
+                })}</tbody>
+              </table>
+            </div>
+          </details>
+          {!!results.user_skills_ranked?.length && <details className={styles.technicalGroup}>
+            <summary>{t.polish.calculatedSkills}</summary><p>{t.results.skillsTooltip}</p>
+            <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
+          </details>}
         </details>
       </details>
     </section>
