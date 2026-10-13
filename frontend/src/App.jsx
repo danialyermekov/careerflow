@@ -34,6 +34,7 @@ function AppInner() {
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
   const [demo, setDemo] = useState(false)
+  const [profileDraft, setProfileDraft] = useState(null)
   const [advisorRequested, setAdvisorRequested] = useState(false)
 
   useEffect(() => {
@@ -75,7 +76,8 @@ function AppInner() {
 
   useEffect(() => { window.scrollTo(0, 0) }, [page])
 
-  const handleStart = () => { setDemo(false); setError(''); window.history.pushState({}, '', '/#profile'); setPage('form') }
+  const handleStart = () => { setProfileDraft(null); setDemo(false); setError(''); window.history.pushState({}, '', '/#profile'); setPage('form') }
+  const handleEditProfile = profile => { handleStart(); setProfileDraft(profile) }
   const handleDemo = () => { setDemo(true); handleSubmit({ ...DEMO_PROFILE, lang }, true, true) }
   const handleBack = () => { window.history.pushState({}, '', '/'); setPage('hero') }
   const showResult = data => {
@@ -154,7 +156,7 @@ function AppInner() {
               </div>
             )}
             {advisorRequested && <p className="advisorFlowNote" role="status">{t.product.aiNext}</p>}
-            <Form onSubmit={handleSubmit} loading={loading} initialDemo={demo} />
+            <Form onSubmit={handleSubmit} loading={loading} initialDemo={demo} initialProfile={profileDraft} />
           </motion.main>
         )}
 
@@ -171,7 +173,7 @@ function AppInner() {
             transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
           >
             <Suspense fallback={<p className="betaPage" role="status">{t.beta.loading}</p>}>
-              <Results results={results} onBack={handleBack} onRetry={handleStart} onHistorySelect={showResult} openAdvisor={advisorRequested} />
+              <Results results={results} onBack={handleBack} onRetry={handleStart} onEditProfile={handleEditProfile} onHistorySelect={showResult} openAdvisor={advisorRequested} />
             </Suspense>
           </motion.main>
         )}

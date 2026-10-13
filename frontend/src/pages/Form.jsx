@@ -65,9 +65,9 @@ const DEFAULT = {
   communication: 3, leadership: 3, problem_solving: 3, teamwork: 3, adaptability: 3,
 }
 
-export default function Form({ onSubmit, loading, initialDemo = false }) {
+export default function Form({ onSubmit, loading, initialDemo = false, initialProfile }) {
   const { t, lang } = useApp()
-  const [form,       setForm]       = useState(initialDemo ? { ...DEMO_PROFILE, skills: [...DEMO_PROFILE.skills] } : DEFAULT)
+  const [form,       setForm]       = useState(() => initialProfile ? { ...DEFAULT, ...initialProfile } : initialDemo ? { ...DEMO_PROFILE, skills: [...DEMO_PROFILE.skills] } : DEFAULT)
   const [isDemo, setIsDemo] = useState(initialDemo)
   const [skillInput, setSkillInput] = useState('')
   const [errors,     setErrors]     = useState({})

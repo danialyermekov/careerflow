@@ -655,6 +655,7 @@ function SkillGapComparison({ professions, results, profLabel, t, onSelect, useC
 }
 
 function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
+  const [expanded, setExpanded] = useState(false)
   const isShap = !!explanation?.shap_explanations?.length
   const rawItems = isShap ? explanation.shap_explanations : explanation?.items || []
   if (!rawItems.length) return <p className={styles.methodNote}>{t.polish.explanationUnavailable}</p>
@@ -670,9 +671,8 @@ function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
   }))
   const maxAbs = Math.max(...items.map(item => Math.abs(item.value)), .001)
   const strongest = sign => items.filter(item => sign * item.value > 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3)
-  const rows = (list, full = false) => <div className={styles.skillImpactChart}>{list.map(item => <div key={item.feature || item.name} className={styles.skillImpactRow}>
-    <span className={styles.skillImpactName}>{item.name}<small>{t.polish.profileValue}: {item.input}{item.presence && ` · ${item.presence}`}{Object.hasOwn(t.form.soft, item.feature) && typeof item.input === 'number' && ' / 5'}</small>
-      {full && item.modelInput != null && <small>{explanation.method === 'catboost_shap' ? t.polish.preprocessedInput : t.polish.modelInput}: {item.modelInput}</small>}
+  const rows = list => <div className={styles.skillImpactChart}>{list.map(item => <div key={item.feature || item.name} className={styles.skillImpactRow}>
+    <span className={styles.skillImpactName}>{item.name}<small>{t.polish.profileValue}: {item.presence || item.input}{Object.hasOwn(t.form.soft, item.feature) && typeof item.input === 'number' && ' / 5'}</small>
     </span>
     <span className={styles.skillImpactTrack} aria-hidden="true"><span className={styles.skillImpactBaseline} />
       <i className={item.value >= 0 ? styles.skillImpactPositive : styles.skillImpactNegative}
@@ -682,14 +682,15 @@ function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
   </div>)}</div>
   return <div className={styles.skillExplainBlock}>
     <div className={styles.featureSummary}>
-      {rows([...strongest(1), ...strongest(-1)])}
+      {rows(expanded ? items : [...strongest(1), ...strongest(-1)])}
     </div>
-    <p className={styles.methodNote}>{t.polish.modelCaveat}</p>
-    <details className={styles.featureDetails}><summary>{t.polish.fullFeatures} ({items.length})</summary>
+    <p className={styles.methodNote}>{t.review.shapLegend}</p>
+    <p className={styles.methodNote}>{t.review.shapLimit}</p>
+    <button type="button" className={styles.secondaryAction} aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{t.polish.fullFeatures} ({items.length})</button>
+    <details className={styles.featureDetails}><summary>{t.review.shapHelp}</summary>
       <p className={styles.methodNote}>{explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback}</p>
       {isShap && <p className={styles.methodNote}>{t.polish.shapDenominator}</p>}
-      <dl className={styles.modelScores}><div><dt>{t.polish.classifierOutput}</dt><dd>{typeof classifierOutput === 'number' ? classifierOutput.toPrecision(5) : '—'}</dd></div></dl>
-      {rows(items, true)}
+      <p className={styles.methodNote}>{t.polish.modelCaveat}</p>
     </details>
   </div>
 }
@@ -1412,7 +1413,7 @@ function DeepModeBtn({ active, onClick, disabled, lang, t }) {
 }
 
 /* ─── Scoring Formula Header ─────────────────────────────────── */
-function ScoringFormulaHeader({ results, profession, t }) {
+function ScoringFormulaHeader({ results, profession, t, profile }) {
   const components = getScoreBreakdown(results, profession)
   const labels = {
     profile_match: t.results.classification, skill_match: t.results.skillMatch,
@@ -1453,6 +1454,18 @@ function ScoringFormulaHeader({ results, profession, t }) {
            <p>{t.review.normalization}</p>
            {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
            <p>{t.review.marketNote}</p>
+           <h3>{t.polish.profileInputs}</h3>
+           <dl className={styles.evaluationInputs}>{Object.entries(profile || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{Array.isArray(value) ? value.join(', ') || '—' : String(value)}</dd></div>)}</dl>
+           <h3>{t.polish.classifierOutput}</h3>
+           <p>{results.classification_scores?.[profession]?.toPrecision(5) ?? '—'}</p>
+           {!!results.skill_explanations?.[profession]?.shap_explanations?.length && <>
+             <h3>{t.polish.preprocessedInput}</h3>
+             <dl className={styles.evaluationInputs}>{results.skill_explanations[profession].shap_explanations.map(item => <div key={item.feature_name}><dt>{t.form.technicalLabels[item.feature_name] || t.form.soft[item.feature_name] || item.label || item.feature_name}</dt><dd>{typeof item.raw_value === 'number' ? item.raw_value.toPrecision(5) : '—'}</dd></div>)}</dl>
+           </>}
+           {!!results.user_skills_ranked?.length && <>
+             <h3>{t.polish.calculatedSkills}</h3><p>{t.results.skillsTooltip}</p>
+             <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
+           </>}
         </details>
       </details>
     </section>
@@ -1460,7 +1473,7 @@ function ScoringFormulaHeader({ results, profession, t }) {
 }
 
 /* ─── Main Component ─────────────────────────────────────────── */
-export default function Results({ results: initialResults, formData, onBack, onRetry, onNewAnalysis, onHistorySelect, openAdvisor = false }) {
+export default function Results({ results: initialResults, formData, onBack, onRetry, onEditProfile, onNewAnalysis, onHistorySelect, openAdvisor = false }) {
   const { t, lang, llmProvider } = useApp()
   const { user } = useAuth()
   const [stateLoaded, setStateLoaded] = useState(false)
@@ -2459,43 +2472,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <summary>{t.review.contextTools}</summary>
           <div className={styles.contextGrid}>
         <section className={styles.profileInputs}>
-          <dl className={styles.profileSummary}>
-            <div><dt>{t.form.personal.field}</dt><dd>{t.form.fields[profile.field_of_study] || profile.field_of_study || '—'}</dd></div>
-            <div><dt>{t.form.personal.gpa}</dt><dd>{profile.gpa ?? '—'}</dd></div>
-          </dl>
-          <h3>{t.review.enteredSkills}</h3>
-          <div className={styles.gapChips}>
-            {((results._formData || formData)?.skills || []).map(skill => <span key={skill}>{skill}</span>)}
-          </div>
-          <p><strong>{t.form.technical.label}: </strong>{Object.entries(PROFILE_TECH_LABELS).filter(([key]) => profile[key] === 1).map(([key, label]) => t.form.technicalLabels[key] || label).join(', ') || '—'}</p>
-          <p><strong>{t.polish.ratedSoftSkills}: </strong>{softInputs.map(([, label]) => label).join(', ') || '—'}</p>
+          {profile.skills?.length ? <><h3>{t.review.enteredSkills}</h3><div className={styles.gapChips}>{profile.skills.map(skill => <span key={skill}>{skill}</span>)}</div></> : <p>{t.review.noSkills}</p>}
+          <p><strong>{t.form.technical.label}: </strong>{Object.entries(PROFILE_TECH_LABELS).filter(([key]) => profile[key] === 1).map(([key, label]) => t.form.technicalLabels[key] || label).join(', ') || t.review.noAreas}</p>
+          <p><strong>{t.polish.ratedSoftSkills}: </strong>{softInputs.map(([key, label]) => `${label} ${profile[key]}/5`).join(', ') || '—'}</p>
         </section>
-        <details className={styles.profileDetails}><summary>{t.polish.profileInputs}</summary>
-          <dl className={styles.evaluationInputs}>{Object.entries(profile).filter(([key, value]) => key !== 'skills' && ['number', 'string'].includes(typeof value)).map(([key, value]) =>
-            <div key={key}><dt>{t.form.technicalLabels[key] || PROFILE_TECH_LABELS[key] || t.form.soft[key] || t.form.personal[key === 'field_of_study' ? 'field' : key] || cap(key.replace(/_/g, ' '))}</dt>
-              <dd>{key === 'field_of_study' ? t.form.fields[value] || value : value}{Object.hasOwn(PROFILE_TECH_LABELS, key) && [0, 1].includes(value) ? ` · ${value ? t.polish.present : t.polish.absent}` : softInputs.some(([softKey]) => softKey === key) ? ' / 5' : ''}</dd></div>)}</dl>
-        </details>
-        {!!results.user_skills_ranked?.length && <details className={styles.profileDetails}><summary>{t.polish.calculatedSkills}</summary>
-           <p className={styles.methodNote}>{t.results.skillsTooltip}</p>
-          <div className={styles.skillsTagCloud}>
-            {(results.user_skills_ranked || []).map((s, idx) => (
-              <span
-                key={`${s.skill}-${idx}`}
-                className={styles.skillTag}
-                style={{
-                  opacity: s.status === 'General/Non-IT Token' ? 0.65 : 1
-                }}
-                title={s.status === 'General/Non-IT Token' ? t.polish.generalToken : `${t.polish.tokenWeight}: ${s.tfidf_weight}`}
-              >
-                {s.skill}
-                <span className={styles.skillWeightBadge}>
-                  {s.tfidf_weight.toFixed(2)}
-                </span>
-              </span>
-            ))}
-          </div>
-        </details>}
-
           </div>
         </details>
         <div className={styles.resultActions}>
@@ -2559,9 +2539,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 alternatives={rankedProfessions.filter(p => p.name !== activeProf.name).slice(0, 3)} ranks={professionRanks}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 viewMode={viewMode} onViewMode={setViewMode} aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
+                incompleteProfile={Array.isArray(profile.skills) && profile.skills.length === 0 ? <p className={styles.methodNote}>{t.review.incompleteProfile} <button type="button" className={styles.secondaryAction} onClick={() => onEditProfile ? onEditProfile(profile) : onRetry?.()}>{t.review.addSkills}</button></p> : null}
                 score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
                   color="var(--accent)" animKey={animKey} tooltipText={formatMatchScore(activeProf.final_score)} />}
-                scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />}
+                scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
                 skillGap={<section className={styles.gapAssessment} aria-label={t.review.gapAssessment}>
                   <h3>{t.review.missingSkills}</h3>
                   {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : missingSkills.length === 0 ? <p>{t.review.gapEmpty}</p>
@@ -2607,7 +2588,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
               missingSkills={missingSkills}
               partialSignals={activeProf && [results.classification_scores?.[activeProf.name], results.skill_scores?.[activeProf.name],
                 results.demand_scores?.[activeProf.name]?.trend_score, results.demand_scores?.[activeProf.name]?.market_share].some(value => value == null)}
-              scoring={activeProf && <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />}
+              scoring={activeProf && <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
               comparisons={<>
                 <div className={styles.chartControls} role="group" aria-label={t.review.visualization}>
                   {['bars', 'radar', 'gap'].map(mode => <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{t.results.chartModes[mode]}</button>)}

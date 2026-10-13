@@ -3,7 +3,8 @@ import { formatMatchScore } from '../../utils/scoring'
 
 export default function BestMatchPanel({ profession, rank, isTop, name, t, score, scoring, visualization,
   skillGap, explanation, alternatives, profLabel, onSelect, onRoadmap, onCompare, viewMode, onViewMode,
-  aiCtaInfo, onAdvisor, ranks }) {
+  aiCtaInfo, onAdvisor, ranks, incompleteProfile }) {
+  const description = t.hero.trackDescriptions[['Data Analyst', 'Software Engineer', 'Machine Learning Engineer', 'Cloud Engineer', 'Data Scientist', 'Data Engineer', 'Business Analyst'].indexOf(profession.name)]
   return <div className={styles.bestPanel}>
     <section className={styles.recommendationHero}>
       <div data-tour-slot="recommendation" />
@@ -11,7 +12,7 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
         <div>
           <span className={styles.bestRank}>#{rank} {isTop ? t.results.bestMatch : t.results.selectedProfession}</span>
           <h2 className={styles.bestName}>{name}</h2>
-          <p className={styles.summaryText}>{t.review.inspectIntro}</p>
+          {description && <p className={styles.summaryText}>{description}</p>}
           {profession.vacancies_per_week != null && <p className={styles.methodNote}>
             {profession.vacancies_per_week.toLocaleString()} {t.results.vacanciesWeek}
           </p>}
@@ -21,6 +22,7 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
         </div>
         <div className={styles.heroScore}><strong>{t.review.scoreTitle}</strong>{score}<p>{t.review.scoreNote}</p></div>
       </div>
+      {incompleteProfile}
       <div className={styles.aiRecommendationCta}>
         <div className={styles.aiRecommendationCtaText}>
           <span className={styles.aiRecommendationCtaSubtitle}>{aiCtaInfo.subtitle}</span>
