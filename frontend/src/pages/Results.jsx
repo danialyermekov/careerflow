@@ -388,7 +388,8 @@ function SkillDependencyTree({ roadmap, doneSkills, formSkills, t }) {
         <h3>{t.results.dependencyTree}</h3>
         {next && <small>{t.results.nextStep}: {cap(next.skill)}</small>}
       </div>
-      <p className={styles.methodNote}>{t.review.dependencyNote}</p>
+      <p className={styles.methodNote}>{t.review.dependencyShort}</p>
+      <details className={styles.featureDetails}><summary>{t.review.dependencyHelp}</summary><p className={styles.methodNote}>{t.review.dependencyNote}</p></details>
       <div className={styles.dependencyTree}>
         {enriched.map(item => (
           <div key={`${item.cat}-${item.skill}`} data-skill={item.skill} className={`${styles.dependencyNode} ${item.isDone ? styles.dependencyDone : item.ready ? styles.dependencyReady : styles.dependencyLocked}`}>
@@ -397,13 +398,13 @@ function SkillDependencyTree({ roadmap, doneSkills, formSkills, t }) {
               <strong>{item.isDone ? profileSkills.has(item.key) ? t.review.fromProfile : t.review.selfMarked : item.ready ? t.results.ready : t.results.locked}</strong>
             </div>
             <div className={styles.dependencyPrereq}>
-              <span>{t.results.prerequisites}</span>
+              {item.prerequisites.length > 0 && <span>{t.results.prerequisites}</span>}
               <div>
                 {item.prerequisites.length
                   ? item.prerequisites.map(dep => (
                     <i key={dep} className={learned.has(normalizeSkillKey(dep)) ? styles.prereqDone : ''}>{cap(dep.replace(/_/g, ' '))} — {profileSkills.has(normalizeSkillKey(dep)) ? t.review.fromProfile : learned.has(normalizeSkillKey(dep)) ? t.review.selfMarked : t.review.prerequisiteMissing}</i>
                   ))
-                  : <i>{t.review.noPrerequisites}</i>}
+                  : <span>{t.review.noPrerequisites}</span>}
               </div>
             </div>
           </div>

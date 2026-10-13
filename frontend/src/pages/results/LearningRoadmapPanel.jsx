@@ -55,14 +55,10 @@ export default function LearningRoadmapPanel({ profession, entries, total, compl
     <div data-tour-slot="roadmap" />
     <header className={styles.roadmapOverview}>
       <div><h2 id="learning-roadmap-title" className={styles.roadmapHint}>{t.review.learningTitle(profession)}</h2><p>{t.review.roadmapMethod}</p></div>
-      <div className={styles.roadmapSummary}>
-        <div><span>{t.review.requiredSteps}</span><strong>{total}</strong><p>{entries.flatMap(([, skills]) => skills.map(item => formatSkill(item.skill))).join(', ') || '—'}</p></div>
-        <div><span>{t.results.activeSteps}</span><strong>{total - completed}</strong><p>{t.review.stepsRemaining(total - completed)}</p></div>
-      </div>
     </header>
     {fallbackNotice && <p className={styles.methodNote}>{fallbackNotice}</p>}
     <section className={styles.roadmapProgressPanel} aria-label={t.review.manualProgress}>
-      <div className={styles.roadmapProgressHeading}><strong>{t.results.roadmapProgress(completed, total)}</strong><span>{percentage}%</span></div>
+      <div className={styles.roadmapProgressHeading}><strong>{t.results.roadmapProgress(completed, total)} · {t.review.stepsRemaining(total - completed)}</strong><span>{percentage}%</span></div>
       <div className={styles.roadmapProgressTrack} role="progressbar" aria-label={t.review.manualProgress} aria-valuemin="0" aria-valuemax="100" aria-valuenow={percentage} aria-valuetext={t.results.roadmapProgress(completed, total)}>
         <i style={{ width: `${percentage}%` }} />
       </div>
