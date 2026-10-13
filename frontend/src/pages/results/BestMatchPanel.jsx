@@ -3,7 +3,7 @@ import { formatMatchScore } from '../../utils/scoring'
 
 export default function BestMatchPanel({ profession, rank, isTop, name, t, score, scoring,
   skillGap, explanation, alternatives, profLabel, onSelect, onRoadmap, onCompare,
-  aiCtaInfo, onAdvisor, ranks, incompleteProfile }) {
+  aiCtaInfo, onAdvisor, ranks, incompleteProfile, headingRef }) {
   const description = t.hero.trackDescriptions[['Data Analyst', 'Software Engineer', 'Machine Learning Engineer', 'Cloud Engineer', 'Data Scientist', 'Data Engineer', 'Business Analyst'].indexOf(profession.name)]
   return <div className={styles.bestPanel}>
     <section className={styles.recommendationHero}>
@@ -11,7 +11,7 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
       <div className={styles.heroGrid}>
         <div>
           <span className={styles.bestRank}>#{rank} {isTop ? t.results.bestMatch : t.results.selectedProfession}</span>
-          <h2 className={styles.bestName}>{name}</h2>
+          <h2 className={styles.bestName} ref={headingRef} tabIndex={-1}>{name}</h2>
           {description && <p className={styles.summaryText}>{description}</p>}
           {profession.vacancies_per_week != null && <p className={styles.methodNote}>
             {profession.vacancies_per_week.toLocaleString()} {t.results.vacanciesWeek}

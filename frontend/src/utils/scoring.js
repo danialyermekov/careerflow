@@ -12,7 +12,7 @@ export function getScoreBreakdown(results, profession) {
     const raw = values[profession] || 0
     const value = raw / divisor
     const weight = results.scoring_weights?.[weightKey]
-    return { key, raw, divisor, value, weight, contribution: weight == null ? null : value * weight * 100 }
+    return { key, raw, divisor, value, weight, available: values[profession] != null, contribution: weight == null ? null : value * weight * 100 }
   })
 }
 

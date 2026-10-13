@@ -736,12 +736,13 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
   return (
     <section className={styles.formulaBanner} aria-label={t.review.weightedSignals}>
       <h2 className={styles.formulaTitle}>{t.review.weightedSignals}</h2>
+      {components.some(item => !item.available) && <p className={styles.methodNote}>{t.review.partialSignals}</p>}
       <div className={styles.formulaLegend}>
         {components.map(item => (
           <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
-            <b>{item.contribution == null ? '—' : t.review.pointsOf(item.contribution.toFixed(2), Math.round(item.weight * 100))}</b>
-            {item.key === 'market_share' && <small>{t.review.marketShareValue(item.raw, Object.keys(results.final_scores).length)}</small>}
+            <b>{!item.available || item.contribution == null ? '—' : t.review.pointsOf(item.contribution.toFixed(2), Math.round(item.weight * 100))}</b>
+            {item.key === 'market_share' && item.available && <small>{t.review.marketShareValue(item.raw, Object.keys(results.final_scores).length)}</small>}
             <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
           </div>
         ))}
@@ -796,6 +797,14 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
   const [results,      setResults]      = useState(initialResults)
   const [tab,          setTab]          = useState('best')
+  const careerHeading = useRef(null)
+  const detailFocusRequested = useRef(false)
+  useEffect(() => {
+    if (tab === 'best' && detailFocusRequested.current) {
+      careerHeading.current?.focus()
+      detailFocusRequested.current = false
+    }
+  }, [tab])
   const [tourStep, setTourStep] = useState(initialResults._guided ? 0 : null)
   const [advisorMode, setAdvisorMode] = useState(llmProvider ? 'byok' : 'preview')
   const changeTourStep = step => {
@@ -1845,7 +1854,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
             const activeRank = professionRanks[activeProf.name]
             return (
               <BestMatchPanel profession={activeProf} rank={activeRank} isTop={activeProf.name === top_profession}
-                name={profLabel(activeProf.name)} t={t} profLabel={profLabel}
+                name={profLabel(activeProf.name)} t={t} profLabel={profLabel} headingRef={careerHeading}
                 alternatives={rankedProfessions.filter(p => p.name !== activeProf.name).slice(0, 3)} ranks={professionRanks}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
@@ -1881,11 +1890,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           {tab === 'all' && (
             <AllProfessionsPanel professions={sorted} selected={activeProf} ranks={professionRanks} topName={top_profession}
               profLabel={profLabel} t={t} sortOptions={SORT_OPTIONS} sortBy={sortBy} onSort={setSortBy}
-              onSelect={setSelectedProf} onRoadmap={() => setTab('roadmap')}
-              missingSkills={missingSkills}
-              partialSignals={activeProf && [results.classification_scores?.[activeProf.name], results.skill_scores?.[activeProf.name],
-                results.demand_scores?.[activeProf.name]?.trend_score, results.demand_scores?.[activeProf.name]?.market_share].some(value => value == null)}
-              scoring={activeProf && <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
+              onSelect={setSelectedProf} onOpenDetails={() => { detailFocusRequested.current = true; setTab('best') }}
             />
           )}
 

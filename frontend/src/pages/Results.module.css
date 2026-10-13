@@ -486,34 +486,8 @@
 
 .professionBarRow::after,
 .gapCompareRow::after,
-.scoreCircleTooltip::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%);
-  z-index: 120;
-  max-width: min(320px, 80vw);
-  white-space: pre-line;
-  pointer-events: none;
-  opacity: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text-2);
-  font-size: .7rem;
-  font-family: var(--font-mono);
-  box-shadow: var(--shadow-md);
-  transition: opacity .15s ease;
-}
-
 .professionBarRow:hover::after,
 .gapCompareRow:hover::after,
-.scoreCircleTooltip:hover::after {
-  opacity: 1;
-}
-
 .professionBarRank,
 .professionBarPct {
   color: var(--text-3);
@@ -948,29 +922,6 @@
 /* ─── Bar ────────────────────────────────────────────────────── */
 .barWrap { flex: 1; display: flex; align-items: center; gap: 8px; }
 .bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); overflow: visible; position: relative; }
-
-.barTooltipWrap { cursor: help; }
-.barTooltipWrap::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-2);
-  font-size: .7rem;
-  font-family: var(--font-mono);
-  padding: 5px 9px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  box-shadow: var(--shadow-md);
-  z-index: 100;
-}
-.barTooltipWrap:hover::after { opacity: 1; }
 
 .barFill { height: 100%; border-radius: 2px; }
 .barPct { font-size: .75rem; font-family: var(--font-mono); color: var(--text-3); min-width: 32px; text-align: right; }
@@ -2457,8 +2408,6 @@
 .bestPanel .radarCompareBody svg { width: min(100%, 360px); height: auto; }
 .bestPanel .skillGapRadar { width: min(300px, 100%); }
 .bestPanel .skillGapRadar svg { width: 100%; height: auto; }
-.bestPanel .barTooltipWrap::after { width: min(280px, 100%); white-space: normal; overflow-wrap: anywhere; visibility: hidden; font: 400 .8125rem/1.5 var(--font-sans); }
-.bestPanel .barTooltipWrap:hover::after { visibility: visible; }
 .bestPanel .radarLegend { font-size: .8125rem; flex-wrap: wrap; }
 .gapAssessment h3 { font: 600 1rem/1.5 var(--font-sans); }
 .gapAssessment h4 { font: 600 .875rem/1.5 var(--font-sans); margin: 24px 0 12px; }
@@ -2527,23 +2476,23 @@
 .allPanel [data-signal="trend_score"] { --signal-color: var(--text-3); }
 .allPanel [data-signal="market_share"] { --signal-color: var(--text-2); }
 .careerMasterDetail { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); align-items: start; gap: 24px; }
-.careerRanking { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.careerRow { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); overflow: hidden; }
-.careerRowSelected { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
-.careerSelect { display: flex; flex-direction: column; gap: 16px; width: 100%; padding: 24px; color: var(--text); background: transparent; border: 0; text-align: left; font: 400 .875rem/1.5 var(--font-sans); }
+.careerRanking { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; min-width: 0; }
+.careerRow { border-bottom: 1px solid var(--border); background: var(--panel); }
+.careerRowSelected { background: var(--accent-light); box-shadow: inset 3px 0 var(--accent); }
+.careerSelect { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 16px; color: var(--text); background: transparent; border: 0; text-align: left; font: 400 .875rem/1.5 var(--font-sans); }
 .careerSelect:hover { background: var(--bg-tertiary); }
 .careerSelect:focus-visible { outline-offset: -4px; }
 .careerRowHeading { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: start; gap: 12px; width: 100%; }
 .careerRank { display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; background: var(--bg-tertiary); border-radius: var(--radius-full); font: 600 .8125rem/1.5 var(--font-sans); font-variant-numeric: tabular-nums; }
 .careerRowSelected .careerRank { background: var(--primary); color: var(--primary-contrast); }
-.careerName { font: 500 1.5rem/1.25 var(--font-display); overflow-wrap: anywhere; }
+.careerName { font: 500 1.125rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
 .careerTopBadge { display: inline-block; vertical-align: middle; padding: 3px 8px; background: var(--accent-light); color: var(--accent); border-radius: var(--radius-full); font: 600 .75rem/1.4 var(--font-sans); }
 .careerScore { display: block; font: 500 1.5rem/1.3 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .careerTrack { position: relative; display: block; width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: var(--radius-full); overflow: hidden; }
 .careerScoreFill { display: block; height: 100%; background: var(--text); }
 .careerSignalSegments { display: flex; position: absolute; inset: 0; }
 .careerSignalSegments span { height: 100%; background: var(--signal-color); }
-.careerRowMeta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; color: var(--text-2); width: 100%; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.careerRowMeta { padding-left: 44px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; color: var(--text-2); width: 100%; font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .rankingDetailLink { display: none; }
 .selectedCareer { min-width: 0; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); display: flex; flex-direction: column; gap: 24px; }
 .careerDetailHeading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px; }
@@ -2591,13 +2540,13 @@
   .careerSort { width: 100%; }
   .careerSort > span { width: 100%; }
   .careerSort button { flex: 1 1 100px; }
-  .careerSelect, .selectedCareer { padding: 20px; }
+  .careerSelect { padding: 16px; }
   .careerRowHeading { grid-template-columns: 28px minmax(0, 1fr); gap: 8px; }
   .careerRowHeading .careerScore { grid-column: 2; }
-  .careerName { font-size: 1.375rem; }
+  .careerName { font-size: 1.125rem; }
   .careerRank { min-width: 28px; min-height: 28px; }
-  .careerSelect { gap: 12px; }
-  .careerRowMeta { font-size: .8125rem; gap: 6px; }
+  .careerSelect { gap: 6px; }
+  .careerRowMeta { font-size: .8125rem; padding-left: 36px; gap: 6px; }
   .careerCoverage { padding: 12px; }
 }
 
