@@ -1946,7 +1946,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
       <AdvisorDrawer open={rightOpen} onClose={closeAdvisor} title={t.results.chatTitle} closeLabel={t.results.closeAiPanel}
         provider={advisorMode === 'preview' ? 'Google Gemini' : LLM_PROVIDERS.find(provider => provider.id === llmProvider)?.name || t.experience.byok}
         context={<><strong>{profLabel(activeProfName)}</strong><span>{t.review.scoreTitle}: {activeProf?.final_score != null ? formatMatchScore(activeProf.final_score) : '—'}</span></>}
-        setupOnly={advisorMode === 'byok' && !llmProvider} width={chatSize.width} widthLabel={t.review.advisorWidth} onResize={startChatResize} onWidthChange={width => setChatSize(size => ({ ...size, width }))}>
+        width={chatSize.width} widthLabel={t.review.advisorWidth} onResize={startChatResize} onWidthChange={width => setChatSize(size => ({ ...size, width }))}>
         <div className="advisorModes" aria-label={t.results.chatTitle}>
           <button type="button" data-mode="preview" aria-pressed={advisorMode === 'preview'} onClick={() => setAdvisorMode('preview')}>{t.experience.free}</button>
           <button type="button" data-mode="byok" aria-pressed={advisorMode === 'byok'} onClick={() => setAdvisorMode('byok')}>{t.experience.byok}</button>

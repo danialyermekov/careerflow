@@ -68,15 +68,16 @@ export default function FreePreview({ sessionId, careerContext, onByok }) {
   return (
     <section className="freePreview" aria-label={text.free}>
       <div className="previewHeader">
-        <h3>{text.free}</h3>
+        {!unavailable && <h3>{text.free}</h3>}
         {!unavailable && <p className="previewSubtitle">{text.freeText}</p>}
         {!unavailable && quota && <p className="previewQuota" role="status">{text.remaining(quota.remaining, quota.total)}</p>}
         {!unavailable && quota?.total > 0 && <div className="previewQuotaTrack" role="progressbar" aria-label={text.free} aria-valuemin={0} aria-valuemax={quota.total} aria-valuenow={quota.remaining}><i style={{ width: `${Math.max(0, Math.min(100, quota.remaining / quota.total * 100))}%` }} /></div>}
         {!quota && !error && <p className="previewStatus" role="status">{t.beta.loading}</p>}
-        {unavailable && <p className="previewStatus previewUnavailable" role="status">{text.unavailable}</p>}
+        {unavailable && <p className="previewStatus previewUnavailable" role="status"><strong>{text.unavailable}</strong></p>}
+        {unavailable && <p>{text.unavailableHelp}</p>}
         {!unavailable && exhausted && <p className="previewStatus previewExhausted">{text.exhausted}</p>}
       </div>
-      {(unavailable || exhausted) && onByok && <button type="button" onClick={onByok}>{text.byok}</button>}
+      {(unavailable || exhausted) && onByok && <button type="button" onClick={onByok}>{text.connectKey}</button>}
       {error && !['unavailable', 'exhausted'].includes(error) && <p className="previewAlert" role="alert">{text[error] || text.failed}</p>}
       {!unavailable && quota && !exhausted && <>
       <div className="previewMessages" role="log" aria-label={t.review.advisorConversation} aria-live="polite">

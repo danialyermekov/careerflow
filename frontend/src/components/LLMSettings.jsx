@@ -44,7 +44,8 @@ export default function LLMSettings() {
             autoComplete="off" spellCheck={false} autoCapitalize="none" />
           <button type="submit">{t.llm.save}</button>
         </form>
-        <p>{t.llm.sessionOnly} {!llmProvider && <>{t.review.advisorByokPrivacy} <a href="/privacy">{t.experience.privacyLink}</a></>}</p>
+        <p>{t.llm.sessionOnly}</p>
+        <p>{t.llm.requestOnly} <a href="/privacy">{t.experience.privacyLink}</a></p>
       </details>
       {error && <p role="alert">{error}</p>}
     </section>

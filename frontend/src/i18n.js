@@ -137,7 +137,8 @@ export const translations = {
       save: "Use key",
       remove: "Remove key",
       configured: "enabled for this page",
-      sessionOnly: "Kept only in memory until you refresh or close this page. Never saved in browser storage. Sent to CareerFlow and your provider only with AI requests.",
+      sessionOnly: "Kept only in memory until you refresh or close this page. Never saved in browser storage.",
+      requestOnly: "Sent to CareerFlow and your provider only with AI requests.",
       noKey: "Add your Claude or Gemini API key to enable the AI assistant.",
       voiceGemini: "Voice transcription requires a Gemini key. You can type messages with Claude.",
       errors: {
@@ -580,7 +581,8 @@ export const translations = {
       save: "Использовать ключ",
       remove: "Удалить ключ",
       configured: "включён для этой страницы",
-      sessionOnly: "Ключ остаётся только в памяти до обновления или закрытия страницы и не сохраняется в хранилище браузера. Передаётся CareerFlow и провайдеру только при ИИ-запросах.",
+      sessionOnly: "Ключ остаётся только в памяти до обновления или закрытия страницы и не сохраняется в хранилище браузера.",
+      requestOnly: "Передаётся CareerFlow и провайдеру только при ИИ-запросе.",
       noKey: "Добавьте API-ключ Claude или Gemini, чтобы включить ИИ советника.",
       voiceGemini: "Для распознавания голоса нужен ключ Gemini. С Claude можно общаться текстом.",
       errors: {
@@ -1023,7 +1025,8 @@ export const translations = {
       save: "Кілтті пайдалану",
       remove: "Кілтті жою",
       configured: "осы бет үшін қосылған",
-      sessionOnly: "Кілт бетті жаңартқанша немесе жапқанша тек жадта болады. Браузер қоймасына сақталмайды. CareerFlow мен провайдерге тек AI сұрауларымен жіберіледі.",
+      sessionOnly: "Кілт бетті жаңартқанша немесе жапқанша тек жадта болады. Браузер қоймасына сақталмайды.",
+      requestOnly: "CareerFlow мен провайдерге тек AI сұрауларымен жіберіледі.",
       noKey: "AI кеңесшіні қосу үшін Claude немесе Gemini API кілтін қосыңыз.",
       voiceGemini: "Дауысты тану үшін Gemini кілті қажет. Claude арқылы мәтінмен сөйлесуге болады.",
       errors: {

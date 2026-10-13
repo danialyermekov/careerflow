@@ -1,11 +1,10 @@
 .settings {
-  padding: 12px 16px;
+  padding: 12px 16px 24px;
   border-bottom: 1px solid var(--border);
   color: var(--text-2);
   font-size: .75rem;
-  overflow-y: auto;
+  overflow: visible;
   flex-shrink: 0;
-  max-height: 50%;
 }
 .settings summary { cursor: pointer; color: var(--text); }
 .settings summary[hidden] { display: none; }
