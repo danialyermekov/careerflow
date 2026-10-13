@@ -1,8 +1,6 @@
 import { useState, useRef, useLayoutEffect } from 'react'
 import styles from '../Results.module.css'
 
-const cap = value => value ? value.charAt(0).toUpperCase() + value.slice(1) : value
-
 function ReorderControls({ name, previous, next, onMove, t }) {
   const controls = useRef(null)
   const movedButton = useRef(null)
@@ -23,7 +21,7 @@ function ReorderControls({ name, previous, next, onMove, t }) {
 }
 
 export default function LearningRoadmapPanel({ profession, entries, total, completed, doneSkills, openCats, dragItem,
-  onDragChange, onMoveCategory, onMoveSkill, onToggleCategory, onToggleSkill, catLabel, t, fallbackNotice, dependencies, filters, renderCourses, advisor }) {
+  onDragChange, onMoveCategory, onMoveSkill, onToggleCategory, onToggleSkill, catLabel, t, formatSkill, fallbackNotice, dependencies, filters, renderCourses, advisor }) {
   const [dropTarget, setDropTarget] = useState(null)
   const percentage = total ? Math.round(completed / total * 100) : 0
   const itemKey = item => `${item.type}::${item.cat}::${item.skill || ''}`
@@ -58,7 +56,7 @@ export default function LearningRoadmapPanel({ profession, entries, total, compl
     <header className={styles.roadmapOverview}>
       <div><h2 id="learning-roadmap-title" className={styles.roadmapHint}>{t.review.learningTitle(profession)}</h2><p>{t.review.roadmapMethod}</p></div>
       <div className={styles.roadmapSummary}>
-        <div><span>{t.review.requiredSteps}</span><strong>{total}</strong><p>{entries.flatMap(([, skills]) => skills.map(item => cap(item.skill))).join(', ') || '—'}</p></div>
+        <div><span>{t.review.requiredSteps}</span><strong>{total}</strong><p>{entries.flatMap(([, skills]) => skills.map(item => formatSkill(item.skill))).join(', ') || '—'}</p></div>
         <div><span>{t.results.activeSteps}</span><strong>{total - completed}</strong><p>{t.review.stepsRemaining(total - completed)}</p></div>
       </div>
     </header>
@@ -98,8 +96,8 @@ export default function LearningRoadmapPanel({ profession, entries, total, compl
                 {isDone && (index === 0 || !doneSkills.has(`${cat}::${skills[index - 1].skill}`)) && <div className={styles.completedDivider}>{t.results.completedSteps}</div>}
                 <div className={`${styles.skillItem} ${isDone ? styles.roadmapSkillDone : ''}`}>
                   <div className={styles.skillTopRow}>
-                    <ReorderControls name={cap(item.skill)} previous={sameStatus(skills[index - 1])} next={sameStatus(skills[index + 1])} onMove={target => onMoveSkill(cat, item.skill, target)} t={t} />
-                    <label className={styles.skillCompletion}><input type="checkbox" aria-label={cap(item.skill)} checked={isDone} onChange={() => onToggleSkill(cat, item.skill)} /><span className={styles.skillName}>{cap(item.skill)}</span></label>
+                    <ReorderControls name={formatSkill(item.skill)} previous={sameStatus(skills[index - 1])} next={sameStatus(skills[index + 1])} onMove={target => onMoveSkill(cat, item.skill, target)} t={t} />
+                    <label className={styles.skillCompletion}><input type="checkbox" aria-label={formatSkill(item.skill)} checked={isDone} onChange={() => onToggleSkill(cat, item.skill)} /><span className={styles.skillName}>{formatSkill(item.skill)}</span></label>
                     {isDone && <span className={styles.roadmapStatus}>{t.review.selfMarked}</span>}
                   </div>
                   {!isDone && renderCourses(item, cat)}

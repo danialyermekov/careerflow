@@ -3,7 +3,7 @@ import styles from '../Results.module.css'
 import { formatMatchScore } from '../../utils/scoring'
 
 export default function AllProfessionsPanel({ professions, selected, ranks, topName, profLabel, t,
-  sortOptions, sortBy, onSort, onSelect, onRoadmap, scoring, comparisons, missingSkills, partialSignals }) {
+  sortOptions, sortBy, onSort, onSelect, onRoadmap, scoring, missingSkills, partialSignals }) {
   const detailHeading = useRef(null)
   const labels = { profile_match: t.results.classification, skill_match: t.results.skillMatch, trend_score: t.results.trend, market_share: t.results.marketShare }
   const criterion = { skill: 'skill_match', profile: 'profile_match', trend: 'trend_score', market: 'market_share' }[sortBy]
@@ -74,7 +74,6 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
           <p className={styles.methodNote}>{t.review.marketNote}</p>
         </section>}
       </div>
-      <details className={styles.careerComparisons}><summary>{t.review.additionalComparisons}</summary>{comparisons}</details>
     </>}
   </section>
 }

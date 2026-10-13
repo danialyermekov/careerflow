@@ -190,21 +190,42 @@ describe('editorial results navigation and Best Match', () => {
   })
   afterEach(() => { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); jest.restoreAllMocks() })
 
-  test('four controlled tabs support keyboard selection and retain the selected career and chart mode', async () => {
+  test('four tabs retain the selected career without duplicate charts', async () => {
     const tabs = [...container.querySelectorAll('[role="tab"]')]
     expect(tabs).toHaveLength(4)
     await act(async () => { tabs[0].focus(); Simulate.keyDown(tabs[0], { key: 'ArrowRight' }) })
     expect(document.activeElement).toBe(tabs[1])
     expect(tabs[1].getAttribute('aria-selected')).toBe('true')
-    await act(async () => [...container.querySelectorAll('.professionBarRow')].find(b => b.textContent.includes('Data Scientist')).click())
+    await act(async () => container.querySelector('.careerSelect[data-profession="Data Scientist"]').click())
+    await act(async () => tabs[0].click())
     expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
     expect(container.querySelector('.bestRank').textContent).toContain('Selected profession')
-    await act(async () => button(translations.en.results.chartModes.radar).click())
     await act(async () => tabs[3].click())
     await act(async () => tabs[0].click())
     expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
-    expect(button(translations.en.results.chartModes.radar).getAttribute('aria-pressed')).toBe('true')
-    expect(container.querySelector('.signalRadar')).not.toBeNull()
+    expect(container.querySelector('.signalRadar,.skillGapRadar,.chartControls')).toBeNull()
+  })
+
+  test.each([0, 2, 3])('skill gaps show %s listed roadmap skills without a binary radar', async known => {
+    const full = ['python', 'sql', 'r']
+    const edited = { ...result, session_id: `gap-${known}`, _formData: { ...result._formData, skills: full.slice(0, known) },
+      roadmaps_by_profession: { ...result.roadmaps_by_profession, 'Data Analyst': { full: { programming: full }, gap: { programming: full.slice(known) } } } }
+    const onEditProfile = jest.fn()
+    await act(async () => root.render(<AppProvider><Results results={edited} onEditProfile={onEditProfile} /></AppProvider>))
+    const gap = container.querySelector('.gapAssessment')
+    expect(gap.textContent).toContain(translations.en.review.coverageCount(known, 3))
+    expect(gap.querySelectorAll('.gapChips span')).toHaveLength(3)
+    expect(gap.querySelector('svg,.methodTable')).toBeNull()
+    if (!known) {
+      expect(gap.textContent).toContain(translations.en.review.noSkills)
+      await act(async () => button(translations.en.review.addSkills).click())
+      expect(onEditProfile).toHaveBeenCalledWith(edited._formData)
+    } else expect(container.textContent).not.toContain(translations.en.review.incompleteProfile)
+    if (known === 3) expect(gap.textContent).toContain(translations.en.review.gapEmpty)
+    const actions = [...gap.querySelectorAll('button')]
+    await act(async () => actions[0].click())
+    expect(container.querySelector('.roadmapHint').textContent).toContain('Data Analyst')
+    expect(JSON.stringify(edited.roadmaps_by_profession['Data Analyst'].gap.programming)).toBe(JSON.stringify(full.slice(known)))
   })
 
   test('signal cards and calculation inspector use server weights and correct sum/max normalization', async () => {
@@ -265,19 +286,14 @@ describe('editorial results navigation and Best Match', () => {
 
   })
 
-  test('Best Match limits alternatives to three while All Professions keeps every career and exclusive chart modes', async () => {
+  test('Best Match limits alternatives to three while All Professions keeps every career without another comparison', async () => {
     const scores = { ...result.final_scores, 'Cloud Engineer': .35, 'Software Engineer': .3, 'Data Engineer': .25, 'Business Analyst': .2, 'Machine Learning Engineer': .1 }
     await act(async () => root.render(<AppProvider><Results results={{ ...result, final_scores: scores }} /></AppProvider>))
     expect(container.querySelectorAll('.alternativeGrid button')).toHaveLength(3)
     expect([...container.querySelectorAll('.alternativeRank')].map(node => node.textContent)).toEqual(['#2', '#3', '#4'])
     await act(async () => container.querySelector('#results-tab-all').click())
     expect(container.querySelectorAll('.careerSelect')).toHaveLength(7)
-    const comparison = container.querySelector('.careerComparisons')
-    await act(async () => comparison.querySelector('summary').click())
-    for (const mode of ['radar', 'gap', 'bars']) {
-      await act(async () => [...comparison.querySelectorAll('.chartControls button')].find(el => el.textContent === translations.en.results.chartModes[mode]).click())
-      expect(comparison.querySelectorAll('.professionBars,.radarCompare,.gapCompare')).toHaveLength(1)
-    }
+    expect(container.querySelector('.careerComparisons')).toBeNull()
   })
 
   test('feedback is contextual to History and remains reachable through More actions', async () => {
@@ -393,13 +409,12 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => container.querySelector('.alternativeGrid button').click())
     expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
     expect(container.querySelector('.bestRank').textContent).toContain('#2')
-    await act(async () => button(translations.en.results.chartModes.gap).click())
-    expect(container.querySelector('[aria-label="Skill gap assessment"]').textContent).toContain('Pytorch')
+    expect(container.querySelector('[aria-label="Skills to develop"]').textContent).toContain('PyTorch')
     await act(async () => button(translations.en.results.viewFullRoadmap).click())
     expect(container.querySelector('.roadmapHint').textContent).toContain('Data Scientist')
     expect(container.querySelector('.roadmap .catHeader')).not.toBeNull()
     await act(async () => container.querySelector('.roadmap .catHeader').click())
-    expect(container.querySelector('.roadmap').textContent).toContain('Numpy')
+    expect(container.querySelector('.roadmap').textContent).toContain('NumPy')
     const printWindow = { document: { write: jest.fn(), close: jest.fn() }, focus: jest.fn(), print: jest.fn() }
     jest.spyOn(window, 'open').mockReturnValue(printWindow)
     await act(async () => button(translations.en.results.downloadPdf).click())
@@ -417,8 +432,7 @@ describe('editorial results navigation and Best Match', () => {
     expect(container.querySelector('.methodDetails').textContent).toContain(translations.en.review.missingWeights)
     expect([...container.querySelectorAll('.signalContribution b')].every(b => b.textContent.startsWith('—'))).toBe(true)
     await act(async () => container.querySelector('.alternativeGrid button').click())
-    await act(async () => button(translations.en.results.chartModes.gap).click())
-    expect(container.querySelector('[aria-label="Skill gap assessment"]').textContent).toContain('Skill-gap data is unavailable for this career.')
+    expect(container.querySelector('[aria-label="Skills to develop"]').textContent).toContain('Skill-gap data is unavailable for this career.')
     expect(container.querySelector('.skillGapRadar')).toBeNull()
   })
 

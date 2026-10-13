@@ -54,28 +54,7 @@ const PROFILE_TECH_LABELS = {
   data_analysis: 'Data Analysis', cloud_computing: 'Cloud Computing', cybersecurity: 'Cybersecurity',
   web_development: 'Web Development', devops: 'DevOps', networking: 'Networking',
 }
-const BAR_TOOLTIPS = {
-  en: {
-    skill_match: 'Normalized TF-IDF cosine similarity. 100 is the strongest match among the scored careers.',
-    profile_match: 'Profile classifier output divided by the sum across careers. It is not career-success probability.',
-    trend_score: 'Historical demand estimate relative to the track’s weekly peak, normalized by the largest trend signal.',
-    market_share: 'Relative demand signal: 100 means the largest share among these tracks, not 100% of all jobs.',
-  },
-  ru: {
-    skill_match: 'Нормализованное TF-IDF косинусное сходство. 100 — наибольшее сходство среди оцениваемых профессий.',
-    profile_match: 'Выход классификатора профиля, делённый на сумму по профессиям. Это не вероятность карьерного успеха.',
-    trend_score: 'Историческая оценка спроса относительно недельного пика профессии, нормализованная по максимальному сигналу.',
-    market_share: 'Относительный сигнал спроса: 100 означает наибольшую долю среди этих направлений, а не 100% всех вакансий.',
-  },
-  kk: {
-    skill_match: 'Нормаланған TF-IDF косинустық ұқсастығы. 100 — бағаланатын бағыттар арасындағы ең үлкен ұқсастық.',
-    profile_match: 'Профиль классификаторының нәтижесі мамандықтар қосындысына бөлінеді. Бұл мансаптық табыс ықтималдығы емес.',
-    trend_score: 'Тарихи сұраныс бағасы апталық шыңға қатысты, ең үлкен тренд сигналына нормаланған.',
-    market_share: 'Салыстырмалы сұраныс: 100 осы бағыттардағы ең үлкен үлесті білдіреді, барлық вакансияның 100%-ын емес.',
-  },
-}
-
-const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+const cap = s => ({ sql: 'SQL', sql_server: 'SQL Server', 'sql server': 'SQL Server', mongodb: 'MongoDB', aws: 'AWS', tensorflow: 'TensorFlow', numpy: 'NumPy', pytorch: 'PyTorch' }[String(s).toLowerCase()] || (s ? s.charAt(0).toUpperCase() + s.slice(1) : s))
 
 const detectCourseLanguage = course => {
   if (course?.language) return course.language
@@ -295,7 +274,7 @@ const CheckIcon = ({ size = 12 }) => (
 )
 
 /* ─── Progress Ring ──────────────────────────────────────────── */
-function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey, tooltipText }) {
+function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey }) {
   const [progress, setProgress] = useState(0)
   const r    = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -308,7 +287,7 @@ function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey
   }, [pct, animKey])
 
   return (
-    <div className={tooltipText ? styles.scoreCircleTooltip : ''} data-tip={tooltipText}
+    <div
       style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke}/>
@@ -325,331 +304,6 @@ function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey
         fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text)',
         flexDirection: 'column', lineHeight: 1.2,
       }} aria-label={formatMatchScore(value)}><span>{formatMatchPoints(value)}</span><small style={{ fontSize: '.6rem', color: 'var(--text-2)' }}>/100</small></div>
-    </div>
-  )
-}
-
-/* ─── Animated Bar ───────────────────────────────────────────── */
-function AnimatedBar({ value, max = 1, color, animKey, tooltipText }) {
-  const [width, setWidth] = useState(0)
-  const pct = Math.round(value / max * 100)
-  useEffect(() => {
-    setWidth(0)
-    const raf = requestAnimationFrame(() => {
-      const t = setTimeout(() => setWidth(pct), 30)
-      return () => clearTimeout(t)
-    })
-    return () => cancelAnimationFrame(raf)
-  }, [pct, animKey])
-
-  return (
-    <div className={styles.barWrap}>
-      <div className={`${styles.bar} ${tooltipText ? styles.barTooltipWrap : ''}`} data-tip={tooltipText}>
-        <div className={styles.barFill} style={{ width: `${width}%`, background: color, transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)' }}/>
-      </div>
-      <span className={styles.barPct}>{pct} / 100</span>
-    </div>
-  )
-}
-
-/* ─── Radar Chart (4 axes: profession metrics) ─────────────────── */
-function RadarChart({ data, animKey, lang, rows, label }) {
-  const RADAR_TOOLTIPS = {
-    ru: { skill_match: 'Навыки', profile_match: 'Профиль', trend_score: 'Тренд', market_share: 'Рынок' },
-    en: { skill_match: 'Skills', profile_match: 'Profile', trend_score: 'Trend', market_share: 'Market' },
-    kk: { skill_match: 'Дағдылар', profile_match: 'Профиль', trend_score: 'Тренд', market_share: 'Нарық' },
-  }
-  const tips = RADAR_TOOLTIPS[lang] || RADAR_TOOLTIPS.en
-
-  const axes = (rows || Object.keys(tips).map(key => ({ key, label: tips[key] })))
-    .map(axis => ({ ...axis, color: BAR_COLORS[axis.key] }))
-
-  const [tooltip, setTooltip] = useState(null)
-  const [opacity, setOpacity] = useState(0)
-
-  useEffect(() => {
-    setOpacity(0)
-    const t = setTimeout(() => setOpacity(1), 60)
-    return () => clearTimeout(t)
-  }, [animKey])
-
-  const size   = 300
-  const cx     = size / 2
-  const cy     = size / 2
-  const r      = 100
-  const n      = axes.length
-  const levels = [0.25, 0.5, 0.75, 1.0]
-  const angleOf = i => (Math.PI * 2 * i / n) - Math.PI / 2
-  const pt = (i, ratio) => ({
-    x: cx + r * ratio * Math.cos(angleOf(i)),
-    y: cy + r * ratio * Math.sin(angleOf(i)),
-  })
-
-  const rings = levels.map(lvl =>
-    axes.map((_, i) => pt(i, lvl))
-      .map((p, j) => (j === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ') + ' Z'
-  )
-
-  const radarData = {
-    skill_match:   Math.min(parseFloat(data.skill_match   ?? 0), 1),
-    profile_match: Math.min(parseFloat(data.profile_match ?? 0), 1),
-    trend_score:   Math.min(parseFloat(data.trend_score   ?? 0), 1),
-    market_share:  Math.min(parseFloat(data.market_share  ?? 0), 1),
-  }
-
-  const polyPoints = axes.map((ax, i) => pt(i, radarData[ax.key] || 0))
-  const polyPath   = polyPoints
-    .map((p, j) => (j === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ') + ' Z'
-
-  const labelPt = i => pt(i, 1.45)
-
-  return (
-    <div className={styles.signalRadar} style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
-      <svg width={size} height={size} viewBox={`-36 -36 ${size + 72} ${size + 72}`}
-        role="img" aria-label={label || Object.values(tips).join(', ')}
-        style={{ opacity, transition: 'opacity 0.5s ease', display: 'block' }}>
-        {levels.map((lvl, i) => (
-          <text key={i} x={cx + 4} y={cy - r * lvl - 4}
-            fontSize="8" fill="var(--text-3)" fontFamily="var(--font-mono)" opacity="0.7">
-            {Math.round(lvl * 100)}
-          </text>
-        ))}
-        {rings.map((d, i) => (
-          <path key={i} d={d} fill="none"
-            stroke={i === levels.length - 1 ? 'var(--border-hover)' : 'var(--border)'}
-            strokeWidth={i === levels.length - 1 ? 1.5 : 1}/>
-        ))}
-        {axes.map((_, i) => {
-          const end = pt(i, 1)
-          return <line key={i} x1={cx} y1={cy} x2={end.x} y2={end.y} stroke="var(--border)" strokeWidth="1"/>
-        })}
-        <path d={polyPath} fill="var(--accent)" fillOpacity="0.18" stroke="var(--accent)" strokeWidth="2.5"/>
-        {polyPoints.map((p, i) => {
-          const val = Math.round(radarData[axes[i].key] * 100)
-          return (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r="5" fill={axes[i].color} stroke="var(--bg)" strokeWidth="2"/>
-              <circle cx={p.x} cy={p.y} r="14" fill="transparent" stroke="none"
-                style={{ cursor: 'pointer' }}
-                 onMouseEnter={() => setTooltip({ x: p.x, y: p.y, label: axes[i].label, val, color: axes[i].color })}
-                onMouseLeave={() => setTooltip(null)}
-              />
-            </g>
-          )
-        })}
-        {axes.map((ax, i) => {
-          const lp = labelPt(i)
-          return (
-            <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle"
-               fontSize="11" fill="var(--text-2)" fontFamily="var(--font-sans)" fontWeight="600">
-              <title>{ax.label}</title>{ax.label.length > 18 ? ax.label.slice(0, 17) + '…' : ax.label}
-            </text>
-          )
-        })}
-      </svg>
-      {tooltip && (
-        <div style={{
-          position: 'absolute',
-          left: tooltip.x + 44, top: tooltip.y + 20,
-          background: 'var(--surface)', border: `1px solid ${tooltip.color}40`,
-          borderRadius: '6px', padding: '5px 10px', fontSize: '0.72rem',
-          fontFamily: 'var(--font-mono)', color: 'var(--text)',
-          pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}>
-          <span style={{ color: tooltip.color, fontWeight: 700 }}>{tooltip.val} / 100</span> {tooltip.label}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ProfessionBarsChart({ professions, rows, profLabel, t, animKey, onSelect, ranks }) {
-  const maxScore = Math.max(...professions.map(p => p.final_score || 0), 1)
-  const [hovered, setHovered] = useState(null)
-
-  return (
-    <div className={styles.compareChart}>
-      <div className={styles.compareHeader}>
-        <span>{t.results.compareAll}</span>
-        <small>{t.results.scoreOverview}</small>
-      </div>
-      <div className={styles.professionBars}>
-        {professions.map((p, index) => {
-          const scorePct = pct(p.final_score, maxScore)
-          const tooltip = `${profLabel(p.name)}\n${t.results.scoreOverview}: ${formatMatchScore(p.final_score)}\n${rows
-            .filter(r => p[r.key] != null)
-            .map(r => `${r.label}: ${pct(p[r.key], r.max)} / 100`)
-            .join('\n')}`
-          return (
-            <button
-              key={p.name}
-              type="button"
-              className={`${styles.professionBarRow} ${hovered === p.name ? styles.professionBarRowHover : ''}`}
-              data-tip={tooltip}
-              onMouseEnter={() => setHovered(p.name)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => onSelect?.(p.name)}
-            >
-              <span className={styles.professionBarRank}>#{ranks?.[p.name] ?? index + 1}</span>
-              <span className={styles.professionBarName}>{profLabel(p.name)}</span>
-              <span className={styles.professionBarTrack}>
-                <span
-                  className={styles.professionBarFill}
-                  style={{ width: `${scorePct}%`, transitionDelay: `${index * 35}ms` }}
-                />
-                <span className={styles.professionBarFactors}>
-                  {rows.map(r => p[r.key] != null && (
-                    <span
-                      key={r.key} data-signal={r.key}
-                      style={{
-                        width: `${(p.contributions?.[r.key] ?? 0)}%`,
-                        background: BAR_COLORS[r.key],
-                        opacity: 0.85,
-                        boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.1)'
-                      }}
-                    />
-                  ))}
-                </span>
-              </span>
-              <span className={styles.professionBarPct}>{formatMatchScore(p.final_score)}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
-  const [tooltip, setTooltip] = useState(null)
-  const [opacity, setOpacity] = useState(0)
-
-  useEffect(() => {
-    setOpacity(0)
-    const timer = setTimeout(() => setOpacity(1), 60)
-    return () => clearTimeout(timer)
-  }, [animKey])
-
-  const axes = professions
-  const size = 330
-  const cx = size / 2
-  const cy = size / 2
-  const r = 112
-  const levels = [0.25, 0.5, 0.75, 1]
-  const angleOf = i => (Math.PI * 2 * i / axes.length) - Math.PI / 2
-  const point = (i, ratio) => ({
-    x: cx + r * ratio * Math.cos(angleOf(i)),
-    y: cy + r * ratio * Math.sin(angleOf(i)),
-  })
-  const poly = (key, max = 1) => axes
-    .map((p, i) => point(i, Math.min(parseFloat(p[key] || 0) / max, 1)))
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z'
-  const rings = levels.map(level => axes.map((_, i) => point(i, level))
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z')
-
-  return (
-    <div className={styles.radarCompare}>
-      <div className={styles.compareHeader}>
-        <span>{t.results.chartModes.radar}</span>
-        <small>{t.results.compareAll}</small>
-      </div>
-      <div className={styles.radarCompareBody}>
-        <svg width={size} height={size} viewBox={`-44 -44 ${size + 88} ${size + 88}`}
-          style={{ opacity, transition: 'opacity .35s ease' }}>
-          {rings.map((d, i) => (
-            <g key={i}>
-              <path d={d} fill="none" stroke="var(--border)" strokeWidth={i === rings.length - 1 ? 1.5 : 1}/>
-              <text x={cx + 4} y={cy - r * levels[i]} fill="var(--text-3)" fontSize="11" fontFamily="var(--font-sans)">{Math.round(levels[i] * 100)}</text>
-            </g>
-          ))}
-          {axes.map((p, i) => {
-            const end = point(i, 1)
-            const label = profLabel(p.name)
-            return (
-              <g key={p.name}>
-                <line x1={cx} y1={cy} x2={end.x} y2={end.y} stroke="var(--border)" />
-                <text
-                  x={point(i, 1.27).x}
-                  y={point(i, 1.27).y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize="12"
-                  fill="var(--text-2)"
-                  fontFamily="var(--font-sans)"
-                >
-                  <title>{label}</title>
-                  {label.length > 15 ? label.slice(0, 14) + '…' : label}
-                </text>
-              </g>
-            )
-          })}
-          <path d={poly('final_score')} fill="var(--primary)" fillOpacity=".17" stroke="var(--primary)" strokeWidth="2.5"/>
-          <path d={poly('skill_match')} fill="none" stroke="var(--text)" strokeWidth="1.8" strokeDasharray="5 4"/>
-          <path d={poly('profile_match')} fill="none" stroke={BAR_COLORS.profile_match} strokeWidth="1.8" strokeDasharray="2 4"/>
-          {axes.map((p, i) => {
-            const pos = point(i, Math.min(p.final_score || 0, 1))
-            const tooltipText = `${profLabel(p.name)}\n${t.results.scoreOverview}: ${formatMatchScore(p.final_score)}\n${rows.map(r => `${r.label}: ${pct(p[r.key], r.max)} / 100`).join('\n')}`
-            return (
-              <circle
-                key={p.name}
-                cx={pos.x}
-                cy={pos.y}
-                r="6"
-                 fill="var(--primary)"
-                stroke="var(--bg)"
-                strokeWidth="2"
-                onMouseEnter={() => setTooltip({ x: pos.x, y: pos.y, text: tooltipText })}
-                onMouseLeave={() => setTooltip(null)}
-              />
-            )
-          })}
-        </svg>
-        <div className={styles.radarLegend}>
-          <span><i style={{ background: 'var(--primary)' }}/>{t.results.scoreOverview}</span>
-          <span><i style={{ background: 'var(--text)' }}/>{t.results.skillMatch}</span>
-          <span><i style={{ background: BAR_COLORS.profile_match }}/>{t.results.classification}</span>
-        </div>
-        {tooltip && (
-          <div className={styles.chartTooltip} style={{ left: tooltip.x + 42, top: tooltip.y + 24 }}>
-            {tooltip.text}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function SkillGapComparison({ professions, results, profLabel, t, onSelect, useCareerCoverage = false }) {
-  return (
-    <div className={styles.gapCompare}>
-      <div className={styles.compareHeader}>
-        <span>{t.results.gapByProfession}</span>
-        {professions.length > 1 && <small>{t.results.compareAll}</small>}
-      </div>
-      {professions.map(p => {
-        if (useCareerCoverage && !p.skillCoverage) return (
-          <button key={p.name} type="button" className={`${styles.gapCompareRow} ${styles.gapCompareUnavailable}`} onClick={() => onSelect?.(p.name)}>
-            <span className={styles.gapCompareName}>{profLabel(p.name)}</span>
-            <span className={styles.gapCompareMeta}>{t.review.gapUnavailable}</span>
-          </button>
-        )
-        const summary = getProfessionRoadmapSummary(results, p.name)
-        const total = useCareerCoverage ? p.skillCoverage.total : sumSkillCount(summary.full)
-        const gap = useCareerCoverage ? total - p.skillCoverage.known.length : sumSkillCount(summary.gap)
-        const known = Math.max(total - gap, 0)
-        const completion = total ? Math.round((known / total) * 100) : 0
-        const tooltip = `${profLabel(p.name)}\n${t.results.youKnow}: ${known}/${total}\n${t.results.toLearn}: ${gap}`
-        return (
-          <button key={p.name} type="button" className={styles.gapCompareRow} data-tip={tooltip} onClick={() => onSelect?.(p.name)}>
-            <span className={styles.gapCompareName}>{profLabel(p.name)}</span>
-            <span className={styles.gapCompareTrack}>
-              <span className={styles.gapKnown} style={{ width: `${completion}%` }}/>
-            </span>
-            <span className={styles.gapCompareMeta}>{known}/{total}</span>
-          </button>
-        )
-      })}
     </div>
   )
 }
@@ -925,348 +579,6 @@ function RecommendedCoursePanel({ courses, filters, t, onOpen, onCopy, copiedMsg
     </section>
   )
 }
-const SKILL_IMPLIES = {
-
-    "react.js":         ["javascript"],
-    "next.js":          ["javascript"],
-    "vue.js":           ["javascript"],
-    "nuxt.js":          ["javascript"],
-    "angular":          ["typescript"],   
-    "angular.js":       ["javascript"],
-    "ember.js":         ["javascript"],
-    "svelte":           ["javascript"],
-    "gatsby":           ["javascript"],
-    "express":          ["javascript"],
-    "node.js":          ["javascript"],
-    "deno":             ["typescript"],
-    "fastify":          ["javascript"],
-
-    "django":           ["python"],
-    "flask":            ["python"],
-    "fastapi":          ["python"],
-    "scikit-learn":     ["python"],
-    "tensorflow":       ["python"],
-    "pytorch":          ["python"],
-    "keras":            ["python"],
-    "pandas":           ["python"],
-    "numpy":            ["python"],
-    "matplotlib":       ["python"],
-    "seaborn":          ["python"],
-    "plotly":           ["python"],
-    "airflow":          ["python"],
-    "pyspark":          ["python"],
-    "nltk":             ["python"],
-    "opencv":           ["python"],
-    "hugging face":     ["python"],
-    "selenium":         ["python"],
-    "jupyter":          ["python"],
-
-    "ruby on rails":    ["ruby"],
-    "sinatra":          ["ruby"],
-
-    "laravel":          ["php"],
-    "symfony":          ["php"],
-    "drupal":           ["php"],
-
-    "spring":           ["java"],
-    "play framework":   ["java"],        
-
-    "android":          ["kotlin"],
-
-    "ios":             ["swift"],
-
-    "asp.net":          ["c#"],
-    "asp.net core":     ["c#"],
-    "blazor":           ["c#"],
-    "unity":            ["c#"],
-
-    "akka":             ["scala"],
-
-    "gin":              ["go"],
-    "fiber":            ["go"],
-
-    "actix":            ["rust"],
-    "tokio":            ["rust"],
-
-    "flutter":          ["dart"],
-
-    "ggplot2":          ["r"],
-    "dplyr":            ["r"],
-    "tidyr":            ["r"],
-    "tidyverse":        ["r"],
-    "rshiny":           ["r"],
-    "mlr":              ["r"],
-
-    "phoenix":          ["elixir"],
-
-    "luminus":          ["clojure"],
-
-    "simulink":         ["matlab"],
-
-    "dax":              ["sql"],        
-
-    "ionic":            ["typescript"],
-    "capacitor":        ["typescript"],
-    "cordova":          ["javascript"],
-    "xamarin":          ["c#"],
-    "react native":     ["javascript"],
-
-    "ansible":          ["yaml"],
-    "terraform":        ["hcl"],
-    "puppet":           ["ruby"],
-    "chef":             ["ruby"],
-    "jenkins":          ["groovy"],
-}
-
-function SkillGapRadar({ results, formData, profession, animKey, lang }) {
-  const [tooltip, setTooltip] = useState(null)
-  const [opacity, setOpacity]  = useState(0)
-  useEffect(() => {
-    setOpacity(0)
-    const t = setTimeout(() => setOpacity(1), 60)
-    return () => clearTimeout(t)
-  }, [animKey])
-
-  const norm = normalizeSkillKey
-  const baseSkills = new Set(
-    (formData?.skills || []).map(s =>
-      norm(typeof s === 'string' ? s : s.label || s.value || s.name || '')
-    )
-  )
-  // Normalized student skill set
-  const studentNorm = new Set(baseSkills)
-let changed = true
-while (changed) {
-  changed = false
-  for (const [skill, implies] of Object.entries(SKILL_IMPLIES)) {
-    if (studentNorm.has(skill)) {
-      for (const implied of implies) {
-        if (!studentNorm.has(implied)) {
-          studentNorm.add(implied)
-          changed = true
-        }
-      }
-    }
-  }
-}
-
-  const studentHas = (skillKey) => {
-    if (studentNorm.has(skillKey)) return true
-
-    const bare = s => s.replace(/[^a-z0-9]/g, '').trim()
-    const bareKey = bare(skillKey)
-
-    for (const sk of studentNorm) {
-      const bareSk = bare(sk)
-      if (!bareSk) continue
-
-      // For specific short or platform-specific terms, enforce strict matching
-      if (
-        ['sql', 'git', 'go', 'r', 'aws', 'gcp', 'sql_server', 'sqlserver'].includes(bareSk) ||
-        ['sql', 'git', 'go', 'r', 'aws', 'gcp', 'sql_server', 'sqlserver'].includes(bareKey)
-      ) {
-        if (bareKey === bareSk) return true;
-        continue;
-      }
-
-      if (
-        bareKey === bareSk ||
-        bareKey.includes(bareSk) ||
-        bareSk.includes(bareKey) ||
-        skillKey.split('_')[0] === sk.split('_')[0]
-      ) return true
-    }
-    return false
-  }
-
-  const professionSummary = getProfessionRoadmapSummary(results, profession || results?.top_profession)
-  const fullRoadmap = professionSummary.full || {}
-
-  // Collect axes: up to 10 skills from full_roadmap
-  const axes = []
-  for (const [cat, skills] of Object.entries(fullRoadmap)) {
-    for (const skill of skills) {
-      const key = norm(skill)
-      if (!axes.find(a => a.key === key)) {
-        axes.push({ key, label: cap(skill), cat })
-      }
-      if (axes.length >= 10) break
-    }
-    if (axes.length >= 10) break
-  }
-
-  if (axes.length < 3) return null
-
-  const n      = axes.length
-  const size   = 300
-  const cx     = size / 2
-  const cy     = size / 2
-  const r      = 100
-  const levels = [0.25, 0.5, 0.75, 1.0]
-
-  const angleOf = i => (Math.PI * 2 * i / n) - Math.PI / 2
-  const pt = (i, ratio) => ({
-    x: cx + r * ratio * Math.cos(angleOf(i)),
-    y: cy + r * ratio * Math.sin(angleOf(i)),
-  })
-
-  const rings = levels.map(lvl =>
-    axes.map((_, i) => pt(i, lvl))
-      .map((p, j) => (j === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ') + ' Z'
-  )
-
-  // Benchmark = always 1.0 (entire full_roadmap)
-  const idealPoints = axes.map((_, i) => pt(i, 1.0))
-  const idealPath = idealPoints.map((p, j) => (j === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ') + ' Z'
-
-  // Student = 1.0 if known, 0 if not
-  const studentValues = axes.map(ax => studentHas(ax.key) ? 1.0 : 0.0)
-  // Filter zero points - draw only where there is knowledge
-  // For polygon we put zeros in center (0.04 so it doesnt collapse)
-  const studentPoints = axes.map((_, i) => pt(i, Math.max(studentValues[i], 0.04)))
-  const studentPath = studentPoints.map((p, j) => (j === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ') + ' Z'
-
-  const labelPt = i => pt(i, 1.45)
-
-  const knownCount = studentValues.filter(v => v === 1.0).length
-  const totalCount = axes.length
-  const text = {
-    ru: { known: 'навыков уже есть', youKnow: 'Знаете', toLearn: 'Нужно изучить' },
-    en: { known: 'skills already known', youKnow: 'You know', toLearn: 'To learn' },
-    kk: { known: 'дағды бар', youKnow: 'Білесің', toLearn: 'Үйрену керек' },
-  }[lang] || { known: 'skills already known', youKnow: 'You know', toLearn: 'To learn' }
-
-  return (
-    <div className={styles.skillGapRadar} style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
-
-      {/* Counter */}
-      <div style={{
-        marginBottom: 8, fontSize: '0.72rem', fontFamily: 'var(--font-mono)',
-        color: 'var(--text-2)',
-      }}>
-        <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{knownCount}</span>
-        {' / '}{totalCount}{' '}
-        {text.known}
-      </div>
-
-      <svg width={size} height={size} viewBox={`-40 -40 ${size + 80} ${size + 80}`}
-        style={{ opacity, transition: 'opacity 0.5s ease', display: 'block' }}>
-
-        {/* Grid */}
-        {rings.map((d, i) => (
-          <path key={i} d={d} fill="none"
-            stroke={i === levels.length - 1 ? 'var(--border-hover)' : 'var(--border)'}
-            strokeWidth={i === levels.length - 1 ? 1.5 : 1} />
-        ))}
-        {axes.map((_, i) => {
-          const end = pt(i, 1)
-          return <line key={i} x1={cx} y1={cy} x2={end.x} y2={end.y}
-            stroke="var(--border)" strokeWidth="1" />
-        })}
-
-        {/* Benchmark - full profession profile */}
-        <path d={idealPath} fill="var(--text-2)" fillOpacity="0.08"
-          stroke="var(--text-2)" strokeWidth="1.5" strokeDasharray="4 3" />
-
-        {/* Student - only what is known */}
-        <path d={studentPath} fill="var(--accent)" fillOpacity="0.25"
-          stroke="var(--accent)" strokeWidth="2.5" />
-
-        {/* Points on each axis */}
-        {axes.map((ax, i) => {
-          const has = studentValues[i] === 1.0
-          const p = pt(i, 1.0)
-          return (
-            <g key={i}>
-              {has && (
-                <circle cx={p.x} cy={p.y} r={5}
-                  fill="var(--accent)"
-                  stroke="var(--bg)" strokeWidth={2} />
-              )}
-              {/* hover zone stays for all */}
-              <circle cx={p.x} cy={p.y} r="14"
-                fill="transparent" style={{ cursor: 'pointer' }}
-                onMouseEnter={() => setTooltip({ x: p.x, y: p.y, label: ax.label, has })}
-                onMouseLeave={() => setTooltip(null)} />
-            </g>
-          )
-        })}
-
-        {/* Axis labels - green if known, gray if not */}
-        {axes.map((ax, i) => {
-          const lp = labelPt(i)
-          const has = studentValues[i] === 1.0
-          return (
-            <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle"
-              fontSize="12" fontFamily="var(--font-sans)" fontWeight="600"
-              fill={has ? 'var(--accent)' : 'var(--text-3)'}>
-              <title>{ax.label}</title>
-              {ax.label.length > 10 ? ax.label.slice(0, 9) + '…' : ax.label}
-            </text>
-          )
-        })}
-
-        {/* Legend */}
-        <g transform={`translate(${cx - 85}, ${size + 18})`}>
-          <circle cx="5" cy="5" r="4" fill="var(--accent)" />
-          <text x="14" y="9" fontSize="12" fill="var(--text-2)" fontFamily="var(--font-sans)">
-            {text.youKnow}
-          </text>
-        </g>
-        <g transform={`translate(${cx + 20}, ${size + 18})`}>
-          <circle cx="5" cy="5" r="4" fill="var(--text-2)" />
-          <text x="14" y="9" fontSize="12" fill="var(--text-2)" fontFamily="var(--font-sans)">
-            {text.toLearn}
-          </text>
-        </g>
-      </svg>
-
-      {/* Tooltip */}
-      {tooltip && (
-        <div style={{
-          position: 'absolute',
-          left: tooltip.x + 44, top: tooltip.y + 20,
-          background: 'var(--surface)',
-          border: '1px solid var(--border-control)',
-          borderRadius: 'var(--radius-sm)', padding: '8px 12px',
-          fontSize: '0.8125rem', fontFamily: 'var(--font-sans)',
-          color: 'var(--text)', pointerEvents: 'none',
-          whiteSpace: 'nowrap', zIndex: 10,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}>
-          <span style={{ color: tooltip.has ? 'var(--accent)' : 'var(--text-2)', fontWeight: 700 }}>
-            {tooltip.has ? '✓' : '✗'}
-          </span>{' '}{tooltip.label}
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-/* ─── Score Rows ─────────────────────────────────────────────── */
-function ProfScores({ p, rows, animKey, lang, t }) {
-  const tips = BAR_TOOLTIPS[lang] || BAR_TOOLTIPS.en
-  return (
-    <div className={styles.profScores}>
-      {rows.map(({ key, label, max }) =>
-        p[key] != null ? (
-          <div key={key} data-signal={key} className={styles.scoreRow}>
-            <span className={styles.scoreLabel}>{label} · {t.review.index}</span>
-            <AnimatedBar
-              value={parseFloat(p[key])}
-              max={max}
-              color={BAR_COLORS[key]}
-              animKey={animKey}
-              tooltipText={tips[key]}
-            />
-          </div>
-        ) : null
-      )}
-    </div>
-  )
-}
-
 /* ─── Vacancy trend ──────────────────────────────────────────── */
 /* ─── Helpers ────────────────────────────────────────────────── */
 const copyText = (text) => {
@@ -1494,7 +806,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const [doneSkills, setDoneSkills] = useState(new Set())
   const [sortBy,       setSortBy]       = useState('score')
   const [selectedProf, setSelectedProf] = useState(null)
-  const [viewMode,     setViewMode]     = useState('bars')
   const [messages,     setMessages]     = useState([])
   const [input,        setInput]        = useState('')
   const [chatLoading,  setChatLoading]  = useState(false)
@@ -2531,43 +1842,29 @@ export default function Results({ results: initialResults, formData, onBack, onR
           {tab === 'history' && <HistoryFeedbackPanel results={results} profession={activeProfName} history={history} user={user} t={t} lang={lang} profLabel={profLabel}
             onOpen={openHistoryItem} onCurrent={() => setTab('best')} onClear={clearHistory} />}
           {tab === 'best' && activeProf && (() => {
-            const rows = orderedRows(ALL_SCORE_ROWS, 'score')
             const activeRank = professionRanks[activeProf.name]
             return (
               <BestMatchPanel profession={activeProf} rank={activeRank} isTop={activeProf.name === top_profession}
                 name={profLabel(activeProf.name)} t={t} profLabel={profLabel}
                 alternatives={rankedProfessions.filter(p => p.name !== activeProf.name).slice(0, 3)} ranks={professionRanks}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
-                viewMode={viewMode} onViewMode={setViewMode} aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
+                aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
                 incompleteProfile={Array.isArray(profile.skills) && profile.skills.length === 0 ? <p className={styles.methodNote}>{t.review.incompleteProfile} <button type="button" className={styles.secondaryAction} onClick={() => onEditProfile ? onEditProfile(profile) : onRetry?.()}>{t.review.addSkills}</button></p> : null}
                 score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
-                  color="var(--accent)" animKey={animKey} tooltipText={formatMatchScore(activeProf.final_score)} />}
+                  color="var(--accent)" animKey={animKey} />}
                 scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
-                skillGap={<section className={styles.gapAssessment} aria-label={t.review.gapAssessment}>
-                  <h3>{t.review.missingSkills}</h3>
-                  {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : missingSkills.length === 0 ? <p>{t.review.gapEmpty}</p>
-                    : <div className={styles.gapChips}>{missingSkills.map(({ cat, skill }) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div>}
+                skillGap={<section className={styles.gapAssessment} aria-label={t.review.skillGaps}>
+                  <h2>{t.review.skillGaps}</h2>
+                  {activeProf.skillCoverage && <p>{t.review.coverageCount(activeProf.skillCoverage.known.length, activeProf.skillCoverage.total)}</p>}
+                  {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : <>
+                    <h3>{t.review.knownSkills}</h3>
+                    {activeProf.skillCoverage?.known.length ? <div className={styles.gapChips}>{activeProf.skillCoverage.known.map(({cat, skill}) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div> : <p>{t.review.noSkills}</p>}
+                    <h3>{t.review.missingSkills}</h3>
+                    {missingSkills.length ? <div className={styles.gapChips}>{missingSkills.map(({cat, skill}) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div> : <p>{t.review.gapEmpty}</p>}
+                  </>}
+                  <p className={styles.methodNote}>{t.review.coverageNote}</p>
+                  <button type="button" className={styles.primaryAction} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
                 </section>}
-                visualization={<>
-                {viewMode === 'bars' && (
-                  <div className={styles.activeMetricPanel}><ProfScores p={activeProf} rows={rows} animKey={animKey} lang={lang} t={t}/></div>
-                )}
-                {viewMode === 'radar' && (
-                  <div className={styles.chartStack}>
-                    <RadarChart data={activeProf} rows={rows} animKey={animKey} lang={lang} label={`${profLabel(activeProf.name)}: ${t.review.normalized}`} />
-                  </div>
-                )}
-                {viewMode === 'gap' && (
-                  <div className={styles.chartStack}>
-                    <SkillGapComparison professions={[activeProf]} results={results} profLabel={profLabel} t={t} useCareerCoverage />
-                    <p className={styles.methodNote}>{t.review.coverageNote}</p>
-                    {missingSkills != null && <details className={styles.chartDetails}><summary>{t.polish.skillCoverageChart}</summary>
-                      <p className={styles.methodNote}>{t.polish.gapChartNote}</p>
-                      <SkillGapRadar results={results} formData={profile} profession={activeProf.name} animKey={animKey} lang={lang} />
-                    </details>}
-                  </div>
-                )}
-                </>}
                 explanation={<ExplainabilityPanel
                 profession={activeProf}
                 profLabel={profLabel}
@@ -2589,16 +1886,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
               partialSignals={activeProf && [results.classification_scores?.[activeProf.name], results.skill_scores?.[activeProf.name],
                 results.demand_scores?.[activeProf.name]?.trend_score, results.demand_scores?.[activeProf.name]?.market_share].some(value => value == null)}
               scoring={activeProf && <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
-              comparisons={<>
-                <div className={styles.chartControls} role="group" aria-label={t.review.visualization}>
-                  {['bars', 'radar', 'gap'].map(mode => <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{t.results.chartModes[mode]}</button>)}
-                </div>
-                <div className={styles.allCharts}>
-                  {viewMode === 'bars' && <ProfessionBarsChart professions={sorted} ranks={professionRanks} rows={orderedRows(ALL_SCORE_ROWS, sortBy)} profLabel={profLabel} t={t} animKey={`${sortBy}${cardKey}`} onSelect={handleSelectProf}/>}
-                  {viewMode === 'radar' && <MultiProfessionRadar professions={sorted} profLabel={profLabel} rows={ALL_SCORE_ROWS} t={t} animKey={`${sortBy}${cardKey}`} />}
-                  {viewMode === 'gap' && <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf} useCareerCoverage/>}
-                </div>
-              </>}
             />
           )}
 
@@ -2608,7 +1895,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
               profession={profLabel(activeProfName)} entries={orderedRoadmapEntries} total={totalRoadmapSteps} completed={doneRoadmapSteps}
               doneSkills={doneSkills} openCats={openCats} dragItem={dragItem} onDragChange={setDragItem}
               onMoveCategory={moveCategory} onMoveSkill={moveSkill} onToggleCategory={toggleCat} onToggleSkill={toggleSkill}
-              catLabel={catLabel} t={t}
+              catLabel={catLabel} t={t} formatSkill={cap}
               fallbackNotice={activeProfName !== top_profession && !results.roadmaps_by_profession?.[activeProfName]?.roadmap_with_courses && rawRoadmap ? t.review.roadmapFallback(profLabel(top_profession)) : null}
               dependencies={<SkillDependencyTree roadmap={roadmapAdapted} doneSkills={doneSkills} formSkills={results._formData?.skills} t={t} />}
               filters={<CourseFilters filters={courseFilters} options={courseFilterOptions} onChange={setCourseFilters} onReset={resetCourseFilters} loading={filterLoading} t={t} />}

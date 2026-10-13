@@ -1,8 +1,8 @@
 import styles from '../Results.module.css'
 import { formatMatchScore } from '../../utils/scoring'
 
-export default function BestMatchPanel({ profession, rank, isTop, name, t, score, scoring, visualization,
-  skillGap, explanation, alternatives, profLabel, onSelect, onRoadmap, onCompare, viewMode, onViewMode,
+export default function BestMatchPanel({ profession, rank, isTop, name, t, score, scoring,
+  skillGap, explanation, alternatives, profLabel, onSelect, onRoadmap, onCompare,
   aiCtaInfo, onAdvisor, ranks, incompleteProfile }) {
   const description = t.hero.trackDescriptions[['Data Analyst', 'Software Engineer', 'Machine Learning Engineer', 'Cloud Engineer', 'Data Scientist', 'Data Engineer', 'Business Analyst'].indexOf(profession.name)]
   return <div className={styles.bestPanel}>
@@ -32,26 +32,9 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
     </section>
 
     <div data-tour-slot="explanation">{scoring}</div>
+    {skillGap}
     {explanation}
 
-    <section aria-label={t.review.visualization}>
-      <header className={styles.analysisHeading}>
-        <h2>{t.review.visualization}</h2>
-        <div className={styles.chartControls} role="group" aria-label={t.review.visualization}>
-          {['bars', 'radar', 'gap'].map(mode => <button key={mode} type="button"
-            aria-pressed={viewMode === mode} onClick={() => onViewMode(mode)}>{t.results.chartModes[mode]}</button>)}
-        </div>
-      </header>
-      <div className={viewMode === 'gap' ? styles.analysisGrid : undefined}>
-        <div className={styles.visualizationPanel}>
-          {viewMode === 'bars' && <div className={styles.chartLegend}>
-            {[['profile_match', t.results.classification], ['skill_match', t.results.skillMatch], ['trend_score', t.results.trend], ['market_share', t.results.marketShare]].map(([key, label]) => <span key={key} data-signal={key}><i />{label}</span>)}
-          </div>}
-          {visualization}
-        </div>
-        {viewMode === 'gap' && skillGap}
-      </div>
-    </section>
     <section className={styles.alternatives} aria-label={t.review.alternatives}>
       <header className={styles.analysisHeading}><h2>{t.review.alternatives}</h2>
         <button type="button" className={styles.secondaryAction} onClick={onCompare}>{t.results.compareAll}</button>
