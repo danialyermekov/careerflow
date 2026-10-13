@@ -19,6 +19,7 @@ export default function Hero({ onStart, onDemo, demoLoading = false }) {
       <p className={styles.subtitle}>{t.hero.subtitle}</p>
       <div className={styles.ctaGroup}>
         <button className={styles.cta} onClick={onDemo} disabled={demoLoading}>{demoLoading ? t.form.submitting : t.experience.liveDemo}</button>
+        <button className={styles.secondaryCta} onClick={onStart}>{t.review.start}</button>
         <a className={styles.secondaryCta} href="#methodology" onClick={scrollToSection}>{t.hero.methodology}</a>
       </div>
       <div className={styles.metrics}>
