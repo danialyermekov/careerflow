@@ -2151,7 +2151,8 @@
 .methodDetails p { margin: 14px 0; }
 .scoreEquation { display: block; color: var(--accent); overflow-wrap: anywhere; margin: 12px 0; }
 .methodTableWrap { overflow-x: auto; }
-.methodTable { width: 100%; border-collapse: collapse; text-align: left; }
+.methodTable { width: 100%; border-collapse: collapse; text-align: left; table-layout: fixed; }
+.methodTable th { overflow-wrap: anywhere; }
 .methodTable th, .methodTable td { padding: 9px; border-bottom: 1px solid var(--border); font-size: .82rem; }
 .historyNote { font-size: .8rem; color: var(--text-2); line-height: 1.65; margin: 8px 0 14px; }
 .historyItem { text-align: left; }
@@ -2413,7 +2414,7 @@
 .bestPanel [data-signal="skill_match"] { --signal-color: var(--text); }
 .bestPanel [data-signal="trend_score"] { --signal-color: var(--text-3); }
 .bestPanel [data-signal="market_share"] { --signal-color: var(--text-2); }
-.bestPanel .signalContribution { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); gap: 8px; }
+.bestPanel .signalContribution { padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); gap: 6px; }
 .bestPanel .signalContribution strong { font-size: .9375rem; }
 .bestPanel .signalContribution strong i, .bestPanel [data-signal] .barFill, .bestPanel .professionBarFactors [data-signal] { background: var(--signal-color) !important; }
 .bestPanel .signalContribution span { align-self: flex-start; padding: 3px 8px; color: var(--text); background: var(--bg-tertiary); border-radius: var(--radius-full); font-size: .8125rem; }
@@ -2424,6 +2425,7 @@
 .signalTrack i { display: block; height: 100%; background: var(--signal-color); }
 .bestPanel .methodDetails { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); padding: 8px 16px; font-size: .9375rem; }
 .bestPanel .methodDetails summary { min-height: 44px; padding: 8px 0; }
+.methodologyDetails { border-top: 1px solid var(--border); margin-top: 12px; }
 .bestPanel .methodTable th, .bestPanel .methodTable td { font-size: .875rem; padding: 12px 8px; }
 .bestPanel .scoreEquation { font-size: .875rem; font-variant-numeric: tabular-nums; }
 .analysisHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -2466,7 +2468,7 @@
 .gapChips span { padding: 5px 10px; font-size: .875rem; color: var(--text); background: var(--bg-tertiary); border-radius: var(--radius-full); overflow-wrap: anywhere; }
 .bestPanel .explainCard { padding: 24px; border-radius: var(--radius-md); background: var(--panel); box-shadow: none; }
 .bestPanel .explainText { font-size: .9375rem; line-height: 1.7; }
-.alternativeGrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.alternativeGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; }
 .alternativeGrid button { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; padding: 12px 16px; background: var(--panel); color: var(--text); border: 1px solid var(--border-control); border-radius: var(--radius-sm); text-align: left; font: 600 .9375rem/1.5 var(--font-sans); }
 .alternativeGrid strong { color: var(--text-2); font-size: .875rem; font-variant-numeric: tabular-nums; }
 .alternativeGrid button:hover { background: var(--bg-tertiary); }
@@ -2497,13 +2499,13 @@
   .bestPanel .aiRecommendationCta { padding: 24px; }
   .bestPanel { gap: 24px; }
   .bestPanel .formulaLegend { gap: 12px; }
-  .bestPanel .signalContribution { padding: 16px; }
+  .bestPanel .signalContribution { padding: 12px; }
   .visualizationPanel, .gapAssessment { padding: 20px; }
   .chartControls { width: 100%; }
   .chartControls button { flex: 1; }
   .alternativeGrid { grid-template-columns: 1fr; }
 }
-@media (max-width: 420px) {
+@media (max-width: 359px) {
   .bestPanel .formulaLegend { grid-template-columns: 1fr; }
   .heroGrid { padding: 20px; }
   .heroActions { flex-direction: column; }
@@ -2723,11 +2725,18 @@
 /* The advisor overlays the unchanged Results frame at every viewport width. */
 .layout, .layout.layoutRightClosed { display: block; max-width: none; }
 .aiFab[hidden], .advisorModal:not([open]), .advisorModal [hidden] { display: none; }
+@media (max-width: 640px) {
+  .aiFab { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; border-radius: 50%; }
+  .aiFabLabel { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+}
 .advisorModal { position: fixed; inset: 0; margin: 0; padding: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; border: 0; background: transparent; color: var(--text); overflow: hidden; }
 .advisorModal[open] { display: block; }
 .advisorModal::backdrop { background: transparent; }
 .advisorBackdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgb(0 0 0 / .3); cursor: default; }
 .advisorModal .chatSidebar { position: absolute; top: 0; right: 0; bottom: 0; height: 100%; min-width: 0; max-width: 100vw; padding: 0; opacity: 1; pointer-events: auto; border-left: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow-lg); resize: none; overflow: hidden; transition: none; }
+.advisorModal .chatSidebar[data-setup-only] { bottom: auto; height: auto; max-height: 100%; border-bottom: 1px solid var(--border); }
+.advisorModal .chatSidebar[data-setup-only] .advisorByok { flex: 0 1 auto; }
+.advisorModal .chatSidebar[data-setup-only] .advisorPreview { flex: 0; }
 .advisorModal .chatHeader { justify-content: space-between; padding: 24px; gap: 16px; }
 .advisorModal .chatTitle { margin: 0; font: 500 1.75rem/1.3 var(--font-display); }
 .advisorProvider { margin: 6px 0 0; color: var(--text-2); font: 400 .875rem/1.5 var(--font-sans); }
@@ -2784,18 +2793,26 @@
 .resultsTools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 12px 0 16px; }
 .contextTools { min-width: 0; border: 0; }
 .contextTools summary { padding: 10px 0; font: 500 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
-.contextGrid { grid-template-columns: 1fr; gap: 16px; padding: 12px 0 0; }
+.contextGrid { grid-template-columns: 1fr; gap: 8px; padding: 8px 0 0; }
 .contextGrid .sidebarSection, .profileInputs { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .profileInputs h3 { margin: 0 0 12px; font: 600 .9375rem/1.5 var(--font-sans); color: var(--text); }
 .profileInputs p { margin: 12px 0; font-size: .875rem; line-height: 1.6; }
 .profileInputs dl, .modelScores { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 12px 0; font: 400 .875rem/1.6 var(--font-sans); }
 .profileInputs dd, .modelScores dd { margin: 0; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.contextGrid .profileInputs { padding: 0; background: transparent; border: 0; }
+.profileInputs .profileSummary { margin: 0 0 12px; }
+.profileInputs p { margin: 8px 0; }
+.profileDetails { border-top: 1px solid var(--border); font: 400 .875rem/1.5 var(--font-sans); }
+.evaluationInputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px 16px; margin: 8px 0; }
+.evaluationInputs dt { color: var(--text-2); overflow-wrap: anywhere; }
+.evaluationInputs dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
 .contextGrid .skillTag { display: inline-flex; gap: 8px; max-width: 100%; padding: 5px 10px; border: 0; border-radius: var(--radius-full); color: var(--text); background: var(--bg-tertiary); font: 400 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
 .contextGrid .skillWeightBadge { font: 600 .8125rem/1.5 var(--font-sans); color: var(--text-2); background: transparent; }
 .actionsDisclosure { position: relative; }
 .actionsDisclosure summary { display: list-item; min-height: 44px; padding: 10px 14px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text); cursor: pointer; font: 600 .8125rem/1.5 var(--font-sans); }
 .actionsMenu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: min(280px, calc(100vw - 48px)); display: grid; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); box-shadow: var(--shadow-lg); }
 .actionsMenu button { width: 100%; justify-content: flex-start; text-align: left; }
+.resultActions button[hidden] { display: none; }
 .alternativeRank { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .alternativeTrack { grid-column: 2 / 4; width: 100%; height: 4px; background: var(--bg-tertiary); border-radius: 2px; overflow: hidden; }
 .alternativeTrack i { display: block; height: 100%; background: var(--accent); }
@@ -2806,8 +2823,9 @@
 .chartDetails summary, .featureDetails summary { min-height: 44px; padding: 10px 0; color: var(--text); cursor: pointer; }
 .bestPanel .chartStack { gap: 12px; }
 .bestPanel .explainCard { border: 1px solid var(--border); }
-.featureSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 16px; }
-.featureSummary h3 { font: 600 .9375rem/1.5 var(--font-sans); color: var(--text); margin: 0 0 12px; }
+.bestPanel .skillExplainBlock { margin: 0; padding: 0; border: 0; background: transparent; gap: 8px; }
+.bestPanel .featureSummary .skillImpactRow { margin-bottom: 0; min-height: 28px; }
+.featureSummary { margin-top: 12px; }
 .bestPanel .skillImpactRow { grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 74px; gap: 12px; margin-bottom: 12px; }
 .bestPanel .skillImpactName { color: var(--text); font: 500 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; white-space: normal; }
 .skillImpactName small { display: block; color: var(--text-2); font: 400 .75rem/1.5 var(--font-sans); }
@@ -2817,6 +2835,9 @@
 .bestPanel .skillImpactPositive { background: var(--accent); }
 .bestPanel .skillImpactNegative { background: var(--text-2); }
 .bestPanel .skillImpactBaseline { background: var(--border-control); }
+.signalRadar { width: min(100%, 360px); align-self: center; }
+.signalRadar svg { width: 100%; height: auto; }
+.allPanel .allCharts { grid-template-columns: 1fr; }
 .bestPanel .gapKnown { background: var(--accent); }
 .bestPanel :is(button, summary):focus-visible, .resultsTools :is(button, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -2831,7 +2852,8 @@
 .advisorModal :global([data-advisor-composer] textarea) { width: 100%; min-height: 76px; max-height: 160px; border-radius: var(--radius-sm); margin: 0; padding: 12px; font: 400 .9375rem/1.6 var(--font-sans); }
 .advisorModal :global([data-advisor-composer] button[type="submit"]) { width: auto; min-height: 44px; border-radius: var(--radius-sm); padding: 10px 12px; font: 600 .875rem/1.5 var(--font-sans); }
 .advisorModal .chatToolbar { padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.advisorModal :is(.deepModeBtn, .voiceBtn) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin: 0; padding: 10px 12px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-secondary); font: 500 .8125rem/1.5 var(--font-sans); }
+.advisorModal :is(.deepModeBtn, .voiceBtn) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin: 0; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-2); font: 500 .8125rem/1.5 var(--font-sans); }
+.advisorModal :is(.deepModeBtn, .voiceBtn):hover { background: var(--bg-tertiary); }
 .advisorModal :is(.deepModeBtn, .voiceBtn)[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-light); box-shadow: none; }
 .advisorModal .chatScope, .advisorModal .advisorPrivacy { padding: 0; border: 0; font: 400 .8125rem/1.6 var(--font-sans); }
 .advisorModal .chatEmpty { min-height: 0; padding: 24px 0; font: 400 .9375rem/1.6 var(--font-sans); }

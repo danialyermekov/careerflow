@@ -6,6 +6,8 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
   sortOptions, sortBy, onSort, onSelect, onRoadmap, scoring, comparisons, missingSkills, partialSignals }) {
   const detailHeading = useRef(null)
   const labels = { profile_match: t.results.classification, skill_match: t.results.skillMatch, trend_score: t.results.trend, market_share: t.results.marketShare }
+  const criterion = { skill: 'skill_match', profile: 'profile_match', trend: 'trend_score', market: 'market_share' }[sortBy]
+  const sortLabel = sortOptions.find(option => option.key === sortBy)?.label
   const showDetails = () => {
     detailHeading.current?.focus({ preventScroll: true })
     detailHeading.current?.scrollIntoView({ block: 'start' })
@@ -22,6 +24,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
         {sortOptions.map(({ key, label }) => <button key={key} type="button" data-sort={key}
           aria-pressed={sortBy === key} onClick={() => onSort(key)}>{label}</button>)}
       </div>
+      <span>{t.results.sortedBy(sortLabel)} · {t.results.overallRank}: #</span>
       <div className={styles.chartLegend}>
         {(selected?.breakdown || []).map(item => <span key={item.key} data-signal={item.key}><i />{labels[item.key]} ({item.weight == null ? '—' : `${Math.round(item.weight * 100)}%`})</span>)}
       </div>
@@ -33,7 +36,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
             <button type="button" className={styles.careerSelect} data-profession={p.name}
               aria-pressed={selected?.name === p.name} aria-controls="selected-career-details" onClick={() => onSelect(p.name)}>
               <span className={styles.careerRowHeading}>
-                <span className={styles.careerRank}>#{ranks[p.name]}</span>
+                <span className={styles.careerRank} aria-label={`${t.results.overallRank} #${ranks[p.name]}`}>#{ranks[p.name]}</span>
                 <span className={styles.careerName}>{profLabel(p.name)} {p.name === topName && <span className={styles.careerTopBadge}>{t.results.bestMatch}</span>}</span>
                 <strong className={styles.careerScore}>{p.final_score == null ? '—' : formatMatchScore(p.final_score)}</strong>
               </span>
@@ -42,7 +45,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
                 <span className={styles.careerSignalSegments}>{p.breakdown.filter(item => item.contribution != null).map(item => <span key={item.key} data-signal={item.key} style={{ width: `${item.contribution}%` }} />)}</span>
               </span>
               <span className={styles.careerRowMeta}>
-                <span>{p.breakdown.every(item => item.contribution != null) ? `${p.breakdown.map(item => item.contribution.toFixed(2)).join(' + ')} ${t.review.contribution}` : t.review.missingWeights}</span>
+                <span>{criterion ? `${sortLabel}: ${Math.round((p[criterion] || 0) * 100)} / 100` : p.breakdown.every(item => item.contribution != null) ? `${p.breakdown.map(item => item.contribution.toFixed(2)).join(' + ')} ${t.review.contribution}` : t.review.missingWeights}</span>
                 <span>{p.skillCoverage ? t.review.coverageCount(p.skillCoverage.known.length, p.skillCoverage.total) : t.review.gapUnavailable}</span>
               </span>
             </button>
@@ -52,7 +55,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
         {selected && <section className={styles.selectedCareer} id="selected-career-details" aria-label={t.results.selectedProfession}>
           <header className={styles.careerDetailHeading}>
             <div><h3 ref={detailHeading} tabIndex={-1} aria-live="polite">{profLabel(selected.name)}</h3>
-              <p className={styles.careerDetailRank}>#{ranks[selected.name]} · {selected.name === topName ? t.results.bestMatch : t.results.selectedProfession}</p></div>
+              <p className={styles.careerDetailRank}>{t.results.overallRank} #{ranks[selected.name]} · {selected.name === topName ? t.results.bestMatch : t.results.selectedProfession}</p></div>
             <div><strong className={styles.careerScore}>{selected.final_score == null ? '—' : formatMatchScore(selected.final_score)}</strong><p>{t.review.scoreTitle}</p></div>
           </header>
           <p className={styles.methodNote}>{t.review.scoreNote}</p>

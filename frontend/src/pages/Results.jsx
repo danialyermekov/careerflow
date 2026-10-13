@@ -112,8 +112,8 @@ const formatCoursePrice = (course, t) => {
   const labels = t.results.courseFilters || {}
   const numeric = Number(course?.price)
   if (type === 'free') return labels.free || 'Free'
-  if (Number.isFinite(numeric) && numeric > 0) return numeric.toFixed(2)
-  if (type === 'paid') return labels.paid || 'Paid'
+  if ((type === 'paid' || numeric > 0) && Number.isFinite(numeric) && numeric > 0 && /^[A-Z]{3}$/.test(course?.currency || '')) return `${numeric.toFixed(2)} ${course.currency}`
+  if (type === 'paid' || numeric > 0) return `${labels.paid || 'Paid'} · ${t.results.verifyPrice}`
   return ''
 }
 const normalizeCourse = course => ({
@@ -353,7 +353,7 @@ function AnimatedBar({ value, max = 1, color, animKey, tooltipText }) {
 }
 
 /* ─── Radar Chart (4 axes: profession metrics) ─────────────────── */
-function RadarChart({ data, animKey, lang }) {
+function RadarChart({ data, animKey, lang, rows, label }) {
   const RADAR_TOOLTIPS = {
     ru: { skill_match: 'Навыки', profile_match: 'Профиль', trend_score: 'Тренд', market_share: 'Рынок' },
     en: { skill_match: 'Skills', profile_match: 'Profile', trend_score: 'Trend', market_share: 'Market' },
@@ -361,12 +361,8 @@ function RadarChart({ data, animKey, lang }) {
   }
   const tips = RADAR_TOOLTIPS[lang] || RADAR_TOOLTIPS.en
 
-  const axes = [
-    { key: 'skill_match',   label: tips.skill_match,   color: '#5b8dee' },
-    { key: 'profile_match', label: tips.profile_match, color: '#9b6ddf' },
-    { key: 'trend_score',   label: tips.trend_score,   color: '#4caf82' },
-    { key: 'market_share',  label: tips.market_share,  color: '#f0943a' },
-  ]
+  const axes = (rows || Object.keys(tips).map(key => ({ key, label: tips[key] })))
+    .map(axis => ({ ...axis, color: BAR_COLORS[axis.key] }))
 
   const [tooltip, setTooltip] = useState(null)
   const [opacity, setOpacity] = useState(0)
@@ -408,8 +404,9 @@ function RadarChart({ data, animKey, lang }) {
   const labelPt = i => pt(i, 1.45)
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+    <div className={styles.signalRadar} style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
       <svg width={size} height={size} viewBox={`-36 -36 ${size + 72} ${size + 72}`}
+        role="img" aria-label={label || Object.values(tips).join(', ')}
         style={{ opacity, transition: 'opacity 0.5s ease', display: 'block' }}>
         {levels.map((lvl, i) => (
           <text key={i} x={cx + 4} y={cy - r * lvl - 4}
@@ -434,7 +431,7 @@ function RadarChart({ data, animKey, lang }) {
               <circle cx={p.x} cy={p.y} r="5" fill={axes[i].color} stroke="var(--bg)" strokeWidth="2"/>
               <circle cx={p.x} cy={p.y} r="14" fill="transparent" stroke="none"
                 style={{ cursor: 'pointer' }}
-                onMouseEnter={() => setTooltip({ x: p.x, y: p.y, label: tips[axes[i].key], val, color: axes[i].color })}
+                 onMouseEnter={() => setTooltip({ x: p.x, y: p.y, label: axes[i].label, val, color: axes[i].color })}
                 onMouseLeave={() => setTooltip(null)}
               />
             </g>
@@ -444,8 +441,8 @@ function RadarChart({ data, animKey, lang }) {
           const lp = labelPt(i)
           return (
             <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle"
-              fontSize="11" fill="var(--text-2)" fontFamily="var(--font-mono)" fontWeight="600">
-              {ax.label}
+               fontSize="11" fill="var(--text-2)" fontFamily="var(--font-sans)" fontWeight="600">
+              <title>{ax.label}</title>{ax.label.length > 18 ? ax.label.slice(0, 17) + '…' : ax.label}
             </text>
           )
         })}
@@ -587,9 +584,9 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
               </g>
             )
           })}
-          <path d={poly('final_score')} fill="var(--accent)" fillOpacity=".17" stroke="var(--accent)" strokeWidth="2.5"/>
+          <path d={poly('final_score')} fill="var(--primary)" fillOpacity=".17" stroke="var(--primary)" strokeWidth="2.5"/>
           <path d={poly('skill_match')} fill="none" stroke="var(--text)" strokeWidth="1.8" strokeDasharray="5 4"/>
-          <path d={poly('profile_match')} fill="none" stroke="var(--text-2)" strokeWidth="1.8" strokeDasharray="2 4"/>
+          <path d={poly('profile_match')} fill="none" stroke={BAR_COLORS.profile_match} strokeWidth="1.8" strokeDasharray="2 4"/>
           {axes.map((p, i) => {
             const pos = point(i, Math.min(p.final_score || 0, 1))
             const tooltipText = `${profLabel(p.name)}\n${t.results.scoreOverview}: ${formatMatchScore(p.final_score)}\n${rows.map(r => `${r.label}: ${pct(p[r.key], r.max)} / 100`).join('\n')}`
@@ -599,7 +596,7 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
                 cx={pos.x}
                 cy={pos.y}
                 r="6"
-                fill="var(--accent)"
+                 fill="var(--primary)"
                 stroke="var(--bg)"
                 strokeWidth="2"
                 onMouseEnter={() => setTooltip({ x: pos.x, y: pos.y, text: tooltipText })}
@@ -609,9 +606,9 @@ function MultiProfessionRadar({ professions, profLabel, rows, t, animKey }) {
           })}
         </svg>
         <div className={styles.radarLegend}>
-          <span><i style={{ background: 'var(--accent)' }}/>{t.results.scoreOverview}</span>
+          <span><i style={{ background: 'var(--primary)' }}/>{t.results.scoreOverview}</span>
           <span><i style={{ background: 'var(--text)' }}/>{t.results.skillMatch}</span>
-          <span><i style={{ background: 'var(--text-2)' }}/>{t.results.classification}</span>
+          <span><i style={{ background: BAR_COLORS.profile_match }}/>{t.results.classification}</span>
         </div>
         {tooltip && (
           <div className={styles.chartTooltip} style={{ left: tooltip.x + 42, top: tooltip.y + 24 }}>
@@ -628,7 +625,7 @@ function SkillGapComparison({ professions, results, profLabel, t, onSelect, useC
     <div className={styles.gapCompare}>
       <div className={styles.compareHeader}>
         <span>{t.results.gapByProfession}</span>
-        <small>{t.results.compareAll}</small>
+        {professions.length > 1 && <small>{t.results.compareAll}</small>}
       </div>
       {professions.map(p => {
         if (useCareerCoverage && !p.skillCoverage) return (
@@ -657,29 +654,13 @@ function SkillGapComparison({ professions, results, profLabel, t, onSelect, useC
   )
 }
 
-function ScoreCircleGrid({ professions, rows, profLabel, t, onSelect }) {
-  return (
-    <div className={styles.scoreCircleGrid}>
-      {professions.map(p => {
-        const tooltip = `${profLabel(p.name)}\n${t.results.scoreOverview}: ${formatMatchScore(p.final_score)}\n${rows.map(r => `${r.label}: ${pct(p[r.key], r.max)} / 100`).join('\n')}`
-        return (
-          <button key={p.name} className={styles.scoreCircleCard} onClick={() => onSelect?.(p.name)}>
-            <ProgressRing value={p.final_score ?? 0} size={58} stroke={4} color="#5b8dee" animKey={p.name} tooltipText={tooltip}/>
-            <span>{profLabel(p.name)}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function SkillImpactChart({ explanation, profile, t }) {
+function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
   const isShap = !!explanation?.shap_explanations?.length
   const rawItems = isShap ? explanation.shap_explanations : explanation?.items || []
   if (!rawItems.length) return <p className={styles.methodNote}>{t.polish.explanationUnavailable}</p>
   const totalAbs = rawItems.reduce((sum, item) => sum + Math.abs(item.value || 0), 0)
   const items = rawItems.map(item => ({
-    name: isShap ? item.label || item.feature_name : item.skill,
+    name: t.form.technicalLabels[isShap ? item.feature_name : item.feature] || t.form.soft[isShap ? item.feature_name : item.feature] || (isShap ? item.label || item.feature_name : item.skill),
     feature: isShap ? item.feature_name : item.feature,
     input: profile?.[isShap ? item.feature_name : item.feature] ?? (!isShap && typeof item.present === 'boolean' ? (item.present ? t.polish.present : t.polish.absent) : '—'),
     modelInput: isShap && typeof item.raw_value === 'number' ? item.raw_value.toPrecision(5) : null,
@@ -690,7 +671,7 @@ function SkillImpactChart({ explanation, profile, t }) {
   const maxAbs = Math.max(...items.map(item => Math.abs(item.value)), .001)
   const strongest = sign => items.filter(item => sign * item.value > 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3)
   const rows = (list, full = false) => <div className={styles.skillImpactChart}>{list.map(item => <div key={item.feature || item.name} className={styles.skillImpactRow}>
-    <span className={styles.skillImpactName}>{item.name}<small>{t.polish.profileValue}: {item.input}{item.presence && ` · ${item.presence}`}</small>
+    <span className={styles.skillImpactName}>{item.name}<small>{t.polish.profileValue}: {item.input}{item.presence && ` · ${item.presence}`}{Object.hasOwn(t.form.soft, item.feature) && typeof item.input === 'number' && ' / 5'}</small>
       {full && item.modelInput != null && <small>{explanation.method === 'catboost_shap' ? t.polish.preprocessedInput : t.polish.modelInput}: {item.modelInput}</small>}
     </span>
     <span className={styles.skillImpactTrack} aria-hidden="true"><span className={styles.skillImpactBaseline} />
@@ -700,36 +681,29 @@ function SkillImpactChart({ explanation, profile, t }) {
     <span className={styles.skillImpactValue}>{item.value > 0 ? '+' : ''}{item.value.toFixed(2)}%</span>
   </div>)}</div>
   return <div className={styles.skillExplainBlock}>
-    <p className={styles.methodNote}>{explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback}</p>
     <div className={styles.featureSummary}>
-      {[1, -1].map(sign => <section key={sign} className={sign > 0 ? styles.positiveSummary : styles.negativeSummary}>
-        <h3>{sign > 0 ? t.polish.positive : t.polish.negative}</h3>
-        {strongest(sign).length ? rows(strongest(sign)) : <p className={styles.methodNote}>{t.polish.noContributions}</p>}
-      </section>)}
+      {rows([...strongest(1), ...strongest(-1)])}
     </div>
-    <p className={styles.methodNote}>{t.results.shapLegend}</p>
     <p className={styles.methodNote}>{t.polish.modelCaveat}</p>
-    <details className={styles.featureDetails}><summary>{t.polish.fullFeatures} ({items.length})</summary>{rows(items, true)}</details>
+    <details className={styles.featureDetails}><summary>{t.polish.fullFeatures} ({items.length})</summary>
+      <p className={styles.methodNote}>{explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback}</p>
+      {isShap && <p className={styles.methodNote}>{t.polish.shapDenominator}</p>}
+      <dl className={styles.modelScores}><div><dt>{t.polish.classifierOutput}</dt><dd>{typeof classifierOutput === 'number' ? classifierOutput.toPrecision(5) : '—'}</dd></div></dl>
+      {rows(items, true)}
+    </details>
   </div>
 }
 
-function ExplainabilityPanel({ profession, profLabel, t, skillExplanation, classifierOutput, profile }) {
+function ExplainabilityPanel({ profession, t, skillExplanation, classifierOutput, profile }) {
   if (!profession) return null
 
   return (
     <section className={styles.explainCard} data-tour-detail="explanation">
       <div className={styles.compareHeader}>
-        <span>{t.results.explainability}</span>
+        <span>{t.polish.classifierExplanation}</span>
         <small>{t.results.featureImportance}</small>
       </div>
-      <p className={styles.explainText}>
-        {t.results.whyTop ? t.results.whyTop(profLabel(profession.name)) : profLabel(profession.name)}
-      </p>
-      <dl className={styles.modelScores}>
-        <div><dt>{t.polish.classifierOutput}</dt><dd>{typeof classifierOutput === 'number' ? classifierOutput.toPrecision(5) : '—'}</dd></div>
-        <div><dt>{t.polish.compositeScore}</dt><dd>{formatMatchScore(profession.final_score)}</dd></div>
-      </dl>
-      <SkillImpactChart explanation={skillExplanation} profile={profile} t={t}/>
+      <SkillImpactChart explanation={skillExplanation} profile={profile} classifierOutput={classifierOutput} t={t}/>
     </section>
   )
 }
@@ -1269,27 +1243,6 @@ while (changed) {
 }
 
 
-/* ─── Metric Bars ────────────────────────────────────────────── */
-function MetricBars({ data, rows, animKey, lang }) {
-  const tips = BAR_TOOLTIPS[lang] || BAR_TOOLTIPS.en
-  return (
-    <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 18, justifyContent: 'center' }}>
-      {rows.map(({ key, label, max }) => {
-        if (data[key] == null) return null
-        return (
-          <div key={key} data-signal={key} className={styles.metricRow}>
-            <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'baseline', marginBottom: 6 }}>
-              <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{label}</span>
-            </div>
-            <AnimatedBar value={parseFloat(data[key])} max={max} color={BAR_COLORS[key]}
-              animKey={animKey} tooltipText={tips[key]}/>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 /* ─── Score Rows ─────────────────────────────────────────────── */
 function ProfScores({ p, rows, animKey, lang }) {
   const tips = BAR_TOOLTIPS[lang] || BAR_TOOLTIPS.en
@@ -1471,34 +1424,34 @@ function ScoringFormulaHeader({ results, profession, t }) {
     <section className={styles.formulaBanner} aria-label={t.review.weightedSignals}>
       <h2 className={styles.formulaTitle}>{t.review.weightedSignals}</h2>
       <div className={styles.formulaLegend}>
-        {components.map((item, index) => (
+        {components.map(item => (
           <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
             <span>{item.weight != null ? `${(item.weight * 100).toFixed(2)}% ${t.review.weight.toLowerCase()}` : '—'}</span>
-            <p>{t.review.signals[index][1]}</p>
-            <b>{item.contribution == null ? '—' : item.contribution.toFixed(2)} {t.review.contribution}</b>
-            <small className={styles.signalMaximum}>{t.polish.maximum}: {item.weight == null ? '—' : (item.weight * 100).toFixed(2)} {t.review.contribution}</small>
+             <b>{item.contribution == null ? '—' : item.contribution.toFixed(2)} {t.review.contribution}</b>
             <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
           </div>
         ))}
       </div>
-      <p className={styles.methodNote}>{t.polish.signalScale}</p>
       <details className={styles.methodDetails}>
         <summary>{t.review.calculation}</summary>
-        <p>{t.review.normalization}</p>
+         <p>{t.polish.compositeCalculation}</p>
         {hasWeights ? <code className={styles.scoreEquation}>
           {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
         </code> : <p>{t.review.missingWeights}</p>}
         <div className={styles.methodTableWrap}>
           <table className={styles.methodTable}>
-            <thead><tr><th>{t.results.factors}</th><th>{t.review.raw}</th><th>{t.review.normalizedValue}</th></tr></thead>
+             <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.normalizedValue}</th></tr></thead>
             <tbody>{components.map(item => <tr key={item.key}>
               <th scope="row">{labels[item.key]}</th><td>{item.raw.toPrecision(5)}</td><td>{(item.value * 100).toFixed(2)} / 100</td>
             </tr>)}</tbody>
           </table>
         </div>
-        {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
-        <p>{t.review.marketNote}</p>
+         <details className={styles.methodologyDetails}><summary>{t.review.dataTitle}</summary>
+           <p>{t.review.normalization}</p>
+           {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
+           <p>{t.review.marketNote}</p>
+         </details>
       </details>
     </section>
   )
@@ -1698,6 +1651,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           difficulty:  c.difficulty || c.level || 'Mixed',
           price_type:  c.price_type || 'unknown',
           price:       c.price ?? null,
+          currency:    c.currency || null,
         })),
       })),
     ])
@@ -2468,25 +2422,27 @@ export default function Results({ results: initialResults, formData, onBack, onR
       ? Object.fromEntries(Object.entries(results.roadmap_with_courses).map(([cat, skills]) => [cat, Object.keys(skills)]))
       : null)
   const missingSkills = gapData ? flattenRoadmapSkills(gapData) : null
+  const profile = results._formData || formData || {}
+  const softInputs = Object.entries(t.form.soft).filter(([key]) => typeof profile[key] === 'number')
 
   const animKey = `${activeProfName}${tab}${cardKey}`
 
   return (
     <div className={layoutClass} style={{ '--chat-w': `${chatSize.width}px` }}>
-        <button className={styles.aiFab} hidden={rightOpen} onClick={handleOpenAiAdvisor}>
+        <button type="button" className={styles.aiFab} aria-label={aiCtaInfo.buttonFull} onClick={handleOpenAiAdvisor}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          {aiCtaInfo.button}
+          <span className={styles.aiFabLabel}>{aiCtaInfo.button}</span>
         </button>
-      <main className={styles.main}>
+      <div className={styles.main}>
         <header className={styles.resultsIntro}>
           <div data-tour-slot="continue" />
           <div className={styles.contextHeading}>
             <button className={styles.backBtn} onClick={onBack}>{t.results.back}</button>
             <h1>{t.results.title}</h1>
             {(results._formData || formData)?.gpa != null && <span className={styles.profileMeta}>GPA {(results._formData || formData).gpa}</span>}
-            {(results._formData || formData)?.field_of_study && <span className={styles.profileMeta}>{(results._formData || formData).field_of_study}</span>}
+            {(results._formData || formData)?.field_of_study && <span className={styles.profileMeta}>{t.form.fields[(results._formData || formData).field_of_study] || (results._formData || formData).field_of_study}</span>}
           </div>
           <ResultsNavigation tabs={tabs} activeTab={tab} onTabChange={setTab} label={t.results.title} />
           <div className={styles.sessionNotice}>
@@ -2501,38 +2457,24 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <summary>{t.review.contextTools}</summary>
           <div className={styles.contextGrid}>
         <section className={styles.profileInputs}>
-          <h3>{t.polish.profileInputs}</h3>
+          <dl className={styles.profileSummary}>
+            <div><dt>{t.form.personal.field}</dt><dd>{t.form.fields[profile.field_of_study] || profile.field_of_study || '—'}</dd></div>
+            <div><dt>{t.form.personal.gpa}</dt><dd>{profile.gpa ?? '—'}</dd></div>
+          </dl>
+          <h3>{t.review.enteredSkills}</h3>
           <div className={styles.gapChips}>
             {((results._formData || formData)?.skills || []).map(skill => <span key={skill}>{skill}</span>)}
           </div>
-          <p>{t.form.knowledgeDescription}</p>
-          <div className={styles.gapChips}>{Object.entries(PROFILE_TECH_LABELS).filter(([key]) => [0, 1].includes((results._formData || formData)?.[key])).map(([key, label]) =>
-            <span key={key}>{label}: {(results._formData || formData)[key] ? t.polish.present : t.polish.absent}</span>)}</div>
-          <dl>{Object.entries(t.form.soft).filter(([key]) => typeof (results._formData || formData)?.[key] === 'number').map(([key, label]) =>
-            <div key={key}><dt>{label}</dt><dd>{(results._formData || formData)[key]} / 5</dd></div>)}</dl>
+          <p><strong>{t.form.technical.label}: </strong>{Object.entries(PROFILE_TECH_LABELS).filter(([key]) => profile[key] === 1).map(([key, label]) => t.form.technicalLabels[key] || label).join(', ') || '—'}</p>
+          <p><strong>{t.polish.ratedSoftSkills}: </strong>{softInputs.map(([, label]) => label).join(', ') || '—'}</p>
         </section>
-        {!!results.user_skills_ranked?.length && <div className={styles.sidebarSection}>
-          <div className={styles.sidebarLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>{t.results.yourSkillsTitle}</span>
-            <button
-              className={styles.tooltipIcon}
-              type="button"
-              title={t.results.skillsTooltip}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-3)',
-                cursor: 'help',
-                padding: '0 4px',
-                display: 'flex',
-                alignItems: 'center'
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-              </svg>
-            </button>
-          </div>
+        <details className={styles.profileDetails}><summary>{t.polish.profileInputs}</summary>
+          <dl className={styles.evaluationInputs}>{Object.entries(profile).filter(([key, value]) => key !== 'skills' && ['number', 'string'].includes(typeof value)).map(([key, value]) =>
+            <div key={key}><dt>{t.form.technicalLabels[key] || PROFILE_TECH_LABELS[key] || t.form.soft[key] || t.form.personal[key === 'field_of_study' ? 'field' : key] || cap(key.replace(/_/g, ' '))}</dt>
+              <dd>{key === 'field_of_study' ? t.form.fields[value] || value : value}{Object.hasOwn(PROFILE_TECH_LABELS, key) && [0, 1].includes(value) ? ` · ${value ? t.polish.present : t.polish.absent}` : softInputs.some(([softKey]) => softKey === key) ? ' / 5' : ''}</dd></div>)}</dl>
+        </details>
+        {!!results.user_skills_ranked?.length && <details className={styles.profileDetails}><summary>{t.polish.calculatedSkills}</summary>
+           <p className={styles.methodNote}>{t.results.skillsTooltip}</p>
           <div className={styles.skillsTagCloud}>
             {(results.user_skills_ranked || []).map((s, idx) => (
               <span
@@ -2550,12 +2492,12 @@ export default function Results({ results: initialResults, formData, onBack, onR
               </span>
             ))}
           </div>
-        </div>}
+        </details>}
 
           </div>
         </details>
         <div className={styles.resultActions}>
-          <button type="button" className={styles.actionBtnAiSidebar} onClick={handleOpenAiAdvisor}>
+          <button type="button" hidden={tab === 'best'} className={styles.actionBtnAiSidebar} onClick={handleOpenAiAdvisor}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
@@ -2564,6 +2506,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <details className={styles.actionsDisclosure}>
           <summary>{t.polish.actions}</summary>
           <div className={styles.actionsMenu}>
+          <button type="button" className={styles.actionBtn} onClick={() => setTab('history')}>{t.product.shareFeedback}</button>
           <button className={styles.actionBtn} disabled={!user || results.persistent === false || results._isDemo || !stateLoaded} onClick={saveCurrentResult}>
             <CheckIcon size={12}/>
             {savedCurrent ? t.results.savedResult : t.results.saveResult}
@@ -2611,55 +2554,43 @@ export default function Results({ results: initialResults, formData, onBack, onR
             return (
               <BestMatchPanel profession={activeProf} rank={activeRank} isTop={activeProf.name === top_profession}
                 name={profLabel(activeProf.name)} t={t} profLabel={profLabel}
-                alternatives={rankedProfessions.filter(p => p.name !== activeProf.name)} ranks={professionRanks}
+                alternatives={rankedProfessions.filter(p => p.name !== activeProf.name).slice(0, 3)} ranks={professionRanks}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 viewMode={viewMode} onViewMode={setViewMode} aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
                 score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
                   color="var(--accent)" animKey={animKey} tooltipText={formatMatchScore(activeProf.final_score)} />}
                 scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />}
                 skillGap={<section className={styles.gapAssessment} aria-label={t.review.gapAssessment}>
-                  <h3>{t.review.gapAssessment}</h3><p className={styles.methodNote}>{t.review.roadmapMethod}</p>
-                  <h4>{t.review.enteredSkills}</h4>
-                  <div className={styles.gapChips}>{(results._formData?.skills || formData?.skills || []).map(skill => <span key={skill}>{skill}</span>)}</div>
-                  <h4>{t.review.missingSkills}</h4>
+                  <h3>{t.review.missingSkills}</h3>
                   {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : missingSkills.length === 0 ? <p>{t.review.gapEmpty}</p>
                     : <div className={styles.gapChips}>{missingSkills.map(({ cat, skill }) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div>}
-                  <button type="button" className={styles.secondaryAction} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
                 </section>}
                 visualization={<>
                 {viewMode === 'bars' && (
-                  <div className={styles.chartStack}>
-                    <ProfessionBarsChart professions={sorted} rows={rows} profLabel={profLabel} t={t} animKey={animKey} onSelect={handleSelectProf}/>
-                    <details className={styles.chartDetails}><summary>{t.results.factors}</summary><div className={styles.activeMetricPanel}>
-                      <div className={styles.compareHeader}>
-                        <span>{profLabel(activeProf.name)}</span>
-                        <small>{t.results.factors}</small>
-                      </div>
-                      <ProfScores p={activeProf} rows={rows} animKey={animKey} lang={lang}/>
-                    </div></details>
-                  </div>
+                  <div className={styles.activeMetricPanel}><ProfScores p={activeProf} rows={rows} animKey={animKey} lang={lang}/></div>
                 )}
                 {viewMode === 'radar' && (
                   <div className={styles.chartStack}>
-                    <MultiProfessionRadar professions={sorted} profLabel={profLabel} rows={rows} t={t} animKey={animKey}/>
-                    <details className={styles.chartDetails}><summary>{t.results.factors}</summary><MetricBars data={activeProf} rows={rows} animKey={animKey} lang={lang}/></details>
+                    <RadarChart data={activeProf} rows={rows} animKey={animKey} lang={lang} label={`${profLabel(activeProf.name)}: ${t.review.normalized}`} />
                   </div>
                 )}
                 {viewMode === 'gap' && (
                   <div className={styles.chartStack}>
-                    <p className={styles.methodNote}>
-                      {t.results.gapLegend}
-                    </p>
-                    <div className={styles.chartStack}>
-                        <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf}/>
-                        <details className={styles.chartDetails}><summary>{t.review.additionalComparisons}</summary>
-                        <SkillGapRadar results={results} formData={results._formData} profession={activeProf.name} animKey={animKey} lang={lang} />
-                        <MetricBars data={activeProf} rows={rows} animKey={animKey} lang={lang} />
-                        </details>
-                      </div>
+                    <SkillGapComparison professions={[activeProf]} results={results} profLabel={profLabel} t={t} useCareerCoverage />
+                    <p className={styles.methodNote}>{t.review.coverageNote}</p>
+                    {missingSkills != null && <details className={styles.chartDetails}><summary>{t.polish.skillCoverageChart}</summary>
+                      <p className={styles.methodNote}>{t.polish.gapChartNote}</p>
+                      <SkillGapRadar results={results} formData={profile} profession={activeProf.name} animKey={animKey} lang={lang} />
+                    </details>}
                   </div>
                 )}
-
+                <details className={styles.chartDetails}><summary>{t.review.normalized}</summary>
+                  <div className={styles.methodTableWrap}><table className={styles.methodTable}>
+                    <thead><tr><th>{t.polish.signal}</th><th>{t.review.normalizedValue}</th></tr></thead>
+                    <tbody>{rows.map(row => <tr key={row.key}><th scope="row">{row.label}</th><td>{(activeProf[row.key] * 100).toFixed(2)} / 100</td></tr>)}</tbody>
+                  </table></div>
+                  <p className={styles.methodNote}>{t.polish.signalScale}</p>
+                </details>
                 </>}
                 explanation={<ExplainabilityPanel
                 profession={activeProf}
@@ -2683,10 +2614,13 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 results.demand_scores?.[activeProf.name]?.trend_score, results.demand_scores?.[activeProf.name]?.market_share].some(value => value == null)}
               scoring={activeProf && <ScoringFormulaHeader results={results} profession={activeProf.name} t={t} />}
               comparisons={<>
-                <ScoreCircleGrid professions={sorted} rows={ALL_SCORE_ROWS} profLabel={profLabel} t={t} onSelect={handleSelectProf}/>
+                <div className={styles.chartControls} role="group" aria-label={t.review.visualization}>
+                  {['bars', 'radar', 'gap'].map(mode => <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{t.results.chartModes[mode]}</button>)}
+                </div>
                 <div className={styles.allCharts}>
-                  <ProfessionBarsChart professions={sorted} ranks={professionRanks} rows={orderedRows(ALL_SCORE_ROWS, sortBy)} profLabel={profLabel} t={t} animKey={`${sortBy}${cardKey}`} onSelect={handleSelectProf}/>
-                  <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf} useCareerCoverage/>
+                  {viewMode === 'bars' && <ProfessionBarsChart professions={sorted} ranks={professionRanks} rows={orderedRows(ALL_SCORE_ROWS, sortBy)} profLabel={profLabel} t={t} animKey={`${sortBy}${cardKey}`} onSelect={handleSelectProf}/>}
+                  {viewMode === 'radar' && <MultiProfessionRadar professions={sorted} profLabel={profLabel} rows={ALL_SCORE_ROWS} t={t} animKey={`${sortBy}${cardKey}`} />}
+                  {viewMode === 'gap' && <SkillGapComparison professions={sorted} results={results} profLabel={profLabel} t={t} onSelect={handleSelectProf} useCareerCoverage/>}
                 </div>
               </>}
             />
@@ -2716,25 +2650,24 @@ export default function Results({ results: initialResults, formData, onBack, onR
             />
           )}
         </div>
-        <div className={tab === 'history' ? styles.feedbackColumn : undefined}><Feedback sessionId={results.session_id} editorial={tab === 'history'} /></div>
+        <div className={tab === 'history' ? styles.feedbackColumn : undefined} hidden={tab !== 'history'}><Feedback sessionId={results.session_id} editorial={tab === 'history'} /></div>
         </div>
-      </main>
+      </div>
 
       {/* ─ RIGHT CHAT ─ */}
       <AdvisorDrawer open={rightOpen} onClose={closeAdvisor} title={t.results.chatTitle} closeLabel={t.results.closeAiPanel}
         provider={advisorMode === 'preview' ? 'Google Gemini' : LLM_PROVIDERS.find(provider => provider.id === llmProvider)?.name || t.experience.byok}
         context={<><strong>{profLabel(activeProfName)}</strong><span>{t.review.scoreTitle}: {activeProf?.final_score != null ? formatMatchScore(activeProf.final_score) : '—'}</span></>}
-        width={chatSize.width} widthLabel={t.review.advisorWidth} onResize={startChatResize} onWidthChange={width => setChatSize(size => ({ ...size, width }))}>
+        setupOnly={advisorMode === 'byok' && !llmProvider} width={chatSize.width} widthLabel={t.review.advisorWidth} onResize={startChatResize} onWidthChange={width => setChatSize(size => ({ ...size, width }))}>
         <div className="advisorModes" aria-label={t.results.chatTitle}>
           <button type="button" data-mode="preview" aria-pressed={advisorMode === 'preview'} onClick={() => setAdvisorMode('preview')}>{t.experience.free}</button>
           <button type="button" data-mode="byok" aria-pressed={advisorMode === 'byok'} onClick={() => setAdvisorMode('byok')}>{t.experience.byok}</button>
         </div>
-        <div className={styles.advisorPreview} hidden={advisorMode !== 'preview'}><FreePreview key={results.session_id} sessionId={results.session_id} careerContext={advisorCareerContext} /></div>
+        <div className={styles.advisorPreview} hidden={advisorMode !== 'preview'}><FreePreview key={results.session_id} sessionId={results.session_id} careerContext={advisorCareerContext} onByok={() => setAdvisorMode('byok')} /></div>
         <div className={styles.advisorByok} hidden={advisorMode !== 'byok'}>
-        <p className="byokDescription">{t.experience.byokText}</p>
         <LLMSettings />
+        {llmProvider && <>
         <div className={styles.chatMessages} role="log" aria-live="polite" aria-label={t.review.advisorConversation}>
-          {!llmProvider && <div className={styles.chatEmpty} role="status">{t.llm.noKey}</div>}
           {llmProvider && messages.length === 0 && (
             <div className={styles.chatEmpty}>
               <span className={styles.chatEmptyIcon}>
@@ -2830,10 +2763,11 @@ export default function Results({ results: initialResults, formData, onBack, onR
               </svg>
             </button>
           </div>}
-          status={<div className={styles.chatScope}>{voiceNotice || (llmProvider && !voiceSupported ? t.llm.voiceGemini : t.results.assistantScope)}</div>}
+          status={(voiceNotice || !voiceSupported) && <div className={styles.chatScope}>{voiceNotice || t.llm.voiceGemini}</div>}
           textareaProps={{ className: styles.chatInputField, value: input, disabled: !llmProvider,
             'aria-label': t.results.chatPlaceholder, placeholder: t.results.chatPlaceholder, onChange: e => setInput(e.target.value) }}
           privacy={<p className={styles.advisorPrivacy}>{t.review.advisorByokPrivacy} <a href="/privacy">{t.experience.privacyLink}</a></p>} />
+        </>}
         </div>
       </AdvisorDrawer>
 

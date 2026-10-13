@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import styles from '../Results.module.css'
 
-export default function AdvisorDrawer({ open, onClose, title, closeLabel, provider, context, width, onResize, onWidthChange, widthLabel, children }) {
+export default function AdvisorDrawer({ open, onClose, title, closeLabel, provider, context, setupOnly, width, onResize, onWidthChange, widthLabel, children }) {
   const dialog = useRef(null)
   const visited = useRef(false)
   if (open) visited.current = true
@@ -36,7 +36,7 @@ export default function AdvisorDrawer({ open, onClose, title, closeLabel, provid
 
   return <dialog ref={dialog} className={styles.advisorModal} aria-modal="true" aria-labelledby="advisor-title" onCancel={event => { event.preventDefault(); onClose() }}>
     <button type="button" className={styles.advisorBackdrop} tabIndex={-1} aria-label={closeLabel} onClick={onClose} />
-    {visited.current && <aside className={styles.chatSidebar} style={{ width }}>
+    {visited.current && <aside className={styles.chatSidebar} data-setup-only={setupOnly || undefined} style={{ width }}>
       <div className={styles.chatHeader}>
         <div><h2 id="advisor-title" className={styles.chatTitle}>{title}</h2><p className={styles.advisorProvider}>{provider}</p></div>
         <button type="button" className={styles.chatCloseBtn} aria-label={closeLabel} title={closeLabel} onClick={onClose}>×</button>

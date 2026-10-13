@@ -85,15 +85,17 @@ describe('Results component', () => {
   })
 
   test('real assistant is disabled without a key and responds immediately to save/remove', async () => {
-    expect(container.textContent).toContain(translations.en.llm.noKey)
-    expect(container.querySelector('.chatInputField').disabled).toBe(true)
+    expect(container.querySelector('#llm-api-key')).not.toBeNull()
+    expect(container.querySelector('.advisorByok .chatMessages')).toBeNull()
+    expect(container.querySelector('.advisorByok [data-advisor-composer]')).toBeNull()
+    expect(container.querySelector('.advisorByok').textContent).not.toContain(translations.en.llm.noKey)
     await act(async () => saveLLMSettings('anthropic', 'test-only-secret'))
     expect(container.querySelector('.chatInputField').disabled).toBe(false)
     expect(container.querySelector(`button[aria-label="${translations.en.results.voiceRecord}"]`).disabled).toBe(true)
     expect(container.textContent).toContain(translations.en.llm.voiceGemini)
     await act(async () => clearLLMSettings())
-    expect(container.querySelector('.chatInputField').disabled).toBe(true)
-    expect(container.textContent).toContain(translations.en.llm.noKey)
+    expect(container.querySelector('.chatInputField')).toBeNull()
+    expect(container.querySelector('#llm-api-key').value).toBe('')
     expect(api.sendChatStream).not.toHaveBeenCalled()
   })
 
@@ -118,7 +120,7 @@ describe('Results component', () => {
   })
 
   test('AI CTA button is rendered near top recommendation and dynamically updates label', async () => {
-    const ctaBtn = container.querySelector('button[aria-label*="Ask"]')
+    const ctaBtn = container.querySelector('.aiRecommendationCta button')
     expect(ctaBtn).not.toBeNull()
     expect(ctaBtn.textContent).toContain(translations.en.results.askAiRecommendation)
 
@@ -202,7 +204,7 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => tabs[0].click())
     expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
     expect(button(translations.en.results.chartModes.radar).getAttribute('aria-pressed')).toBe('true')
-    expect(container.querySelector('.radarCompare')).not.toBeNull()
+    expect(container.querySelector('.signalRadar')).not.toBeNull()
   })
 
   test('signal cards and calculation inspector use server weights and correct sum/max normalization', async () => {
@@ -214,13 +216,22 @@ describe('editorial results navigation and Best Match', () => {
     expect(details.open).toBe(true)
     expect(details.textContent).toContain('75.00 × 0.20 + 100.00 × 0.40 + 100.00 × 0.10 + 100.00 × 0.30 ≈ 95.0 / 100')
     expect(details.textContent).toContain('0.60000')
-    expect([...container.querySelectorAll('.gapAssessment .gapChips span')].map(chip => chip.textContent)).toContain('R')
+    expect(details.querySelector('.methodologyDetails').open).toBe(false)
+    expect(details.querySelector('.methodologyDetails').textContent).toContain(translations.en.review.normalization)
     for (const mode of ['radar', 'gap', 'bars']) {
       await act(async () => button(translations.en.results.chartModes[mode]).click())
       expect(button(translations.en.results.chartModes[mode]).getAttribute('aria-pressed')).toBe('true')
-      expect(container.querySelector(mode === 'radar' ? '.radarCompare' : mode === 'gap' ? '.gapCompare' : '.professionBars')).not.toBeNull()
+      expect(container.querySelector(mode === 'radar' ? '.signalRadar' : mode === 'gap' ? '.gapAssessment' : '.activeMetricPanel')).not.toBeNull()
+      expect(container.querySelector('.professionBars')).toBeNull()
+      expect(container.querySelector('.gapAssessment') != null).toBe(mode === 'gap')
+      if (mode === 'gap') expect([...container.querySelectorAll('.gapAssessment .gapChips span')].map(chip => chip.textContent)).toContain('R')
+      expect(container.querySelectorAll('.visualizationPanel > .chartStack > :not(details) svg')).toHaveLength(mode === 'radar' ? 1 : 0)
+      expect([...container.querySelectorAll('.visualizationPanel details')].every(detail => !detail.open)).toBe(true)
+      const normalized = [...container.querySelectorAll('.visualizationPanel details')].find(detail => detail.querySelector('summary').textContent === translations.en.review.normalized)
+      expect(normalized.querySelector('p').textContent).toBe(translations.en.polish.signalScale)
     }
-    expect(container.querySelector('.professionBars')).not.toBeNull()
+    expect(container.querySelector('.chartDetails').open).toBe(false)
+    expect(container.querySelector('.chartDetails').textContent).toContain('75.00 / 100')
     expect(result.scoring_weights.classifier).toBe(.2)
     expect(api.sendChatStream).not.toHaveBeenCalled()
   })
@@ -239,10 +250,61 @@ describe('editorial results navigation and Best Match', () => {
     for (const label of ['downloadPdf', 'copyRoadmap', 'shareResults', 'saveResult', 'newAnalysis']) {
       expect([...actions.querySelectorAll('button')].some(b => b.textContent === translations.en.results[label])).toBe(true)
     }
-    expect([...container.querySelectorAll('.signalMaximum')].map(el => el.textContent)).toEqual([
-      'Maximum: 20.00 points', 'Maximum: 40.00 points', 'Maximum: 10.00 points', 'Maximum: 30.00 points',
-    ])
+    expect(container.querySelectorAll('.signalMaximum')).toHaveLength(0)
     expect(container.querySelector('.alternativeGrid button').textContent).toContain('#2')
+  })
+
+  test('profile summary separates entered skills from optional evaluation inputs and calculated weights', async () => {
+    await act(async () => root.render(<AppProvider><Results results={{ ...result,
+      _formData: { ...result._formData, python: 1, java: 0, teamwork: 3 },
+      user_skills_ranked: [{ skill: 'python', tfidf_weight: .123456, status: 'IT Token' }],
+    }} /></AppProvider>))
+    const context = container.querySelector('.contextTools')
+    await act(async () => context.querySelector('summary').click())
+    const summary = context.querySelector('.profileInputs')
+    expect(summary.textContent).toContain('Computer Science')
+    expect(summary.textContent).toContain('3.2')
+    expect(summary.textContent).toContain('Python')
+    expect(summary.textContent).toContain('Teamwork')
+    expect(summary.textContent).not.toContain('0.12')
+    expect(summary.textContent).not.toContain('/ 5')
+    expect(context.textContent).not.toContain(translations.en.form.knowledgeDescription)
+    const details = [...context.querySelectorAll('.profileDetails')]
+    expect(details).toHaveLength(2)
+    expect(details.every(detail => !detail.open)).toBe(true)
+    await act(async () => details[0].querySelector('summary').click())
+    expect(details[0].textContent).toContain('Java')
+    expect(details[0].textContent).toContain('Absent')
+    expect(details[0].textContent).toContain('3 / 5')
+    await act(async () => details[1].querySelector('summary').click())
+    expect(details[1].textContent).toContain('0.12')
+    expect(details[1].querySelector('.skillTag[title]').title).toContain('0.123456')
+  })
+
+  test('Best Match limits alternatives to three while All Professions keeps every career and exclusive chart modes', async () => {
+    const scores = { ...result.final_scores, 'Cloud Engineer': .35, 'Software Engineer': .3, 'Data Engineer': .25, 'Business Analyst': .2, 'Machine Learning Engineer': .1 }
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, final_scores: scores }} /></AppProvider>))
+    expect(container.querySelectorAll('.alternativeGrid button')).toHaveLength(3)
+    expect([...container.querySelectorAll('.alternativeRank')].map(node => node.textContent)).toEqual(['#2', '#3', '#4'])
+    await act(async () => container.querySelector('#results-tab-all').click())
+    expect(container.querySelectorAll('.careerSelect')).toHaveLength(7)
+    const comparison = container.querySelector('.careerComparisons')
+    await act(async () => comparison.querySelector('summary').click())
+    for (const mode of ['radar', 'gap', 'bars']) {
+      await act(async () => [...comparison.querySelectorAll('.chartControls button')].find(el => el.textContent === translations.en.results.chartModes[mode]).click())
+      expect(comparison.querySelectorAll('.professionBars,.radarCompare,.gapCompare')).toHaveLength(1)
+    }
+  })
+
+  test('feedback is contextual to History and remains reachable through More actions', async () => {
+    const feedback = container.querySelector('.betaCard[aria-label="Feedback & Ideas"]').parentElement
+    expect(feedback.hidden).toBe(true)
+    const action = [...container.querySelectorAll('.actionsMenu button')].find(el => el.textContent === translations.en.product.shareFeedback)
+    expect(action).not.toBeUndefined()
+    await act(async () => action.click())
+    expect(container.querySelector('#results-tab-history').getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('.feedbackColumn').hidden).toBe(false)
+    expect(container.querySelector('.feedbackColumn form')).not.toBeNull()
   })
 
   test('feature explanation separates raw profile values and signed contributions from classifier and composite scores', async () => {
@@ -257,9 +319,11 @@ describe('editorial results navigation and Best Match', () => {
     } }} /></AppProvider>))
     const panel = container.querySelector('.explainCard')
     expect(panel.textContent).toContain('0.60000')
-    expect(panel.textContent).toContain('95.0 / 100')
-    const positives = panel.querySelector('.positiveSummary')
-    expect(positives.textContent.indexOf('SQL')).toBeLessThan(positives.textContent.indexOf('GPA'))
+    expect(panel.textContent).not.toContain('95.0 / 100')
+    const leading = panel.querySelector('.featureSummary')
+    expect([...leading.querySelectorAll('.skillImpactValue')].map(node => node.textContent)).toEqual(['+30.00%', '+10.00%', '-40.00%', '-20.00%'])
+    expect(leading.textContent).toContain('SQLProfile value: 0 · Absent')
+    expect(leading.textContent).toContain('TeamworkProfile value: 3 / 5')
     const details = panel.querySelector('.featureDetails')
     expect(details.open).toBe(false)
     await act(async () => details.querySelector('summary').click())
@@ -269,17 +333,48 @@ describe('editorial results navigation and Best Match', () => {
     expect(details.textContent).toContain('Profile value: 3.2')
     expect(details.textContent).toContain('Model input (preprocessed): -1.2500')
     expect(details.textContent).toContain('0 · Absent')
+    expect(details.textContent).toContain(translations.en.polish.shapDenominator)
     expect(panel.querySelector('.featureSummary').textContent).not.toMatch(/gap.*reduced confidence|slightly increased confidence|avoid learning/i)
     expect(panel.textContent).toContain(translations.en.polish.modelCaveat)
   })
 
-  test('both advisor modes share the controlled composer without adding preview provider controls', async () => {
+  test.each(['ru', 'kk'])('SHAP display labels match the %s profile form without changing feature keys', async lang => {
+    await act(async () => root.render(<AppProvider key={lang} initialLanguage={lang}><Results results={{ ...result,
+      _formData: { ...result._formData, machine_learning: 0, leadership: 3 },
+      skill_explanations: { 'Data Analyst': { method: 'catboost_shap', shap_explanations: [
+        { feature_name: 'machine_learning', label: 'Machine Learning', raw_value: 0, influence_percent: 24.58 },
+        { feature_name: 'leadership', label: 'Leadership', raw_value: 3, influence_percent: 15.1 },
+      ] } },
+    }} /></AppProvider>))
+    const summary = container.querySelector('.featureSummary').textContent
+    expect(summary).toContain(translations[lang].form.technicalLabels.machine_learning)
+    expect(summary).toContain(translations[lang].form.soft.leadership)
+    expect(summary).toContain(translations[lang].polish.absent)
+    expect(summary).not.toContain('Leadership')
+  })
+
+  test.each([1, -1, 0])('one-sided or zero SHAP data creates only actual leading contribution rows (%s)', async sign => {
+    const features = [10, 40, 30, 20].map((value, index) => ({ feature_name: `feature_${index}`, label: `Feature ${index}`, raw_value: index, influence_percent: sign * value }))
+    await act(async () => root.render(<AppProvider><Results results={{ ...result, skill_explanations: { 'Data Analyst': { method: 'catboost_shap', shap_explanations: features } } }} /></AppProvider>))
+    const leading = container.querySelector('.featureSummary')
+    expect(leading.querySelectorAll('.skillImpactRow')).toHaveLength(sign ? 3 : 0)
+    expect(container.querySelectorAll('.positiveSummary,.negativeSummary')).toHaveLength(0)
+    expect(container.querySelector('.featureDetails').querySelectorAll('.skillImpactRow')).toHaveLength(4)
+    if (sign) expect([...leading.querySelectorAll('.skillImpactValue')].map(node => node.textContent)).toEqual([40, 30, 20].map(value => `${sign > 0 ? '+' : '-'}${value.toFixed(2)}%`))
+  })
+
+  test('unavailable preview hides its composer and offers BYOK', async () => {
     await act(async () => container.querySelector('.aiFab').click())
-    expect(container.querySelectorAll('[data-advisor-composer]')).toHaveLength(2)
-    expect(container.querySelector('.advisorPreview [data-advisor-composer] .deepModeBtn')).toBeNull()
-    expect(container.querySelector('.advisorByok [data-advisor-composer] .deepModeBtn')).not.toBeNull()
-    expect(container.querySelector('.advisorByok [data-advisor-composer] .voiceBtn').hidden).toBe(true)
+    expect(container.querySelector('.advisorPreview [data-advisor-composer]')).toBeNull()
+    expect(container.querySelector('.advisorPreview .previewQuota')).toBeNull()
+    expect(container.querySelector('.advisorPreview').textContent).toContain(translations.en.experience.unavailable)
+    await act(async () => container.querySelector('.advisorPreview button').click())
+    expect(container.querySelector('.advisorModes button[data-mode="byok"]').getAttribute('aria-pressed')).toBe('true')
+    expect(container.querySelector('.advisorByok [data-advisor-composer]')).toBeNull()
+    expect(container.querySelector('.advisorByok').textContent.split(translations.en.llm.sessionOnly)).toHaveLength(2)
     await act(async () => saveLLMSettings('gemini', 'polish-test-key'))
+    expect(container.querySelectorAll('[data-advisor-composer]')).toHaveLength(1)
+    expect(container.querySelector('.advisorByok [data-advisor-composer] .deepModeBtn')).not.toBeNull()
     expect(container.querySelector('.advisorByok [data-advisor-composer] .voiceBtn').hidden).toBe(true)
     expect(api.sendChatStream).not.toHaveBeenCalled()
   })
@@ -312,6 +407,7 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => container.querySelector('.alternativeGrid button').click())
     expect(container.querySelector('.bestName').textContent).toBe('Data Scientist')
     expect(container.querySelector('.bestRank').textContent).toContain('#2')
+    await act(async () => button(translations.en.results.chartModes.gap).click())
     expect(container.querySelector('[aria-label="Skill gap assessment"]').textContent).toContain('Pytorch')
     await act(async () => button(translations.en.results.viewFullRoadmap).click())
     expect(container.querySelector('.roadmapHint').textContent).toContain('Data Scientist')
@@ -335,7 +431,9 @@ describe('editorial results navigation and Best Match', () => {
     expect(container.querySelector('.methodDetails').textContent).toContain(translations.en.review.missingWeights)
     expect([...container.querySelectorAll('.signalContribution b')].every(b => b.textContent.startsWith('—'))).toBe(true)
     await act(async () => container.querySelector('.alternativeGrid button').click())
+    await act(async () => button(translations.en.results.chartModes.gap).click())
     expect(container.querySelector('[aria-label="Skill gap assessment"]').textContent).toContain('Skill-gap data is unavailable for this career.')
+    expect(container.querySelector('.skillGapRadar')).toBeNull()
   })
 
   test('saved progress survives selection and newly available categories can be reordered and persisted', async () => {
@@ -408,8 +506,11 @@ describe('editorial All Professions master-detail', () => {
     const overall = [4, 1, 2, 3, 6, 5, 0]
     for (const row of rows()) {
       expect(row.querySelector('.careerRank').textContent).toBe(`#${overall.indexOf(names.indexOf(row.dataset.profession)) + 1}`)
+      expect(row.querySelector('.careerRank').getAttribute('aria-label')).toContain(translations.en.results.overallRank)
       expect(row.querySelector('.careerScore').textContent).toBe(`${(result.final_scores[row.dataset.profession] * 100).toFixed(1)} / 100`)
+      if (sort !== 'score') expect(row.querySelector('.careerRowMeta').textContent).toContain(`${control.textContent}:`)
     }
+    expect(container.querySelector('.careerToolbar').textContent).toContain(translations.en.results.overallRank)
     expect(control.getAttribute('aria-pressed')).toBe('true')
     expect(document.activeElement).toBe(control)
     expect(rows().find(row => row.querySelector('.careerTopBadge')).dataset.profession).toBe(names[4])
@@ -458,7 +559,7 @@ describe('editorial All Professions master-detail', () => {
     await openAll()
     expect(detail().querySelector('h3').textContent).toBe(names[2])
     await act(async () => button(translations.en.results.tabs.best).click())
-    expect(container.querySelector('.radarCompare')).not.toBeNull()
+    expect(container.querySelector('.signalRadar')).not.toBeNull()
   })
 
   test('all existing comparison charts remain reachable and selecting a comparison still opens career-specific Best Match', async () => {
@@ -466,9 +567,14 @@ describe('editorial All Professions master-detail', () => {
     expect(comparisons).not.toBeNull()
     await act(async () => comparisons.querySelector('summary').click())
     expect(comparisons.open).toBe(true)
-    expect(comparisons.querySelectorAll('.scoreCircleCard')).toHaveLength(7)
+    expect(comparisons.querySelectorAll('.scoreCircleCard')).toHaveLength(0)
     expect(comparisons.querySelectorAll('.professionBarRow')).toHaveLength(7)
+    await act(async () => [...comparisons.querySelectorAll('.chartControls button')].find(el => el.textContent === translations.en.results.chartModes.gap).click())
     expect(comparisons.querySelectorAll('.gapCompareRow')).toHaveLength(7)
+    expect(comparisons.querySelector('.professionBars')).toBeNull()
+    await act(async () => [...comparisons.querySelectorAll('.chartControls button')].find(el => el.textContent === translations.en.results.chartModes.radar).click())
+    expect(comparisons.querySelector('.radarCompare')).not.toBeNull()
+    await act(async () => [...comparisons.querySelectorAll('.chartControls button')].find(el => el.textContent === translations.en.results.chartModes.bars).click())
     await act(async () => [...comparisons.querySelectorAll('.professionBarRow')].find(el => el.textContent.includes(names[6])).click())
     expect(container.querySelector('.bestName').textContent).toBe(names[6])
   })
@@ -485,6 +591,7 @@ describe('editorial All Professions master-detail', () => {
     expect([...detail().querySelectorAll('.signalContribution b')].every(el => el.textContent.startsWith('—'))).toBe(true)
     const comparisons = container.querySelector('.careerComparisons')
     await act(async () => comparisons.querySelector('summary').click())
+    await act(async () => [...comparisons.querySelectorAll('.chartControls button')].find(el => el.textContent === translations.en.results.chartModes.gap).click())
     const alternative = [...comparisons.querySelectorAll('.gapCompareRow')].find(el => el.textContent.includes(names[1]))
     expect(alternative.querySelector('.gapCompareMeta').textContent).toBe(translations.en.review.gapUnavailable)
     expect(alternative.querySelector('.gapCompareTrack')).toBeNull()
@@ -705,7 +812,7 @@ describe('editorial Learning Roadmap', () => {
 
   test('courses retain metadata, direct/search links, keyboard modal access and no automatic completion', async () => {
     const course = container.querySelector('.courseWrap')
-    expect(course.textContent).toContain('4.5'); expect(course.textContent).toContain('32'); expect(course.textContent).toContain('English'); expect(course.textContent).toContain('Beginner'); expect(course.textContent).toContain('19.00')
+    expect(course.textContent).toContain('4.5'); expect(course.textContent).toContain('32'); expect(course.textContent).toContain('English'); expect(course.textContent).toContain('Beginner'); expect(course.textContent).toContain('Paid · Check current price')
     const link = course.querySelector('a')
     expect(link.href).toBe('https://example.com/python'); expect(link.target).toBe('_blank'); expect(link.rel).toBe('noopener noreferrer')
     expect(container.querySelectorAll('.courseWrap')[1].querySelector('a').href).toBe('https://www.coursera.org/search?query=Python%20%D0%BD%D0%B0%20%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%BE%D0%BC')
@@ -726,6 +833,13 @@ describe('editorial Learning Roadmap', () => {
     expect(missing.textContent).toContain('Untitled course')
     expect(missing.textContent).not.toMatch(/Free|English|Mixed|NaN|undefined/)
     expect(skill('pandas').textContent).toContain(translations.en.results.noCourses)
+  })
+
+  test('course price shows a known currency and never guesses one for unknown catalog data', async () => {
+    const priced = { ...pythonCourses[0], currency: 'USD' }
+    await render({ ...result, session_id: 'known-currency', roadmap_with_courses: { ...roadmap, programming: { ...roadmap.programming, python: { courses: [priced] } } }, roadmaps_by_profession: undefined })
+    await openRoadmap()
+    expect(skill('python').querySelector('.coursePrice').textContent).toBe('19.00 USD')
   })
 
   test('restored selection, progress and filters use current-career steps and preserve shared completion keys', async () => {
@@ -829,14 +943,28 @@ describe('editorial History and Feedback', () => {
   test('current and previous cards use actual selected-career scores, dates and profile data with inspect navigation', async () => {
     const cards = container.querySelectorAll('.historyRecord')
     expect(cards).toHaveLength(2)
-    expect(cards[0].textContent).toContain('Current recommendation'); expect(cards[0].querySelector('.historyRecordScore strong').textContent).toBe('80.0 / 100')
+    expect(cards[0].textContent).toContain(translations.en.review.currentRecommendation); expect(cards[0].querySelector('.historyRecordScore strong').textContent).toBe('80.0 / 100')
     expect(cards[0].textContent).toContain('Computer Science'); expect(cards[0].textContent).toContain('3.4')
-    expect(cards[1].textContent).toContain('Previous recommendation'); expect(cards[1].textContent).toContain('Cloud Engineer'); expect(cards[1].textContent).toContain('60.0 / 100')
+    expect(cards[1].textContent).toContain('Previous recommendation'); expect(cards[1].textContent).toContain('Data Analyst'); expect(cards[1].textContent).toContain('Currently viewing: Cloud Engineer'); expect(cards[1].textContent).toContain('80.0 / 100')
     expect(new Date(cards[1].querySelector('time').dateTime).getTime()).toBe(new Date(previous.createdAt).getTime())
     expect(container.querySelector('.historyFeedbackLayout .feedbackColumn form')).not.toBeNull()
     await click(cards[1].querySelector('button'))
     expect(onHistorySelect).toHaveBeenCalledWith(expect.objectContaining({ session_id: 'previous-history' }))
     expect(container.querySelector('#results-tab-best').getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('.bestName').textContent).toBe('Cloud Engineer')
+  })
+
+  test('viewing an alternative preserves the calculation winner in History', async () => {
+    await click(container.querySelector('#results-tab-all'))
+    await click(container.querySelector('[data-profession="Cloud Engineer"]'))
+    await click(container.querySelector('#results-tab-history'))
+    const current = container.querySelector('.historyRecord')
+    expect(current.querySelector('h3').textContent).toBe('Data Analyst')
+    expect(current.querySelector('.historyRecordScore strong').textContent).toBe('80.0 / 100')
+    expect(current.textContent).toContain('Currently viewing: Cloud Engineer')
+    expect(current.textContent).not.toContain('Run time unavailable')
+    await click(current.querySelector('button'))
+    expect(container.querySelector('#results-tab-best').textContent).toBe('Career details')
     expect(container.querySelector('.bestName').textContent).toBe('Cloud Engineer')
   })
 
@@ -851,7 +979,7 @@ describe('editorial History and Feedback', () => {
     act(() => root.unmount()); root = createRoot(container)
     auth.useAuth.mockReturnValue({ user: null }); api.getRecommendationHistory.mockClear()
     await act(async () => root.render(<AppProvider><Results results={{ ...result, persistent: false }} /></AppProvider>)); await openHistory()
-    expect(container.querySelector('.historyPanel').textContent).toContain(translations.en.beta.guestNote)
+    expect(container.querySelector('.historyPanel').textContent).toContain(translations.en.beta.guestShortNote)
     expect(container.querySelector('.historyPanel .historyClear')).toBeNull()
     expect(api.getRecommendationHistory).not.toHaveBeenCalled()
   })
@@ -912,6 +1040,7 @@ describe('editorial AI Advisor drawer', () => {
   test('free consent, draft, quota and conversation survive closing and mode changes', async () => {
     const trigger = container.querySelector('.aiFab')
     await act(async () => { trigger.focus(); trigger.click() })
+    expect(trigger.closest('[hidden]')).toBeNull()
     const consent = container.querySelector('.freePreview input[type="checkbox"]')
     await act(async () => Simulate.change(consent, { target: { checked: true } }))
     await act(async () => Simulate.change(container.querySelector('.freePreview textarea'), { target: { value: 'Which career skill next?' } }))
@@ -1016,7 +1145,7 @@ describe('editorial AI Advisor drawer', () => {
       }
       await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'voice-next' }} /></AppProvider>))
       await act(async () => rejectOld(Object.assign(new Error('Old voice failed'), { name: 'NotAllowedError', code: 'provider_unavailable' })))
-      expect(container.querySelector('.chatScope').textContent).toBe(translations.en.results.assistantScope)
+      expect(container.querySelector('.chatScope')).toBeNull()
       expect(container.querySelector('.chatInputField').value).toBe('')
     } finally {
       window.AudioContext = originalContext

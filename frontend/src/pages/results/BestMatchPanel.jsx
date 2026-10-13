@@ -17,14 +17,12 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
           </p>}
           <div className={styles.heroActions}>
             <button type="button" className={styles.primaryAction} onClick={onRoadmap}>{t.results.viewFullRoadmap}</button>
-            <button type="button" className={styles.secondaryAction} onClick={onCompare}>{t.results.compareAll}</button>
           </div>
         </div>
         <div className={styles.heroScore}><strong>{t.review.scoreTitle}</strong>{score}<p>{t.review.scoreNote}</p></div>
       </div>
       <div className={styles.aiRecommendationCta}>
         <div className={styles.aiRecommendationCtaText}>
-          <strong className={styles.aiRecommendationCtaTitle}>{aiCtaInfo.title}</strong>
           <span className={styles.aiRecommendationCtaSubtitle}>{aiCtaInfo.subtitle}</span>
         </div>
         <button type="button" className={styles.secondaryAction} aria-label={aiCtaInfo.buttonFull} onClick={onAdvisor}>{aiCtaInfo.buttonFull}</button>
@@ -42,14 +40,14 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
             aria-pressed={viewMode === mode} onClick={() => onViewMode(mode)}>{t.results.chartModes[mode]}</button>)}
         </div>
       </header>
-      <div className={styles.analysisGrid}>
+      <div className={viewMode === 'gap' ? styles.analysisGrid : undefined}>
         <div className={styles.visualizationPanel}>
           {viewMode === 'bars' && <div className={styles.chartLegend}>
             {[['profile_match', t.results.classification], ['skill_match', t.results.skillMatch], ['trend_score', t.results.trend], ['market_share', t.results.marketShare]].map(([key, label]) => <span key={key} data-signal={key}><i />{label}</span>)}
           </div>}
-          {visualization}<p className={styles.methodNote}>{t.review.marketNote}</p>
+          {visualization}
         </div>
-        {skillGap}
+        {viewMode === 'gap' && skillGap}
       </div>
     </section>
     <section className={styles.alternatives} aria-label={t.review.alternatives}>
@@ -60,7 +58,6 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
         <span className={styles.alternativeRank}>#{ranks[p.name]}</span>
         <span>{profLabel(p.name)}</span><strong>{formatMatchScore(p.final_score)}</strong>
         <span className={styles.alternativeTrack} aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, (p.final_score ?? 0) * 100))}%` }} /></span>
-        <span className={styles.alternativeLink}>{t.review.viewCareerDetails} →</span>
       </button>)}</div>
     </section>
   </div>

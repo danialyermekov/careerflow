@@ -8,8 +8,7 @@ import * as api from './utils/api'
 jest.mock('./utils/api')
 jest.mock('framer-motion', () => {
   const React = require('react')
-  const passthrough = ({ children }) => React.createElement('main', null, children)
-  return { AnimatePresence: passthrough, motion: { main: passthrough } }
+  return { AnimatePresence: ({ children }) => <>{children}</>, motion: { main: ({ children }) => <main>{children}</main> } }
 })
 
 const result = {
@@ -32,6 +31,7 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/')
   localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en')
   window.scrollTo = jest.fn()
+  window.scrollBy = jest.fn()
   HTMLElement.prototype.scrollIntoView = jest.fn()
   api.getRecommendation.mockResolvedValue(result)
   api.getRecommendationHistory.mockResolvedValue({ items: [] })
@@ -85,6 +85,7 @@ test('live demo calls the real API directly and guides all five steps without an
   expect(container.textContent).toContain('28.50 points')
   expect(container.textContent).toContain('0.60000')
   expect(container.querySelectorAll('.aiFab')).toHaveLength(1)
+  expect(container.querySelectorAll('main')).toHaveLength(1)
   expect(container.querySelector('.guidedTour').textContent).toContain('Your Recommendation')
   await act(async () => button('Next').click())
   expect(container.querySelector('.guidedTour').textContent).toContain('Why This Career?')
@@ -125,6 +126,7 @@ test('normal empty and partial profiles keep GPA validation and accept optional 
 test('editorial landing has the compass, four-step flow, seven tracks and scroll-only section navigation', async () => {
   await act(async () => root.render(<App />))
   expect(container.querySelector('h1').textContent).toBe('A rigorous, auditable compass for your career in technology.')
+  expect(button('Create your profile')).toBeTruthy()
   expect(container.querySelectorAll('#how-it-works ol > li')).toHaveLength(4)
   expect(container.querySelectorAll('#career-tracks article')).toHaveLength(7)
   expect(container.querySelector('#interactive-preview').textContent).toContain('3.2')
@@ -135,7 +137,7 @@ test('editorial landing has the compass, four-step flow, seven tracks and scroll
   expect(document.activeElement.id).toBe('methodology')
   expect(window.location.hash).toBe('')
   expect(api.getRecommendation).not.toHaveBeenCalled()
-  await act(async () => button('Get started').click())
+  await act(async () => button('Create your profile').click())
   expect(window.location.hash).toBe('#profile')
   expect(container.querySelector('#profile-gpa')).not.toBeNull()
 })
@@ -151,6 +153,8 @@ test('profile keyboard skill entry can leave an empty combobox and reset a norma
   await act(async () => Simulate.keyDown(input, { key: 'ArrowDown' }))
   await act(async () => Simulate.keyDown(input, { key: 'Enter' }))
   expect(container.querySelector('button[aria-label="Remove skill: Python"]')).not.toBeNull()
+  expect(container.textContent).toContain('Adding a tool above does not select an area here.')
+  expect(container.querySelector('input[name="python"]').checked).toBe(false)
   expect(container.querySelectorAll('#career-profile input[type="checkbox"]')).toHaveLength(11)
   expect(container.querySelectorAll('#career-profile button[aria-pressed]')).toHaveLength(25)
   await act(async () => Simulate.change(container.querySelector('#profile-gpa'), { target: { value: '3.5' } }))
@@ -159,6 +163,19 @@ test('profile keyboard skill entry can leave an empty combobox and reset a norma
   expect(container.querySelector('button[aria-label="Remove skill: Python"]')).toBeNull()
   expect(input.value).toBe('')
   expect(container.querySelector('details').firstElementChild.tagName).toBe('SUMMARY')
+})
+
+test.each(['ru', 'kk'])('profile translates study fields and knowledge areas in %s without changing submitted keys', async lang => {
+  const t = require('./i18n').translations[lang]
+  localStorage.setItem('lang', lang)
+  window.history.replaceState({}, '', '/#profile')
+  await act(async () => root.render(<App />))
+  expect(container.querySelector('#profile-field option[value="Computer Science"]').textContent).toBe(t.form.fields['Computer Science'])
+  expect(container.querySelector('input[name="machine_learning"]').parentElement.textContent).toContain(t.form.technicalLabels.machine_learning)
+  await act(async () => Simulate.change(container.querySelector('#profile-gpa'), { target: { value: '3.2' } }))
+  await act(async () => Simulate.change(container.querySelector('input[name="machine_learning"]'), { target: { checked: true } }))
+  await act(async () => Simulate.submit(container.querySelector('#career-profile')))
+  expect(api.getRecommendation.mock.calls[0][0]).toMatchObject({ field_of_study: 'Computer Science', machine_learning: 1, lang })
 })
 
 test('resume service failure keeps the existing text fallback and reports unrecognized files', async () => {
@@ -170,6 +187,10 @@ test('resume service failure keeps the existing text fallback and reports unreco
     await new Promise(resolve => setTimeout(resolve, 50))
   })
   expect(container.querySelector('button[aria-label="Remove skill: Python"]')).not.toBeNull()
+  expect(container.textContent).toContain('Review those chips and select any matching Technical Knowledge Areas yourself.')
+  await act(async () => button('Dismiss import summary').click())
+  expect(container.querySelector('button[aria-label="Remove skill: Python"]')).not.toBeNull()
+  expect(container.querySelector('input[name="python"]').checked).toBe(false)
   await act(async () => {
     Simulate.change(container.querySelector('input[type="file"]'), { target: { files: [new File(['nothing recognized'], 'unknown.txt', { type: 'text/plain' })] } })
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -253,7 +274,7 @@ test('a direct result URL reloads the saved result through the existing state en
 test('PDF uses the selected career, score units and historical market context', async () => {
   window.history.replaceState({}, '', '/#results/review-test-session')
   await act(async () => root.render(<App />))
-  const alternative = [...container.querySelectorAll('.professionBarRow')].find(el => el.textContent.includes('Data Scientist'))
+  const alternative = [...container.querySelectorAll('.alternativeGrid button')].find(el => el.textContent.includes('Data Scientist'))
   await act(async () => alternative.click())
   const write = jest.fn()
   const open = jest.spyOn(window, 'open').mockReturnValue({ document: { write, close: jest.fn() } })

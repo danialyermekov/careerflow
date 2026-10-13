@@ -8,6 +8,7 @@
   max-height: 50%;
 }
 .settings summary { cursor: pointer; color: var(--text); }
+.settings summary[hidden] { display: none; }
 .settings form { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
 .settings input, .settings select, .settings button {
   font: inherit;

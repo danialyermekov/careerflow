@@ -2,9 +2,10 @@ import { formatMatchScore } from '../../utils/scoring'
 import { isDemoSession } from '../../utils/demoProfile'
 import styles from '../Results.module.css'
 
-function HistoryRecord({ record, current, profession, t, lang, profLabel, onOpen }) {
+function HistoryRecord({ record, current, selectedProfession, t, lang, profLabel, onOpen }) {
   const result = record.results
-  const name = profession || record.selectedProfession || record.top_profession || result.top_profession
+  const name = record.top_profession || result.top_profession || record.selectedProfession
+  const viewed = selectedProfession || record.selectedProfession
   const profile = result._formData
   const score = result.final_scores?.[name]
   const date = record.createdAt && new Date(record.createdAt)
@@ -17,13 +18,14 @@ function HistoryRecord({ record, current, profession, t, lang, profLabel, onOpen
     </div>
     <div className={styles.historyRecordHeading}>
       <div><h3>{profLabel(name)}</h3>
-        {hasDate ? <time dateTime={date.toISOString()}>{date.toLocaleString(lang === 'kk' ? 'kk-KZ' : lang === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'medium' })}</time> : <p>{t.review.timeUnavailable}</p>}
+        {hasDate && <time dateTime={date.toISOString()}>{date.toLocaleString(lang === 'kk' ? 'kk-KZ' : lang === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'medium' })}</time>}
       </div>
       <div className={styles.historyRecordScore}><span>{t.review.scoreTitle}</span><strong>{typeof score === 'number' ? formatMatchScore(score) : '—'}</strong></div>
     </div>
+    {viewed && viewed !== name && <p>{t.review.viewingAlternative(profLabel(viewed))}</p>}
     {profile && <div className={styles.historyProfile}>
       {Array.isArray(profile.skills) && <span>{profile.skills.length} {t.review.historySkills}</span>}
-      {profile.field_of_study && <span>{profile.field_of_study}</span>}
+      {profile.field_of_study && <span>{t.form.fields[profile.field_of_study] || profile.field_of_study}</span>}
       {profile.gpa != null && <span>GPA {profile.gpa}</span>}
     </div>}
     <button type="button" className={current ? styles.primaryAction : styles.secondaryAction} onClick={onOpen}>{current ? t.review.viewResults : t.review.inspectRun}</button>
@@ -36,8 +38,8 @@ export default function HistoryFeedbackPanel({ results, profession, history, use
   const temporary = !user || results.persistent === false || results._isDemo || isDemoSession(results.session_id)
   return <section className={styles.historyPanel} aria-labelledby="history-title">
     <header><h2 id="history-title">{t.results.historyTitle}</h2><p>{t.beta.historyNote}</p></header>
-    {temporary && <p className={styles.historyStorageNote}>{t.beta.guestNote}</p>}
-    <HistoryRecord record={{ results, createdAt: saved?.createdAt || results.created_at }} current profession={profession} t={t} lang={lang} profLabel={profLabel} onOpen={onCurrent} />
+    {temporary && <p className={styles.historyStorageNote}>{t.beta.guestShortNote}</p>}
+    <HistoryRecord record={{ results, createdAt: saved?.createdAt || results.created_at }} current selectedProfession={profession} t={t} lang={lang} profLabel={profLabel} onOpen={onCurrent} />
     <h3 className={styles.historyPreviousTitle}>{t.review.previousRecommendation}</h3>
     {previous.length ? previous.map(item => <HistoryRecord key={item.id} record={item} t={t} lang={lang} profLabel={profLabel} onOpen={() => onOpen(item)} />) : <p>{t.results.noHistory}</p>}
     {!user && <a className={styles.secondaryAction} href="#login">{t.beta.login}</a>}
