@@ -2340,6 +2340,7 @@
 .tabContent { padding: 0; }
 .bestPanel { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .recommendationHero { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); overflow: hidden; }
+.profileNotice { margin: 0; padding: 16px 24px; border-top: 1px solid var(--border); color: var(--text-2); line-height: 1.6; }
 .heroGrid { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 24px; padding: 24px; }
 .bestPanel .bestRank { display: inline-block; padding: 5px 10px; color: var(--primary-contrast); background: var(--primary); border-radius: 4px; font: 600 .8125rem/1.4 var(--font-sans); letter-spacing: 0; }
 .bestPanel .bestName { font: 500 clamp(1.875rem, 3vw, 2.5rem)/1.2 var(--font-display); letter-spacing: -.025em; margin: 12px 0; color: var(--text); overflow-wrap: anywhere; }

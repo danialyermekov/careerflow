@@ -14,4 +14,6 @@ test('the displayed contributions reproduce backend sum/max normalization withou
   expect(formatMatchScore(0.9435)).toBe('94.4 / 100')
   expect(getScoreBreakdown({ ...results, skill_scores: { A: 0, B: 0 } }, 'A')[1].value).toBe(0)
   expect(getScoreBreakdown({}, 'A').every(item => item.value === 0 && item.contribution === null)).toBe(true)
+  expect(getScoreBreakdown({}, 'A').every(item => !item.available)).toBe(true)
+  expect(getScoreBreakdown({ ...results, skill_scores: { A: 0, B: 0 } }, 'A')[1].available).toBe(true)
 })

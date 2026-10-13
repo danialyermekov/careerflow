@@ -335,13 +335,13 @@ function SkillImpactChart({ explanation, profile, t }) {
     <span className={styles.skillImpactValue}>{item.value > 0 ? '+' : ''}{item.value.toFixed(2)}%</span>
   </div>)}</div>
   return <div className={styles.skillExplainBlock}>
-    <div className={styles.featureSummary}>
+    <div className={styles.featureSummary} id="career-feature-contributions">
       {rows(expanded ? items : leading)}
       {!expanded && !leading.length && <p>{t.polish.noContributions}</p>}
     </div>
     <p className={styles.methodNote}>{t.review.shapLegend}</p>
     <p className={styles.methodNote}>{t.review.shapLimit}</p>
-    <button type="button" className={styles.secondaryAction} aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{t.polish.fullFeatures} ({items.length})</button>
+    <button type="button" className={styles.secondaryAction} aria-controls="career-feature-contributions" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{t.polish.fullFeatures} ({items.length})</button>
     <details className={styles.featureDetails}><summary>{t.review.shapHelp}</summary>
       <p className={styles.methodNote}>{explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback}</p>
       {isShap && <p className={styles.methodNote}>{t.polish.shapDenominator}</p>}
@@ -752,15 +752,15 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
         <summary>{t.review.calculationTitle}</summary>
         <p>{t.review.calculationShort}</p>
         <details className={styles.methodologyDetails}><summary>{t.review.technicalDetails}</summary>
-        {hasWeights ? <code className={styles.scoreEquation}>
+        {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
           {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
-        </code> : <p>{t.review.missingWeights}</p>}
-        <div className={styles.methodTableWrap}>
+        </code> : <p>{hasWeights ? t.review.partialSignals : t.review.missingWeights}</p>}
+        <div className={styles.methodTableWrap} tabIndex={0} role="region" aria-label={t.review.calculationTitle}>
           <table className={styles.methodTable}>
              <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.index}</th><th>{t.review.weight}</th><th>{t.review.contribution}</th></tr></thead>
             <tbody>{components.map(item => <tr key={item.key}>
-              <th scope="row">{labels[item.key]}</th><td>{item.raw.toPrecision(5)}</td><td>{(item.value * 100).toFixed(2)} / 100</td>
-              <td>{item.weight == null ? '—' : `${(item.weight * 100).toFixed(2)}%`}</td><td>{item.contribution == null ? '—' : item.contribution.toPrecision(5)}</td>
+              <th scope="row">{labels[item.key]}</th><td>{item.available ? item.raw.toPrecision(5) : '—'}</td><td>{item.available ? `${(item.value * 100).toFixed(2)} / 100` : '—'}</td>
+              <td>{item.weight == null ? '—' : `${(item.weight * 100).toFixed(2)}%`}</td><td>{!item.available || item.contribution == null ? '—' : item.contribution.toPrecision(5)}</td>
             </tr>)}</tbody>
           </table>
         </div>
@@ -1860,7 +1860,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 alternatives={rankedProfessions.filter(p => p.name !== activeProf.name).slice(0, 3)} ranks={professionRanks}
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
-                incompleteProfile={Array.isArray(profile.skills) && profile.skills.length === 0 ? <p className={styles.methodNote}>{t.review.incompleteProfile} <button type="button" className={styles.secondaryAction} onClick={() => onEditProfile ? onEditProfile(profile) : onRetry?.()}>{t.review.addSkills}</button></p> : null}
+                incompleteProfile={Array.isArray(profile.skills) && profile.skills.length === 0 ? <p className={styles.profileNotice}>{t.review.incompleteProfile} <button type="button" className={styles.secondaryAction} onClick={() => onEditProfile ? onEditProfile(profile) : onRetry?.()}>{t.review.addSkills}</button></p> : null}
                 score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
                   color="var(--accent)" animKey={animKey} />}
                 scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
