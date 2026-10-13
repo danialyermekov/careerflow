@@ -1244,14 +1244,14 @@ while (changed) {
 
 
 /* ─── Score Rows ─────────────────────────────────────────────── */
-function ProfScores({ p, rows, animKey, lang }) {
+function ProfScores({ p, rows, animKey, lang, t }) {
   const tips = BAR_TOOLTIPS[lang] || BAR_TOOLTIPS.en
   return (
     <div className={styles.profScores}>
       {rows.map(({ key, label, max }) =>
         p[key] != null ? (
           <div key={key} data-signal={key} className={styles.scoreRow}>
-            <span className={styles.scoreLabel}>{label}</span>
+            <span className={styles.scoreLabel}>{label} · {t.review.index}</span>
             <AnimatedBar
               value={parseFloat(p[key])}
               max={max}
@@ -1427,31 +1427,33 @@ function ScoringFormulaHeader({ results, profession, t }) {
         {components.map(item => (
           <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
-            <span>{item.weight != null ? `${(item.weight * 100).toFixed(2)}% ${t.review.weight.toLowerCase()}` : '—'}</span>
-             <b>{item.contribution == null ? '—' : item.contribution.toFixed(2)} {t.review.contribution}</b>
+            <b>{item.contribution == null ? '—' : t.review.pointsOf(item.contribution.toFixed(2), Math.round(item.weight * 100))}</b>
+            {item.key === 'market_share' && <small>{t.review.marketShareValue(item.raw, Object.keys(results.final_scores).length)}</small>}
             <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
           </div>
         ))}
       </div>
       <details className={styles.methodDetails}>
-        <summary>{t.review.calculation}</summary>
-         <p>{t.polish.compositeCalculation}</p>
+        <summary>{t.review.calculationTitle}</summary>
+        <p>{t.review.calculationShort}</p>
+        <details className={styles.methodologyDetails}><summary>{t.review.technicalDetails}</summary>
         {hasWeights ? <code className={styles.scoreEquation}>
           {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
         </code> : <p>{t.review.missingWeights}</p>}
         <div className={styles.methodTableWrap}>
           <table className={styles.methodTable}>
-             <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.normalizedValue}</th></tr></thead>
+             <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.index}</th><th>{t.review.weight}</th><th>{t.review.contribution}</th></tr></thead>
             <tbody>{components.map(item => <tr key={item.key}>
               <th scope="row">{labels[item.key]}</th><td>{item.raw.toPrecision(5)}</td><td>{(item.value * 100).toFixed(2)} / 100</td>
+              <td>{item.weight == null ? '—' : `${(item.weight * 100).toFixed(2)}%`}</td><td>{item.contribution == null ? '—' : item.contribution.toPrecision(5)}</td>
             </tr>)}</tbody>
           </table>
         </div>
-         <details className={styles.methodologyDetails}><summary>{t.review.dataTitle}</summary>
+           <h3>{t.review.dataTitle}</h3>
            <p>{t.review.normalization}</p>
            {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
            <p>{t.review.marketNote}</p>
-         </details>
+        </details>
       </details>
     </section>
   )
@@ -1578,8 +1580,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const skillWord = n => t.results.skillWord ? t.results.skillWord(n) : `${n} skills`
 
   const ALL_SCORE_ROWS = [
-    { key: 'skill_match',   label: t.results.skillMatch,      sortKey: 'skill',   max: 1   },
     { key: 'profile_match', label: t.results.classification,  sortKey: 'profile', max: 1   },
+    { key: 'skill_match',   label: t.results.skillMatch,      sortKey: 'skill',   max: 1   },
     { key: 'trend_score',   label: t.results.trend,           sortKey: 'trend',   max: 1   },
     { key: 'market_share',  label: t.results.marketShare,     sortKey: 'market',  max: 1 },
   ]
@@ -2567,7 +2569,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 </section>}
                 visualization={<>
                 {viewMode === 'bars' && (
-                  <div className={styles.activeMetricPanel}><ProfScores p={activeProf} rows={rows} animKey={animKey} lang={lang}/></div>
+                  <div className={styles.activeMetricPanel}><ProfScores p={activeProf} rows={rows} animKey={animKey} lang={lang} t={t}/></div>
                 )}
                 {viewMode === 'radar' && (
                   <div className={styles.chartStack}>
@@ -2584,13 +2586,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
                     </details>}
                   </div>
                 )}
-                <details className={styles.chartDetails}><summary>{t.review.normalized}</summary>
-                  <div className={styles.methodTableWrap}><table className={styles.methodTable}>
-                    <thead><tr><th>{t.polish.signal}</th><th>{t.review.normalizedValue}</th></tr></thead>
-                    <tbody>{rows.map(row => <tr key={row.key}><th scope="row">{row.label}</th><td>{(activeProf[row.key] * 100).toFixed(2)} / 100</td></tr>)}</tbody>
-                  </table></div>
-                  <p className={styles.methodNote}>{t.polish.signalScale}</p>
-                </details>
                 </>}
                 explanation={<ExplainabilityPanel
                 profession={activeProf}

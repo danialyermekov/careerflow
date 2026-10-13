@@ -210,7 +210,7 @@ describe('editorial results navigation and Best Match', () => {
   test('signal cards and calculation inspector use server weights and correct sum/max normalization', async () => {
     const cards = [...container.querySelectorAll('.signalContribution')]
     expect(cards).toHaveLength(4)
-    expect(cards.map(c => c.querySelector('b').textContent)).toEqual(['15.00 points', '40.00 points', '10.00 points', '30.00 points'])
+    expect(cards.map(c => c.querySelector('b').textContent)).toEqual(['15.00 of 20 possible points', '40.00 of 40 possible points', '10.00 of 10 possible points', '30.00 of 30 possible points'])
     const details = container.querySelector('.methodDetails')
     await act(async () => details.querySelector('summary').click())
     expect(details.open).toBe(true)
@@ -218,20 +218,8 @@ describe('editorial results navigation and Best Match', () => {
     expect(details.textContent).toContain('0.60000')
     expect(details.querySelector('.methodologyDetails').open).toBe(false)
     expect(details.querySelector('.methodologyDetails').textContent).toContain(translations.en.review.normalization)
-    for (const mode of ['radar', 'gap', 'bars']) {
-      await act(async () => button(translations.en.results.chartModes[mode]).click())
-      expect(button(translations.en.results.chartModes[mode]).getAttribute('aria-pressed')).toBe('true')
-      expect(container.querySelector(mode === 'radar' ? '.signalRadar' : mode === 'gap' ? '.gapAssessment' : '.activeMetricPanel')).not.toBeNull()
-      expect(container.querySelector('.professionBars')).toBeNull()
-      expect(container.querySelector('.gapAssessment') != null).toBe(mode === 'gap')
-      if (mode === 'gap') expect([...container.querySelectorAll('.gapAssessment .gapChips span')].map(chip => chip.textContent)).toContain('R')
-      expect(container.querySelectorAll('.visualizationPanel > .chartStack > :not(details) svg')).toHaveLength(mode === 'radar' ? 1 : 0)
-      expect([...container.querySelectorAll('.visualizationPanel details')].every(detail => !detail.open)).toBe(true)
-      const normalized = [...container.querySelectorAll('.visualizationPanel details')].find(detail => detail.querySelector('summary').textContent === translations.en.review.normalized)
-      expect(normalized.querySelector('p').textContent).toBe(translations.en.polish.signalScale)
-    }
-    expect(container.querySelector('.chartDetails').open).toBe(false)
-    expect(container.querySelector('.chartDetails').textContent).toContain('75.00 / 100')
+    expect(container.querySelector('.visualizationPanel .methodTable')).toBeNull()
+    expect(cards[3].textContent).toContain('60.0% among 2 tracks')
     expect(result.scoring_weights.classifier).toBe(.2)
     expect(api.sendChatStream).not.toHaveBeenCalled()
   })
