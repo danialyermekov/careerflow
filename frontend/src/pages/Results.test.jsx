@@ -353,7 +353,9 @@ describe('editorial results navigation and Best Match', () => {
     expect(inputs.querySelectorAll('tbody tr code')).toHaveLength(6)
     expect(panel.textContent).toContain(translations.en.polish.shapDenominator)
     expect(panel.querySelector('.featureSummary').textContent).not.toMatch(/gap.*reduced confidence|slightly increased confidence|avoid learning/i)
-    expect(panel.textContent).toContain(translations.en.polish.modelCaveat)
+    expect(panel.querySelectorAll('.shapLegend li')).toHaveLength(2)
+    expect(panel.querySelectorAll('.featureDetails strong')).toHaveLength(4)
+    expect(expand.textContent).toContain(translations.en.review.collapseFeatures)
   })
 
   test.each(['ru', 'kk'])('SHAP display labels match the %s profile form without changing feature keys', async lang => {

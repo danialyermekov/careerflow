@@ -339,13 +339,12 @@ function SkillImpactChart({ explanation, profile, t }) {
       {rows(expanded ? items : leading)}
       {!expanded && !leading.length && <p>{t.polish.noContributions}</p>}
     </div>
-    <p className={styles.methodNote}>{t.review.shapLegend}</p>
+    <ul className={styles.shapLegend}>{t.review.shapSigns.map(([label, description]) => <li key={label}><strong>{label}</strong><span>{description}</span></li>)}</ul>
     <p className={styles.methodNote}>{t.review.shapLimit}</p>
-    <button type="button" className={styles.secondaryAction} aria-controls="career-feature-contributions" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{t.polish.fullFeatures} ({items.length})</button>
+    <button type="button" className={styles.featureDisclosure} aria-controls="career-feature-contributions" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? t.review.collapseFeatures : t.polish.fullFeatures} ({items.length}) <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span></button>
     <details className={styles.featureDetails}><summary>{t.review.shapHelp}</summary>
-      <p className={styles.methodNote}>{explanation.method === 'catboost_shap' ? t.results.shapMethod : t.results.shapFallback}</p>
-      {isShap && <p className={styles.methodNote}>{t.polish.shapDenominator}</p>}
-      <p className={styles.methodNote}>{t.polish.modelCaveat}</p>
+      {t.review.shapReading.map(([title, text], index) => <p className={styles.methodNote} key={title}><strong>{title} </strong>{index === 0 ? isShap ? t.polish.shapDenominator : t.review.fallbackDenominator : text}</p>)}
+      {!isShap && <p className={styles.methodNote}>{t.results.shapFallback}</p>}
     </details>
   </div>
 }
@@ -357,7 +356,6 @@ function ExplainabilityPanel({ profession, t, skillExplanation, profile }) {
     <section className={styles.explainCard} data-tour-detail="explanation">
       <div className={styles.compareHeader}>
         <span>{t.polish.classifierExplanation}</span>
-        <small>{t.results.featureImportance}</small>
       </div>
       <SkillImpactChart explanation={skillExplanation} profile={profile} t={t}/>
     </section>

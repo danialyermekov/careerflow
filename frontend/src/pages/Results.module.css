@@ -2422,6 +2422,10 @@
 .bestPanel .skillGapRadar svg { width: 100%; height: auto; }
 .bestPanel .radarLegend { font-size: .8125rem; flex-wrap: wrap; }
 .gapAssessment h3 { font: 600 1rem/1.5 var(--font-sans); }
+.gapAssessment h2 + p { margin-top: 8px; }
+.gapAssessment h3 { margin: 18px 0 8px; }
+.bestPanel .gapAssessment .methodNote { margin-top: 16px; }
+.gapAssessment > .primaryAction { margin-top: 18px; }
 .gapAssessment h4 { font: 600 .875rem/1.5 var(--font-sans); margin: 24px 0 12px; }
 .gapAssessment p { color: var(--text-2); font-size: .875rem; line-height: 1.7; }
 .gapAssessment .secondaryAction { margin-top: 24px; }
@@ -2787,6 +2791,12 @@
 .bestPanel .skillExplainBlock { margin: 0; padding: 0; border: 0; background: transparent; gap: 8px; }
 .bestPanel .featureSummary .skillImpactRow { margin-bottom: 0; min-height: 28px; }
 .featureSummary { margin-top: 12px; }
+.shapLegend { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; color: var(--text-2); font-size: .875rem; line-height: 1.6; }
+.shapLegend li { display: grid; gap: 2px; }
+.shapLegend strong, .featureDetails strong { color: var(--text); font-weight: 600; }
+.featureDisclosure { align-self: flex-start; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--text); font: 500 .875rem/1.6 var(--font-sans); text-align: left; cursor: pointer; }
+.featureDisclosure:hover { color: var(--accent); }
+.featureDisclosure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bestPanel .skillImpactRow { grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 74px; gap: 12px; margin-bottom: 12px; }
 .bestPanel .skillImpactName { color: var(--text); font: 500 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; white-space: normal; }
 .skillImpactName small { display: block; color: var(--text-2); font: 400 .75rem/1.5 var(--font-sans); }
