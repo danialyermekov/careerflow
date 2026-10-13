@@ -16,3 +16,6 @@ frontend/dev-server.*.log
 /scripts/
 /CHANGELOG.md
 
+/.superpowers/
+/design/
+
