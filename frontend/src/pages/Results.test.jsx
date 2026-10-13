@@ -527,7 +527,7 @@ describe('editorial All Professions master-detail', () => {
       expect(row.querySelector('.careerRank').textContent).toBe(`#${overall.indexOf(names.indexOf(row.dataset.profession)) + 1}`)
       expect(row.querySelector('.careerRank').getAttribute('aria-label')).toContain(translations.en.results.overallRank)
       expect(row.querySelector('.careerScore').textContent).toBe(`${(result.final_scores[row.dataset.profession] * 100).toFixed(1)} / 100`)
-      if (sort === 'market') expect(row.querySelector('.careerRowMeta').textContent).toBe(translations.en.review.marketShareValue(result.demand_scores[row.dataset.profession].market_share, 7))
+      if (sort === 'market') expect(row.querySelector('.careerRowMeta').textContent).toBe(`${translations.en.review.demandShare}: ${translations.en.review.marketPercentage(result.demand_scores[row.dataset.profession].market_share)}`)
       else if (sort !== 'score') expect(row.querySelector('.careerRowMeta').textContent).toContain(translations.en.review.index)
       else expect(row.querySelector('.careerRowMeta').textContent).toContain('roadmap skills listed')
     }
@@ -608,7 +608,8 @@ describe('editorial All Professions master-detail', () => {
     await act(async () => root.render(<AppProvider><Results results={{ ...result, session_id: 'partial-final-saved', final_scores: { [names[1]]: .56, [names[2]]: .4990 } }} /></AppProvider>))
     expect(rows().find(row => row.getAttribute('aria-pressed') === 'true').dataset.profession).toBe(names[1])
     await act(async () => container.querySelector('.careerSort button[data-sort="market"]').click())
-    expect(rows().every(row => row.querySelector('.careerRowMeta').textContent.includes('among 7 tracks'))).toBe(true)
+    expect(container.querySelector('.marketQualifier').textContent).toContain('among 7 tracks')
+    expect(rows().every(row => !row.querySelector('.careerRowMeta').textContent.includes('among 7 tracks'))).toBe(true)
     await act(async () => container.querySelector('.careerSort button[data-sort="trend"]').click())
     await act(async () => container.querySelector('.careerToolbar .primaryAction').click())
     expect(container.querySelector('.gapAssessment').textContent).toContain('Skill-1')

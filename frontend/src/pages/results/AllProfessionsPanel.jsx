@@ -10,7 +10,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
       ? t.review.coverageCount(profession.skillCoverage.known.length, profession.skillCoverage.total) : t.review.gapUnavailable
     const signal = profession.breakdown.find(item => item.key === criterion)
     if (!signal.available) return `${sortLabel}: —`
-    return sortBy === 'market' ? t.review.marketShareValue(signal.raw, marketTrackCount)
+    return sortBy === 'market' ? `${t.review.demandShare}: ${t.review.marketPercentage(signal.raw)}`
       : `${sortLabel} · ${t.review.index}: ${(signal.value * 100).toFixed(1)} / 100`
   }
   return <section className={styles.allPanel} aria-label={t.results.tabs.all}>
@@ -27,6 +27,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
       <span>{t.results.sortedBy(sortLabel)}{sortBy !== 'score' && ` · ${t.review.rankNote}`}</span>
       {selected && <button type="button" className={styles.primaryAction} onClick={onOpenDetails}>{t.review.openCareer(profLabel(selected.name))}</button>}
     </div>
+    {sortBy === 'market' && <p className={styles.marketQualifier}>{t.review.marketScope(marketTrackCount)}</p>}
     {!professions.length ? <p className={styles.methodNote}>{t.review.rankingEmpty}</p> :
       <ol className={styles.careerRanking} aria-label={t.review.rankingTitle}>
         {professions.map(profession => <li key={profession.name} className={`${styles.careerRow} ${selected?.name === profession.name ? styles.careerRowSelected : ''}`}>
