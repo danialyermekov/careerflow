@@ -26,9 +26,8 @@ export function AppProvider({ children, initialLanguage }) {
   const [theme, setTheme] = useState(() => safeGet('theme', 'light') === 'dark' ? 'dark' : 'light')
   const [lang,  setLang]  = useState(() => {
     if (initialLanguage) return initialLanguage
-    const browserLang = typeof navigator !== 'undefined' ? navigator.language?.split('-')[0] : 'en'
-    const stored = safeGet('lang', translations[browserLang] ? browserLang : 'en')
-    return translations[stored] ? stored : 'ru'
+    const stored = safeGet('lang', 'en')
+    return translations[stored] ? stored : 'en'
   })
 
   useEffect(() => {

@@ -24,10 +24,13 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-test.each([null, 'invalid'])('new or invalid preference %s starts light and saves a usable dark toggle', stored => {
+test.each([null, 'invalid'])('new or invalid preference %s starts English and light and saves a usable dark toggle', stored => {
+  jest.spyOn(navigator, 'language', 'get').mockReturnValue('ru-RU')
+  if (stored) localStorage.setItem('lang', stored)
   if (stored) localStorage.setItem('theme', stored)
   act(() => root.render(<AppProvider><Preferences /></AppProvider>))
   expect(document.documentElement.dataset.theme).toBe('light')
+  expect(document.documentElement.lang).toBe('en')
   expect(localStorage.getItem('theme')).toBe('light')
   act(() => container.querySelector('button').click())
   expect(document.documentElement.dataset.theme).toBe('dark')
