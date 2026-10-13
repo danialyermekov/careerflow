@@ -730,27 +730,26 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
   const components = getScoreBreakdown(results, profession)
   const labels = {
     profile_match: t.results.classification, skill_match: t.results.skillMatch,
-    trend_score: t.results.trend, market_share: t.results.marketShare,
+    trend_score: t.review.historicalTrend, market_share: t.review.demandShare,
   }
   const descriptions = [t.results.formulaLegendProfile, t.results.formulaLegendSkill, t.results.formulaLegendTrend, t.results.formulaLegendShare]
   const hasWeights = components.every(item => item.weight != null)
   return (
     <section className={styles.formulaBanner} aria-label={t.review.weightedSignals}>
       <h2 className={styles.formulaTitle}>{t.review.weightedSignals}</h2>
+      <p className={styles.methodNote}>{t.review.calculationShort}</p>
       {components.some(item => !item.available) && <p className={styles.methodNote}>{t.review.partialSignals}</p>}
       <div className={styles.formulaLegend}>
         {components.map(item => (
           <div key={item.key} data-signal={item.key} className={styles.signalContribution}>
             <strong><i style={{ background: BAR_COLORS[item.key] }} />{labels[item.key]}</strong>
-            <b>{!item.available || item.contribution == null ? '—' : t.review.pointsOf(item.contribution.toFixed(2), Math.round(item.weight * 100))}</b>
-            {item.key === 'market_share' && item.available && <small>{t.review.marketShareValue(item.raw, Object.keys(results.demand_scores || {}).length)}</small>}
-            <div className={styles.signalTrack} aria-hidden="true"><i style={{ width: `${pct(item.value)}%` }} /></div>
+            <b>{!item.available || item.contribution == null ? '—' : t.review.addedPoints(t.review.pointsValue(item.contribution))}</b>
           </div>
         ))}
       </div>
       <details className={styles.methodDetails}>
         <summary>{t.review.calculationTitle}</summary>
-        <p>{t.review.calculationShort}</p>
+        <p>{hasWeights ? t.review.weightExplanation(components.map(item => Number((item.weight * 100).toFixed(2)))) : t.review.missingWeights}</p>
         <details className={styles.methodologyDetails}><summary>{t.review.technicalDetails}</summary>
         {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
           {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
@@ -760,13 +759,14 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
              <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.index}</th><th>{t.review.weight}</th><th>{t.review.contribution}</th></tr></thead>
             <tbody>{components.map(item => <tr key={item.key}>
               <th scope="row">{labels[item.key]}</th><td>{item.available ? item.raw.toPrecision(5) : '—'}</td><td>{item.available ? `${(item.value * 100).toFixed(2)} / 100` : '—'}</td>
-              <td>{item.weight == null ? '—' : `${(item.weight * 100).toFixed(2)}%`}</td><td>{!item.available || item.contribution == null ? '—' : item.contribution.toPrecision(5)}</td>
+              <td>{item.weight == null ? '—' : `${Number((item.weight * 100).toFixed(2))}%`}</td><td>{!item.available || item.contribution == null ? '—' : t.review.pointsValue(item.contribution)}</td>
             </tr>)}</tbody>
           </table>
         </div>
            <h3>{t.review.dataTitle}</h3>
            <p>{t.review.normalization}</p>
            {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
+           {components.find(item => item.key === 'market_share' && item.available) && <p>{t.review.marketShareValue(results.demand_scores[profession].market_share, Object.keys(results.demand_scores).length)}</p>}
            <p>{t.review.marketNote}</p>
            <a href="/#methodology">{t.review.sources}</a>
            <h3>{t.polish.profileInputs}</h3>
