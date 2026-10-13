@@ -82,7 +82,7 @@ test('live demo calls the real API directly and guides all five steps without an
   expect(isDemoSession(result.session_id)).toBe(true)
   expect(window.location.hash).toBe('#results/review-test-session')
   expect(container.textContent).toContain('90.5 / 100')
-  expect(container.textContent).toContain('28.50 points')
+  expect(container.textContent).toContain('28.50 of 38 possible points')
   expect(container.textContent).toContain('0.60000')
   expect(container.querySelectorAll('.aiFab')).toHaveLength(1)
   expect(container.querySelectorAll('main')).toHaveLength(1)
@@ -121,6 +121,21 @@ test('normal empty and partial profiles keep GPA validation and accept optional 
   await act(async () => Simulate.submit(container.querySelector('form')))
   expect(api.getRecommendation.mock.calls[0][0]).toMatchObject({ gpa: 3.1, skills: [], python: 0, communication: 3 })
   expect(container.querySelector('.demoBadge')).toBeNull()
+  await act(async () => button('Add skills').click())
+  expect(container.querySelector('#profile-gpa').value).toBe('3.1')
+  expect(container.querySelector('#profile-field').value).toBe('Computer Science')
+})
+
+test('profile help has three steps and links to the existing methodology, with definitions shown once', async () => {
+  await act(async () => root.render(<App />))
+  expect(container.querySelectorAll('#interactive-preview .previewSignals')).toHaveLength(0)
+  expect(container.querySelectorAll('#scoring-engine article')).toHaveLength(4)
+  await act(async () => button('Create your profile').click())
+  const guide = container.querySelector('.guide')
+  expect(guide.querySelectorAll('li')).toHaveLength(3)
+  expect(guide.querySelector('table,.formula')).toBeNull()
+  expect(guide.textContent).not.toMatch(/TF-IDF|Cloud Computing|Final Score|Data Analyst/)
+  expect(guide.querySelector('a').getAttribute('href')).toBe('/#methodology')
 })
 
 test('editorial landing has the compass, four-step flow, seven tracks and scroll-only section navigation', async () => {

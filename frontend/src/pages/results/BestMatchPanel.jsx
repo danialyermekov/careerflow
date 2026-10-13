@@ -24,9 +24,6 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
       </div>
       {incompleteProfile}
       <div className={styles.aiRecommendationCta}>
-        <div className={styles.aiRecommendationCtaText}>
-          <span className={styles.aiRecommendationCtaSubtitle}>{aiCtaInfo.subtitle}</span>
-        </div>
         <button type="button" className={styles.secondaryAction} aria-label={aiCtaInfo.buttonFull} onClick={onAdvisor}>{aiCtaInfo.buttonFull}</button>
       </div>
     </section>

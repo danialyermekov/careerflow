@@ -308,7 +308,7 @@ function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey
   )
 }
 
-function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
+function SkillImpactChart({ explanation, profile, t }) {
   const [expanded, setExpanded] = useState(false)
   const isShap = !!explanation?.shap_explanations?.length
   const rawItems = isShap ? explanation.shap_explanations : explanation?.items || []
@@ -318,13 +318,13 @@ function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
     name: t.form.technicalLabels[isShap ? item.feature_name : item.feature] || t.form.soft[isShap ? item.feature_name : item.feature] || (isShap ? item.label || item.feature_name : item.skill),
     feature: isShap ? item.feature_name : item.feature,
     input: profile?.[isShap ? item.feature_name : item.feature] ?? (!isShap && typeof item.present === 'boolean' ? (item.present ? t.polish.present : t.polish.absent) : '—'),
-    modelInput: isShap && typeof item.raw_value === 'number' ? item.raw_value.toPrecision(5) : null,
     presence: isShap && Object.hasOwn(PROFILE_TECH_LABELS, item.feature_name) && [0, 1].includes(profile?.[item.feature_name])
       ? (profile[item.feature_name] ? t.polish.present : t.polish.absent) : null,
     value: isShap ? item.influence_percent : totalAbs > 1e-9 ? (item.value || 0) / totalAbs * 100 : 0,
   }))
   const maxAbs = Math.max(...items.map(item => Math.abs(item.value)), .001)
   const strongest = sign => items.filter(item => sign * item.value > 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 3)
+  const leading = [...strongest(1), ...strongest(-1)]
   const rows = list => <div className={styles.skillImpactChart}>{list.map(item => <div key={item.feature || item.name} className={styles.skillImpactRow}>
     <span className={styles.skillImpactName}>{item.name}<small>{t.polish.profileValue}: {item.presence || item.input}{Object.hasOwn(t.form.soft, item.feature) && typeof item.input === 'number' && ' / 5'}</small>
     </span>
@@ -336,7 +336,8 @@ function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
   </div>)}</div>
   return <div className={styles.skillExplainBlock}>
     <div className={styles.featureSummary}>
-      {rows(expanded ? items : [...strongest(1), ...strongest(-1)])}
+      {rows(expanded ? items : leading)}
+      {!expanded && !leading.length && <p>{t.polish.noContributions}</p>}
     </div>
     <p className={styles.methodNote}>{t.review.shapLegend}</p>
     <p className={styles.methodNote}>{t.review.shapLimit}</p>
@@ -349,7 +350,7 @@ function SkillImpactChart({ explanation, profile, classifierOutput, t }) {
   </div>
 }
 
-function ExplainabilityPanel({ profession, t, skillExplanation, classifierOutput, profile }) {
+function ExplainabilityPanel({ profession, t, skillExplanation, profile }) {
   if (!profession) return null
 
   return (
@@ -358,7 +359,7 @@ function ExplainabilityPanel({ profession, t, skillExplanation, classifierOutput
         <span>{t.polish.classifierExplanation}</span>
         <small>{t.results.featureImportance}</small>
       </div>
-      <SkillImpactChart explanation={skillExplanation} profile={profile} classifierOutput={classifierOutput} t={t}/>
+      <SkillImpactChart explanation={skillExplanation} profile={profile} t={t}/>
     </section>
   )
 }
@@ -767,6 +768,7 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
            <p>{t.review.normalization}</p>
            {components.map((item, index) => <p key={item.key}><strong>{labels[item.key]}: </strong>{descriptions[index]}</p>)}
            <p>{t.review.marketNote}</p>
+           <a href="/#methodology">{t.review.sources}</a>
            <h3>{t.polish.profileInputs}</h3>
            <dl className={styles.evaluationInputs}>{Object.entries(profile || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{Array.isArray(value) ? value.join(', ') || '—' : String(value)}</dd></div>)}</dl>
            <h3>{t.polish.classifierOutput}</h3>
@@ -1879,7 +1881,6 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 profLabel={profLabel}
                 t={t}
                 skillExplanation={selectedSkillExplanation}
-                classifierOutput={results.classification_scores?.[activeProf.name]}
                 profile={results._formData || formData}
                 />}
               />

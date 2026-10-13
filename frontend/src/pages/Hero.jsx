@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { DEMO_PROFILE } from '../utils/demoProfile'
 import styles from './Hero.module.css'
@@ -6,6 +7,12 @@ const tracks = ['Data Analyst', 'Software Engineer', 'Machine Learning Engineer'
 
 export default function Hero({ onStart, onDemo, demoLoading = false }) {
   const { t } = useApp()
+  useEffect(() => {
+    const section = document.getElementById(window.location.hash.slice(1))
+    if (!section) return
+    const frame = requestAnimationFrame(() => { section.focus({ preventScroll: true }); section.scrollIntoView({ block: 'start' }) })
+    return () => cancelAnimationFrame(frame)
+  }, [])
   const scrollToSection = event => {
     event.preventDefault()
     const target = document.getElementById(event.currentTarget.hash.slice(1))
@@ -54,11 +61,6 @@ export default function Hero({ onStart, onDemo, demoLoading = false }) {
                 <h3>{t.hero.previewPending}</h3><p>{t.hero.previewNote}</p>
                 <button className={styles.cta} onClick={onDemo} disabled={demoLoading}>{demoLoading ? t.form.submitting : t.experience.liveDemo}</button>
               </div>
-              <h3 className={styles.previewSubheading}>{t.hero.signalsTitle}</h3>
-              <ol className={styles.previewSignals}>{t.review.signals.map(([title, text], index) => <li key={title}>
-                <span>{String(index + 1).padStart(2, '0')}</span><div><strong>{title}</strong><p>{text}</p></div>
-              </li>)}</ol>
-              <p className={styles.note}>{t.review.scoreNote}</p>
             </div>
             <aside className={styles.previewRoadmap}>
               <h3>{t.hero.roadmapPreview}</h3><p>{t.review.roadmapMethod}</p>

@@ -20,16 +20,6 @@ const TECH_SKILLS = [
 
 const SOFT_KEYS = ['communication', 'leadership', 'problem_solving', 'teamwork', 'adaptability']
 const FIELDS    = ['Data Science', 'Computer Science', 'Software Engineering', 'AI', 'Cybersecurity']
-const PROFESSION_KEYS = [
-  'Data Analyst',
-  'Data Engineer',
-  'Data Scientist',
-  'Machine Learning Engineer',
-  'Business Analyst',
-  'Cloud Engineer',
-  'Software Engineer',
-]
-
 // Autocomplete suggestions list - add as many as you want here
 const SKILL_SUGGESTIONS = [
   'Python', 'Java', 'JavaScript', 'TypeScript', 'C++', 'C#', 'Go', 'Rust', 'Kotlin', 'Swift',
@@ -266,7 +256,6 @@ export default function Form({ onSubmit, loading, initialDemo = false, initialPr
 
   const techChecked  = TECH_SKILLS.filter(s => form[s.key] === 1).length
   const softAvg      = SOFT_KEYS.reduce((a, k) => a + form[k], 0) / SOFT_KEYS.length
-  const hasGpa       = form.gpa !== '' && Number(form.gpa) >= 2 && Number(form.gpa) <= 4
 
   const useDemo = () => {
     setForm({ ...DEMO_PROFILE, skills: [...DEMO_PROFILE.skills] })
@@ -454,55 +443,15 @@ export default function Form({ onSubmit, loading, initialDemo = false, initialPr
               {loading ? t.form.submitting : t.form.submit}
             </button>
             </div>
-            <p className={styles.hint}>{hasGpa ? t.review.ready : t.review.required}<br />{t.review.optional}</p>
+            <p className={styles.hint}>{t.review.optional}</p>
           </form>
         </div>
       </div>
 
-      {/* The former side guide stays available without a second column. */}
       <details className={styles.guide}>
-        <summary>{t.form.guide.title}</summary>
-        <div className={styles.chatBody}>
-          <div className={styles.chatMsg}>
-            <div className={styles.chatBubble}>{t.form.guide.msg1}</div>
-          </div>
-          <div className={styles.chatMsg}>
-            <div className={styles.chatBubble}>{t.form.guide.msg2}</div>
-          </div>
-          <div className={styles.chatMsg}>
-            <div className={styles.chatBubble}>
-              <strong>{t.form.guide.professionsTitle}</strong>
-              <ul className={styles.chatList}>
-                {PROFESSION_KEYS.map(prof => (
-                  <li key={prof}>{t.professions?.[prof] || prof}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className={styles.chatMsg}>
-            <div className={styles.chatBubble}>
-              <strong>{t.form.guide.scoringTitle}</strong>
-              <div className={styles.formula}>
-                {t.form.guide.scoring.map(({ label, sub }, i) => (
-                  <div key={i} className={styles.formulaStep}>
-                    <div className={styles.formulaStepNum}>{i + 1}</div>
-                    <div className={styles.formulaStepBody}>
-                      <span className={styles.formulaStepLabel}>{label}</span>
-                      <span className={styles.formulaStepSub}>{sub}</span>
-                    </div>
-                  </div>
-                ))}
-                <div className={styles.formulaFooter}>
-                  <span className={styles.formulaArrow}>↑</span>
-                  <span className={styles.formulaResult}>{t.form.guide.finalScore}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p>{t.review.progressHint}</p>
-        <p>{t.review.skillsHint}</p><p>{t.review.technicalHint}</p><p>{t.review.softHint}</p>
-        <ul>{t.form.tips.map(tip => <li key={tip}>{tip}</li>)}</ul>
+        <summary>{t.review.guideTitle}</summary>
+        <ol>{t.review.guideSteps.map(step => <li key={step}>{step}</li>)}</ol>
+        <a href="/#methodology">{t.review.dataTitle}</a>
       </details>
     </div>
   )

@@ -35,14 +35,11 @@ function HistoryRecord({ record, current, selectedProfession, t, lang, profLabel
 export default function HistoryFeedbackPanel({ results, profession, history, user, t, lang, profLabel, onOpen, onCurrent, onClear }) {
   const saved = history.find(item => results.session_id && item.results?.session_id === results.session_id)
   const previous = history.filter(item => item.results && item !== saved)
-  const temporary = !user || results.persistent === false || results._isDemo || isDemoSession(results.session_id)
   return <section className={styles.historyPanel} aria-labelledby="history-title">
-    <header><h2 id="history-title">{t.results.historyTitle}</h2><p>{t.beta.historyNote}</p></header>
-    {temporary && <p className={styles.historyStorageNote}>{t.beta.guestShortNote}</p>}
+    <header><h2 id="history-title">{t.results.historyTitle}</h2><p>{t.review.historyPrivacy}</p></header>
     <HistoryRecord record={{ results, createdAt: saved?.createdAt || results.created_at }} current selectedProfession={profession} t={t} lang={lang} profLabel={profLabel} onOpen={onCurrent} />
     <h3 className={styles.historyPreviousTitle}>{t.review.previousRecommendation}</h3>
     {previous.length ? previous.map(item => <HistoryRecord key={item.id} record={item} t={t} lang={lang} profLabel={profLabel} onOpen={() => onOpen(item)} />) : <p>{t.results.noHistory}</p>}
-    {!user && <a className={styles.secondaryAction} href="#login">{t.beta.login}</a>}
     {user && history.length > 0 && <button type="button" className={styles.historyClear} onClick={onClear}>{t.results.clearHistory}</button>}
   </section>
 }
