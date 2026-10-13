@@ -311,7 +311,7 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="profile-field">{t.form.personal.field}</label>
                   <select id="profile-field" name="field_of_study" className={styles.select} value={form.field_of_study} onChange={e => set('field_of_study', e.target.value)}>
-                    {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
+                    {FIELDS.map(f => <option key={f} value={f}>{t.form.fields[f]}</option>)}
                   </select>
                 </div>
               </div>
@@ -399,7 +399,7 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
                       checked={form[key] === 1}
                       onChange={e => set(key, e.target.checked ? 1 : 0)}
                     />
-                    <span className={styles.checkLabel}>{label}</span>
+                    <span className={styles.checkLabel}>{t.form.technicalLabels[key] || label}</span>
                   </label>
                 ))}
               </div>
@@ -442,6 +442,7 @@ export default function Form({ onSubmit, loading, initialDemo = false }) {
                 {parsedResume.role && <p>{t.form.resume.role}: <strong>{parsedResume.role}</strong></p>}
                 <div className={styles.resumeParsedHeader}><span>{t.form.resume.parsed}</span><button type="button" onClick={clearParsedResume}>{t.form.resume.clear}</button></div>
                 <div className={styles.tags}>{parsedResume.skills.map(skill => <span key={skill} className={styles.tag}>{skill}</span>)}</div>
+                {parsedResume.skills.length > 0 && <p className={styles.hint}>{t.form.importReview}</p>}
                 {!parsedResume.skills.length && <p>{resumeNotice || t.form.resume.empty}</p>}
               </div>}
             </section>

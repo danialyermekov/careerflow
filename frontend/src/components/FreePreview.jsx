@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 import { getTrialStatus, sendTrialMessage } from '../utils/api'
 import AdvisorComposer from './AdvisorComposer'
 
-export default function FreePreview({ sessionId, careerContext }) {
+export default function FreePreview({ sessionId, careerContext, onByok }) {
   const { t, lang } = useApp()
   const text = t.experience
   const [quota, setQuota] = useState(null)
@@ -62,19 +62,23 @@ export default function FreePreview({ sessionId, careerContext }) {
   }
 
   const enabled = quota?.available && quota.remaining > 0 && consent && !busy
+  const unavailable = quota?.available === false || error === 'unavailable'
+  const exhausted = error === 'exhausted' || (quota?.available && quota.remaining === 0)
 
   return (
     <section className="freePreview" aria-label={text.free}>
       <div className="previewHeader">
         <h3>{text.free}</h3>
-        <p className="previewSubtitle">{text.freeText}</p>
-        {quota && <p className="previewQuota" role="status">{text.remaining(quota.remaining, quota.total)}</p>}
-        {quota?.total > 0 && <div className="previewQuotaTrack" role="progressbar" aria-label={text.free} aria-valuemin={0} aria-valuemax={quota.total} aria-valuenow={quota.remaining}><i style={{ width: `${Math.max(0, Math.min(100, quota.remaining / quota.total * 100))}%` }} /></div>}
+        {!unavailable && <p className="previewSubtitle">{text.freeText}</p>}
+        {!unavailable && quota && <p className="previewQuota" role="status">{text.remaining(quota.remaining, quota.total)}</p>}
+        {!unavailable && quota?.total > 0 && <div className="previewQuotaTrack" role="progressbar" aria-label={text.free} aria-valuemin={0} aria-valuemax={quota.total} aria-valuenow={quota.remaining}><i style={{ width: `${Math.max(0, Math.min(100, quota.remaining / quota.total * 100))}%` }} /></div>}
         {!quota && !error && <p className="previewStatus" role="status">{t.beta.loading}</p>}
-        {(quota?.available === false || error === 'unavailable') && <p className="previewStatus previewUnavailable" role="status">{text.unavailable}</p>}
-        {quota?.available && quota.remaining === 0 && <p className="previewStatus previewExhausted">{text.exhausted}</p>}
+        {unavailable && <p className="previewStatus previewUnavailable" role="status">{text.unavailable}</p>}
+        {!unavailable && exhausted && <p className="previewStatus previewExhausted">{text.exhausted}</p>}
       </div>
-
+      {(unavailable || exhausted) && onByok && <button type="button" onClick={onByok}>{text.byok}</button>}
+      {error && !['unavailable', 'exhausted'].includes(error) && <p className="previewAlert" role="alert">{text[error] || text.failed}</p>}
+      {!unavailable && quota && !exhausted && <>
       <div className="previewMessages" role="log" aria-label={t.review.advisorConversation} aria-live="polite">
         {!messages.length && <p className="previewEmpty">{t.results.askAnything}</p>}
         {messages.map((message, index) => (
@@ -86,10 +90,6 @@ export default function FreePreview({ sessionId, careerContext }) {
           </div>
         ))}
       </div>
-
-      {error && error !== 'unavailable' && (
-        <p className="previewAlert" role="alert">{text[error] || text.failed}</p>
-      )}
 
       <div className="previewSuggestions" aria-label={t.review.advisorSuggestions}>
         {text.suggestions.map(question => (
@@ -120,6 +120,7 @@ export default function FreePreview({ sessionId, careerContext }) {
         privacy={<p className="previewDisclosure">
           {text.disclosure} <a href="/privacy">{text.privacyLink}</a>
         </p>} />
+      </>}
     </section>
   )
 }

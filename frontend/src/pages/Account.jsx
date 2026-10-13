@@ -62,7 +62,7 @@ export function Login() {
 
         {(error || !configured) && (
           <div className="loginAlert" role="alert">
-            <p>{t.beta.authError}</p>
+            <p>{configured ? t.beta.authError : t.beta.authUnavailable}</p>
           </div>
         )}
 
