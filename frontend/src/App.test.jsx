@@ -82,7 +82,7 @@ test('live demo calls the real API directly and guides all five steps without an
   expect(isDemoSession(result.session_id)).toBe(true)
   expect(window.location.hash).toBe('#results/review-test-session')
   expect(container.textContent).toContain('90.5 / 100')
-  expect(container.textContent).toContain('28.50 of 38 possible points')
+  expect(container.textContent).toContain('+28.50 points')
   expect(container.textContent).toContain('0.60000')
   expect(container.querySelectorAll('.aiFab')).toHaveLength(1)
   expect(container.querySelectorAll('main')).toHaveLength(1)
