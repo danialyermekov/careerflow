@@ -1749,7 +1749,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           </div>
         </details>
         <div className={styles.resultActions}>
-          <button type="button" hidden={tab === 'best'} className={styles.actionBtnAiSidebar} onClick={handleOpenAiAdvisor}>
+          <button type="button" hidden={tab !== 'all'} className={styles.actionBtnAiSidebar} onClick={handleOpenAiAdvisor}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
@@ -1822,7 +1822,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                     {missingSkills.length ? <div className={styles.gapChips}>{missingSkills.map(({cat, skill}) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div> : <p>{t.review.gapEmpty}</p>}
                   </>}
                   <p className={styles.methodNote}>{t.review.coverageNote}</p>
-                  <button type="button" className={styles.secondaryAction} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
+                  <button type="button" className={styles.advisorLink} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
                 </section>}
                 explanation={<ExplainabilityPanel
                 profession={activeProf}
@@ -1864,7 +1864,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                   })}
                 </div>
               }}
-              advisor={<div className={styles.roadmapAdvisor}><div><h3>{aiCtaInfo.title}</h3><p>{aiCtaInfo.subtitle}</p></div><button type="button" className={styles.primaryAction} onClick={handleOpenAiAdvisor}>{aiCtaInfo.button}</button></div>}
+              advisor={<div className={styles.roadmapAdvisor}><div><h3>{aiCtaInfo.title}</h3><p>{aiCtaInfo.subtitle}</p></div><button type="button" className={styles.advisorLink} onClick={handleOpenAiAdvisor}>{aiCtaInfo.button}</button></div>}
             />
           )}
         </div>

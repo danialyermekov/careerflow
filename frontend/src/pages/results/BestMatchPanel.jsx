@@ -18,7 +18,6 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
           </p>}
           <div className={styles.heroActions}>
             <button type="button" className={styles.primaryAction} onClick={onRoadmap}>{t.results.viewFullRoadmap}</button>
-            <button type="button" className={styles.secondaryAction} onClick={onCompare}>{t.results.compareAll}</button>
             <button type="button" className={styles.advisorLink} aria-label={aiCtaInfo.buttonFull} onClick={onAdvisor}>{aiCtaInfo.buttonFull}</button>
           </div>
         </div>
@@ -33,7 +32,7 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
 
     <section className={styles.alternatives} aria-label={t.review.alternatives}>
       <header className={styles.analysisHeading}><h2>{t.review.alternatives}</h2>
-        <button type="button" className={styles.secondaryAction} onClick={onCompare}>{t.results.compareAll}</button>
+        <button type="button" className={styles.advisorLink} onClick={onCompare}>{t.results.compareAll}</button>
       </header>
       <div className={styles.alternativeGrid}>{alternatives.map(p => <button key={p.name} type="button" onClick={() => onSelect(p.name)}>
         <span className={styles.alternativeRank}>#{ranks[p.name]}</span>
