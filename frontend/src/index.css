@@ -41,10 +41,10 @@
   --primary: #111418;
   --primary-hover: #2A303C;
   --primary-contrast: #FFFFFF;
-  --accent: #185ADB;
-  --accent-hover: #1248B0;
+  --accent: #47647C;
+  --accent-hover: #344D63;
   --accent-contrast: #FFFFFF;
-  --accent-light: #E7EEFC;
+  --accent-light: #EDF1F5;
   --accent-glow: transparent;
   --success: #15803D;
   --success-surface: #DCFCE7;
@@ -83,10 +83,10 @@
   --primary-hover: #DCE4EE;
   --primary-contrast: #0B1018;
 
-  --accent: #93B4FF;
-  --accent-hover: #B4CBFF;
+  --accent: #A2B6CC;
+  --accent-hover: #C1CFDE;
   --accent-contrast: #0B1018;
-  --accent-light: #1C2D4A;
+  --accent-light: #233244;
   --accent-glow: transparent;
   --success: #59e3a6;
   --success-surface: #17392a;
