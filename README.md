@@ -439,18 +439,45 @@ repo:danialyermekov@188733471/careerflow@1233169767:ref:refs/heads/main
 
 The repository's immutable OIDC subject setting and owner/repository IDs were checked against this credential. No GitHub `production` environment is used: adding one changes the subject to an environment context and requires a separately approved federated credential (including these immutable IDs). Do not replace the branch subject with an older name-only example. Actions uses OIDC, not a service-principal password or registry administrator login.
 
-Azure resource group `careerflow-rg` was verified, not inferred. The assigned **Container Registry Tasks Contributor** on `careerflowacr` supports quick builds, source upload and task-run metadata in its current **LegacyRegistryPermissions** mode; no `AcrPush`/registry credentials are used by Actions. **Container Apps Contributor** on the existing `careerflow` app supports the image-only update and revision inspection. Current Azure CLI's image-only update uses a PATCH with the existing container configuration, without changing the managed environment. Use a current CLI; do not use `containerapp up`, recreate the app, or pass registry/environment/scaling flags. Existing app registry-pull configuration must remain valid.
+The deployment reuses `careerflow-rg`, `careerflowacr` and the existing `careerflow` Container App. GitHub-hosted Docker builds replace ACR Tasks: the pipeline never submits, polls or reads an ACR task. It does not require Pay-As-You-Go, new Azure services or a registry admin account. Existing ACR storage and Container Apps usage still consume the trial credit.
 
-If ACR is changed to ABAC mode, this pipeline intentionally stops. That mode requires explicit source-registry authentication (`--source-acr-auth-id '[caller]'`) and **Container Registry Repository Writer** for the deploy identity (prefer a `careerflow` repository condition), in addition to the Tasks role. Review that change before updating the workflow; it never grants Azure permissions automatically.
+For the registry's existing **LegacyRegistryPermissions** mode, the federated deployment identity needs **AcrPush** at the `careerflowacr` resource scope. Preserve registry management read access for `az acr show`/login using **Reader** at that same scope if no existing read grant covers it. **AcrPush** grants image push/pull, not registry management read or deletion. Keep **Container Apps Contributor** scoped to the existing app for image-only updates and revision inspection. The Container App's existing registry-pull identity/configuration remains separate and must remain valid. Do not grant subscription-wide Contributor or Owner to the deployment identity.
+
+An authorized Azure RBAC administrator must review and run the following manually; the workflow never assigns permissions. These commands use the existing deployment application's client ID (the value represented by `AZURE_CLIENT_ID`), not a password:
+
+```bash
+az login
+az account set --subscription '<existing-production-subscription-id>'
+DEPLOY_CLIENT_ID='<existing-careerflow-github-deploy-client-id>'
+DEPLOY_OBJECT_ID=$(az ad sp show --id "$DEPLOY_CLIENT_ID" --query id --output tsv)
+ACR_ID=$(az acr show --name careerflowacr --resource-group careerflow-rg --query id --output tsv)
+az acr show --name careerflowacr --resource-group careerflow-rg \
+  --query '{id:id,loginServer:loginServer,mode:roleAssignmentMode,adminEnabled:adminUserEnabled}'
+az role assignment list --assignee "$DEPLOY_OBJECT_ID" --scope "$ACR_ID" --include-inherited \
+  --query '[].{role:roleDefinitionName,scope:scope}' --output table
+# Add only grants missing at this scope; allow time for RBAC propagation.
+az role assignment create --assignee-object-id "$DEPLOY_OBJECT_ID" \
+  --assignee-principal-type ServicePrincipal --role AcrPush --scope "$ACR_ID"
+az role assignment create --assignee-object-id "$DEPLOY_OBJECT_ID" \
+  --assignee-principal-type ServicePrincipal --role Reader --scope "$ACR_ID"
+# After confirming no other workflow uses Tasks, remove the obsolete registry-scoped grant.
+az role assignment delete --assignee "$DEPLOY_OBJECT_ID" \
+  --role 'Container Registry Tasks Contributor' --scope "$ACR_ID"
+```
+
+Confirm the scope/login server and `LegacyRegistryPermissions` before assigning anything; leave the admin account disabled. Keep the existing OIDC federation and app-scoped grant unchanged. Removing Tasks Contributor does not remove the required read access when Reader is present. If the old grant is inherited/shared, review it separately rather than deleting it at a broader scope. See Microsoft's [AcrPush role definition](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/containers#acrpush) and [ACR authentication guidance](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-authentication).
+
+If ACR is changed to ABAC mode, this pipeline intentionally stops. That mode requires separately reviewed repository permissions (for example, Repository Writer with a `careerflow` condition); do not change the registry mode as part of this refactor.
 
 ### What happens and how to verify it
 
 1. The existing **Release checks** workflow runs both `backend` (tests, deployment safety tests, Ruff, Pyright) and `frontend` (tests, build/prerender/SEO). All jobs check out the dispatch's exact `github.sha`, even if `main` advances during the run.
-2. ACR remotely builds the root Dockerfile for Linux/amd64 using only the public frontend arguments. Tags are `careerflow:sha-<full-commit-SHA>-<public-config-hash>-<ACR-run-ID>`; successful retries reuse a matching retained build, including its original tag. A changed public build configuration gets a new image. Unique run IDs prevent tag overwrites if task history expires or no matching build remains among the latest 100 successful builds. `latest` is never used.
-3. The existing app's single container image is updated to **`careerflowacr.azurecr.io/careerflow@sha256:<digest>`**, an immutable content reference. Domain/ingress, runtime environment and secrets, registry configuration, scaling and the Dockerfile's one worker are preserved. Migrations are separate and are never run here.
-4. The script checks the actual ready revision's digest, active/provisioned/healthy status and **100% traffic**, then requests `https://careerflow.live/health` and checks Azure state again. An old revision's HTTP 200 cannot satisfy this verification. Startup/health polling has a ten-minute budget with bounded CLI/HTTP timeouts, including scale-to-zero cold starts; ACR builds have a thirty-minute budget and the deployment job a sixty-minute limit.
+2. GitHub builds the root Dockerfile for **Linux/amd64** with the existing public frontend arguments, validates the compiled frontend configuration, and loads the image into the runner's Docker daemon. GitHub build cache (`mode=max`) reuses unchanged layers, including the intermediate frontend stage, without storing a separate Azure cache image. Cache layers contain public browser configuration, never runtime credentials. Build records/summaries are disabled; GitHub masks the repository secrets, and only public browser configuration enters Docker arguments. The build finishes **before** Azure OIDC login.
+3. After OIDC login, the script checks Azure resource/configuration preflight and records the previous serving revision/image, then uses `az acr login` and `docker push`. Tags are `careerflow:sha-<full-commit-SHA>-<public-config-hash>-<GitHub-run-ID>-<attempt>`, preventing retries from overwriting earlier release tags. It validates the push digest against registry metadata before updating production. `latest` is never used. Push/login failures are reported with bounded, credential-redacted diagnostics; runner registry credentials are removed on success or failure.
+4. The existing app's single container image is updated to **`careerflowacr.azurecr.io/careerflow@sha256:<digest>`**, an immutable content reference. Domain/ingress, runtime environment and secrets, registry configuration, scaling and the Dockerfile's one worker are preserved. Migrations are separate and are never run here.
+5. The script checks the actual ready revision's digest, active/provisioned/healthy status and **100% traffic**, then requests `https://careerflow.live/health` and checks Azure state again. An old revision's HTTP 200 cannot satisfy this verification. Startup/health polling has a ten-minute budget with bounded CLI/HTTP timeouts, including scale-to-zero cold starts; Docker pushes have a thirty-minute timeout and the complete deployment job a sixty-minute limit.
 
-The run is successful only when the **deploy** job and its final **Deployment verified** summary succeed. Its summary records the commit, image tag/digest, ACR build run (for fresh builds), verified revision, and **previous serving revision/image for rollback**. Record these before any manual intervention. A failed verification does not prove the update failed: the new revision may already be serving, so inspect Azure before retrying or rolling back.
+The run is successful only when the **deploy** job and its final **Deployment verified** summary succeed. Its summary records the commit, image tag/digest, GitHub run/attempt (in the image tag), verified revision, and **previous serving revision/image for rollback**. Record these before any manual intervention. A failed verification does not prove the update failed: the new revision may already be serving, so inspect Azure before retrying or rolling back.
 
 To identify the currently serving version (the app template can lead traffic during an update):
 
@@ -462,7 +489,9 @@ az containerapp revision show --name careerflow --resource-group careerflow-rg \
   --query '{revision:name,image:properties.template.containers[0].image,active:properties.active,health:properties.healthState,provisioning:properties.provisioningState,running:properties.runningState,traffic:properties.trafficWeight}'
 ```
 
-Match its digest to the successful deployment's summary. If necessary, `az acr task list-runs --registry careerflowacr --image 'careerflow@sha256:<digest>' --run-status Succeeded --query '[].outputImages[]'` returns retained SHA-tag/build metadata. `/health` is liveness; it does not independently establish database readiness or the deployed commit.
+Match its digest to the successful deployment's summary. Use `az acr repository show --name careerflowacr --image 'careerflow@sha256:<digest>' --query '{digest:digest,tags:tags}'` to recover retained SHA-tag metadata without Tasks. `/health` is liveness; it does not independently establish database readiness or the deployed commit.
+
+Only one release tag is pushed per manual run/attempt; ACR deduplicates shared layers. Cache loss affects build time, not correctness. Periodically review storage manually and retain the serving digest plus approved rollback images; no automated purge or deletion role is added. Never delete an image referenced by a serving revision or the recorded rollback target.
 
 ### Manual rollback
 
@@ -483,9 +512,10 @@ Repeat the version-inspection commands above for up to ten minutes until **lates
 
 ### Common failures
 
-- **Missing/public-key validation:** set both repository variables for the existing production Supabase project; server keys are rejected before any build/update.
+- **Missing/public-key validation:** set both repository secrets for the existing production Supabase project; server keys are rejected before any build/update.
 - **OIDC login (`AADSTS700213` / no matching credential):** compare the issuer, audience and exact immutable branch subject; check whether an environment/custom OIDC template was added. Keep `id-token: write` confined to the deployment job. Do not create a client secret as a workaround.
-- **ACR authorization/build:** verify the Tasks role at the existing registry scope and legacy RBAC mode. Use the recorded run ID with `az acr task logs --registry careerflowacr --run-id <run-id>` or the ACR portal. Logs may include public build values; do not pass server secrets or enable debug logging. A timed-out remote build may need an explicit `az acr task cancel-run` after inspection.
+- **Runner build:** inspect the GitHub build step. The Dockerfile and frontend validation remain unchanged. A failed build stops before Azure login; retry only after fixing the reported error. Do not enable shell tracing/debug output or upload unredacted build records.
+- **ACR login/push:** verify registry-scoped AcrPush and management read permissions, legacy RBAC mode and registry connectivity. Allow RBAC propagation. `TasksOperationsNotAllowed` is avoided because no Tasks API is called; enabling admin credentials or upgrading the subscription is not a workaround used here. A failed push/digest confirmation cannot reach the Container App update.
 - **Container App authorization:** verify the app-scoped Contributor role and current CLI. Review the exact denied operation/scope before assigning additional permissions; avoid YAML/environment-changing update commands. No permission expansion is automated.
 - **Image pull or revision startup:** inspect the revision's Azure system logs/probes and the existing registry-pull configuration. Check port 8000 and runtime Supabase settings without printing their values. The workflow does not reset secrets, configure registry credentials or migrate the database.
 - **Unexpected topology or unfinished update:** the pipeline stops if revision mode, container, port, domain, 0–1 replica assumptions or latest/ready revisions differ. Resolve that state deliberately before another dispatch.
