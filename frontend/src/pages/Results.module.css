@@ -2668,7 +2668,7 @@
 }
 
 /* Stages 6–7: scoped history and advisor presentation. */
-.historyFeedbackLayout { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px; align-items: start; }
+.historyFeedbackLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
 .historyFeedbackLayout > .tabContent, .feedbackColumn { min-width: 0; }
 .historyPanel { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .historyPanel h2 { font: 500 clamp(1.75rem, 3vw, 2.5rem)/1.2 var(--font-display); margin: 0 0 16px; }
