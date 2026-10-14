@@ -24,6 +24,9 @@ export const betaTranslations = {
     ],
     contactText: 'Contact the maintainer by email, report reproducible problems on GitHub, or send feedback in the app.',
     issues: 'GitHub issue tracker',
+    privacyHeadings: ["Sign-in and identity", "Profiles and results", "Feedback", "Uploads and browser storage", "AI providers", "Retention and deletion"],
+    termsHeadings: ["Purpose and responsibility", "Acceptable use"],
+    disclaimerHeadings: ["Scores and model limits", "Market data, courses and AI"],
     privacyText: [
       'Google or GitHub sign-in is handled by Supabase Auth. CareerFlow stores your Supabase user ID, display name and timestamps. Supabase may retain identity information including email under its own policies. CareerFlow does not store provider access tokens or passwords.',
       'For signed-in users, PostgreSQL stores submitted profile details, recommendation results and AI context, skill gaps, course preferences and roadmap progress. Every private API request verifies your Supabase session and checks ownership. Guest results remain in server memory for up to two hours, are protected by a separate random credential and disappear on a server restart.',
@@ -65,6 +68,9 @@ export const betaTranslations = {
       'CareerFlow v1.1 находится в публичной бете. Разработку и поддержку осуществляет Danial Yermekov. Авторы первоначального проекта: Danial Yermekov, Nurbek Seiilbek и Turan Tastan.',
     ],
     contactText: 'Напишите разработчику по email, сообщите о воспроизводимой проблеме в GitHub или отправьте отзыв в приложении.', issues: 'Сообщить о проблеме в GitHub',
+    privacyHeadings: ["Вход и идентификация", "Профили и результаты", "Отзывы", "Загрузки и хранение в браузере", "AI-провайдеры", "Хранение и удаление"],
+    termsHeadings: ["Назначение и ответственность", "Правила использования"],
+    disclaimerHeadings: ["Баллы и ограничения модели", "Рыночные данные, курсы и AI"],
     privacyText: [
       'Вход через Google или GitHub обрабатывает Supabase Auth. CareerFlow хранит идентификатор пользователя Supabase, отображаемое имя и временные отметки. Supabase может хранить сведения учётной записи, включая email, по своим правилам. CareerFlow не хранит токены Google/GitHub и пароли.',
       'Для вошедших пользователей PostgreSQL хранит отправленные данные профиля, результаты рекомендаций и контекст для AI, пробелы в навыках, фильтры курсов и прогресс учебного плана. Каждый приватный API-запрос проверяет сессию Supabase и владельца данных. Результаты гостей хранятся в памяти сервера до двух часов, защищены отдельным случайным ключом и исчезают при перезапуске сервера.',
@@ -106,6 +112,9 @@ export const betaTranslations = {
       'CareerFlow v1.1 ашық бета нұсқасында. Әзірлеу мен қолдауды Danial Yermekov жүзеге асырады. Бастапқы жоба авторлары: Danial Yermekov, Nurbek Seiilbek және Turan Tastan.',
     ],
     contactText: 'Әзірлеушіге email жазыңыз, қайталанатын мәселені GitHub-та хабарлаңыз немесе қолданбада пікір жіберіңіз.', issues: 'GitHub-та мәселе хабарлау',
+    privacyHeadings: ["Кіру және сәйкестендіру", "Профильдер мен нәтижелер", "Пікірлер", "Жүктеу және браузерде сақтау", "AI провайдерлері", "Сақтау және жою"],
+    termsHeadings: ["Мақсаты және жауапкершілік", "Пайдалану ережелері"],
+    disclaimerHeadings: ["Балдар және модель шектеулері", "Нарық деректері, курстар және AI"],
     privacyText: [
       'Google немесе GitHub арқылы кіруді Supabase Auth өңдейді. CareerFlow Supabase пайдаланушы идентификаторын, көрсетілетін атын және уақыт белгілерін сақтайды. Supabase email қоса алғанда аккаунт деректерін өз ережелерімен сақтауы мүмкін. CareerFlow Google/GitHub токендері мен құпиясөздерді сақтамайды.',
       'Кірген пайдаланушылар үшін PostgreSQL жіберілген профиль деректерін, ұсыныс нәтижелерін және AI контекстін, жетіспейтін дағдыларды, курс сүзгілерін және оқу барысын сақтайды. Әр жеке API сұрауы Supabase сессиясын және дерек иесін тексереді. Қонақ нәтижелері сервер жадында екі сағатқа дейін сақталады, бөлек кездейсоқ кілтпен қорғалады және сервер қайта іске қосылғанда жойылады.',
