@@ -165,7 +165,10 @@ export default function Form({ onSubmit, loading, initialDemo = false, initialPr
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!validate()) return
+    if (!validate()) {
+      e.currentTarget.elements.namedItem('gpa')?.focus()
+      return
+    }
     onSubmit({ ...form, gpa: Number(form.gpa), lang }, isDemo)
   }
 
@@ -293,6 +296,7 @@ export default function Form({ onSubmit, loading, initialDemo = false, initialPr
                   <input className={`${styles.input} ${errors.gpa ? styles.error : ''}`}
                     id="profile-gpa" name="gpa" required type="number" min="2" max="4" step="0.1"
                     value={form.gpa} placeholder="3.5" aria-invalid={!!errors.gpa} aria-describedby="gpa-hint gpa-error"
+                    onInvalid={event => { setErrors({ gpa: t.errors.gpa }); event.currentTarget.focus() }}
                     onChange={e => set('gpa', e.target.value)} />
                   <p id="gpa-hint" className={styles.hint}>{t.review.required}</p>
                   <span id="gpa-error" className={styles.errorMsg} role={errors.gpa ? 'alert' : undefined}>{errors.gpa}</span>

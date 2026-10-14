@@ -194,6 +194,9 @@ test('normal empty and partial profiles keep GPA validation and accept optional 
   expect(container.textContent).not.toContain('25%')
   await act(async () => Simulate.submit(container.querySelector('form')))
   expect(api.getRecommendation).not.toHaveBeenCalled()
+  expect(document.activeElement).toBe(container.querySelector('#profile-gpa'))
+  expect(document.activeElement.getAttribute('aria-invalid')).toBe('true')
+  expect(container.querySelector('#gpa-error').textContent).toBe(require('./i18n').translations.en.errors.gpa)
   await act(async () => Simulate.change(container.querySelector('#profile-gpa'), { target: { value: '3.1' } }))
   await act(async () => Simulate.submit(container.querySelector('form')))
   expect(api.getRecommendation.mock.calls[0][0]).toMatchObject({ gpa: 3.1, skills: [], python: 0, communication: 3 })
@@ -201,6 +204,17 @@ test('normal empty and partial profiles keep GPA validation and accept optional 
   await act(async () => button('Add skills').click())
   expect(container.querySelector('#profile-gpa').value).toBe('3.1')
   expect(container.querySelector('#profile-field').value).toBe('Computer Science')
+})
+
+test('native GPA validation also exposes the associated inline error and focuses the field', async () => {
+  window.history.replaceState({}, '', '/#profile')
+  await act(async () => root.render(<App />))
+  const input = container.querySelector('#profile-gpa')
+  await act(async () => Simulate.invalid(input))
+  expect(document.activeElement).toBe(input)
+  expect(input.getAttribute('aria-invalid')).toBe('true')
+  expect(container.querySelector('#gpa-error').getAttribute('role')).toBe('alert')
+  expect(api.getRecommendation).not.toHaveBeenCalled()
 })
 
 test('profile help has three steps and links to the existing methodology, with definitions shown once', async () => {
