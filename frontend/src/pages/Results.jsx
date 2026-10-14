@@ -750,12 +750,6 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
       <details className={styles.methodDetails}>
         <summary>{t.review.calculationTitle}</summary>
         <p>{hasWeights ? t.review.weightExplanation(components.map(item => Number((item.weight * 100).toFixed(2)))) : t.review.missingWeights}</p>
-        <details className={styles.methodologyDetails}><summary>{t.review.technicalDetails}</summary>
-          <section className={styles.technicalGroup} aria-label={t.review.scoreCalculation}>
-            <h3>{t.review.scoreCalculation}</h3>
-            {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
-              {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
-            </code> : <p>{hasWeights ? t.review.partialSignals : t.review.missingWeights}</p>}
             <p className={styles.tableScrollHint}>{t.review.scrollTable}</p>
             <div className={styles.methodTableWrap} tabIndex={0} role="region" aria-label={t.review.scoreCalculation}>
               <table className={styles.methodTable}>
@@ -768,6 +762,12 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
                 </tr>)}</tbody>
               </table>
             </div>
+        <details className={styles.methodologyDetails}><summary>{t.review.technicalDetails}</summary>
+          <section className={styles.technicalGroup} aria-label={t.review.scoreCalculation}>
+            <h3>{t.review.scoreCalculation}</h3>
+            {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
+              {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
+            </code> : <p>{hasWeights ? t.review.partialSignals : t.review.missingWeights}</p>}
             <p>{t.review.normalization}</p>
             <p>{t.review.displayPrecision}</p>
           </section>

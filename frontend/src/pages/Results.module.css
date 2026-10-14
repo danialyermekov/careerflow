@@ -2105,7 +2105,10 @@
 .methodTableWrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .methodTable { width: 100%; min-width: 640px; border-collapse: collapse; text-align: left; }
 .methodTable th { overflow-wrap: normal; }
-.methodTable td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.methodTable td { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.methodTable thead th:not(:first-child) { text-align: right; }
+.methodDetails p { max-width: 72ch; line-height: 1.65; }
+.methodDetails > .methodTableWrap { margin-block: 12px; }
 .methodTable th, .methodTable td { padding: 9px; border-bottom: 1px solid var(--border); font-size: .82rem; }
 .historyNote { font-size: .8rem; color: var(--text-2); line-height: 1.65; margin: 8px 0 14px; }
 .historyItem { text-align: left; }
