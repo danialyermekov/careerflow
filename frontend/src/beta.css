@@ -127,3 +127,8 @@
 @media (max-width: 640px) { .publicHeading { align-items: flex-start; flex-direction: column; } .feedbackGrid { grid-template-columns: 1fr; } .advisorShowcase { padding: 20px; } }
 @media (max-width: 480px) { .loginPage { margin: 80px auto 32px; } .loginCard { padding: 28px 20px; border-radius: var(--radius-md, 12px); } }
 
+
+.betaPage h1 { font: 500 clamp(2rem, 4vw, 3rem)/1.2 var(--font-display); letter-spacing: -.02em; }
+.betaPage h2 { font: 500 clamp(1.375rem, 2.5vw, 1.75rem)/1.35 var(--font-display); }
+.betaPage h3 { font: 600 1.125rem/1.5 var(--font-sans); }
+.betaPage .feedbackCard h2 { font-size: 1.25rem; }
