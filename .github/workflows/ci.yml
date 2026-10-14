@@ -43,5 +43,11 @@ jobs:
         working-directory: frontend
       - run: npm test -- --runInBand
         working-directory: frontend
-      - run: npm run build
+      - run: node --test scripts/check-auth-config.test.cjs
         working-directory: frontend
+      - name: Build with public test fixtures (no production Auth or secrets)
+        run: npm run build
+        working-directory: frontend
+        env:
+          REACT_APP_SUPABASE_URL: https://build-fixture.supabase.co
+          REACT_APP_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_fixture

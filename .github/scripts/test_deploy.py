@@ -3,6 +3,7 @@
 import copy
 import io
 import os
+from pathlib import Path
 import subprocess
 import unittest
 from contextlib import redirect_stdout
@@ -81,6 +82,12 @@ class Azure:
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_workflow_uses_exact_repository_secret_names_at_guard_and_build(self):
+        workflow = (Path(__file__).resolve().parents[1] / 'workflows' / 'deploy.yml').read_text(encoding='utf-8')
+        for name in ('REACT_APP_SUPABASE_URL', 'REACT_APP_SUPABASE_PUBLISHABLE_KEY'):
+            self.assertEqual(workflow.count('${{ secrets.' + name + ' }}'), 2)
+            self.assertNotIn('${{ vars.' + name + ' }}', workflow)
+
     def setUp(self):
         self.azure = Azure()
         self.messages = []

@@ -418,14 +418,18 @@ Production CD is **manual only**: GitHub **Actions → Deploy production → Run
 
 ### One-time GitHub configuration
 
-In **Settings → Secrets and variables → Actions**, retain the existing repository **secrets** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`. Under **Variables**, create:
+In **Settings → Secrets and variables → Actions → Secrets**, retain the existing repository **secrets** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`, and supply:
 
-| Repository variable | Value |
+| Repository secret | Value |
 | --- | --- |
 | `REACT_APP_SUPABASE_URL` | The existing production Supabase project's HTTPS URL |
 | `REACT_APP_SUPABASE_PUBLISHABLE_KEY` | That same project's public publishable key (or legacy `anon` key) |
 
-Copy these public values from the production project's Supabase **Connect / API keys** settings or the existing approved frontend configuration. They are intentionally visible in the browser bundle. Never use a database password, `sb_secret_*` key or `service_role` JWT. Both variables were absent during the 12 October 2026 read-only check; the workflow fails until they are supplied. `REACT_APP_API_URL` is explicitly empty for same-origin production.
+Use these exact secret names; the workflow reads `secrets`, not repository `vars`. Both names were verified in GitHub Settings on 14 October 2026; stored values cannot be read back. These values are public browser configuration and intentionally appear in the final JavaScript, even when stored as GitHub Secrets. Never use a database password, `sb_secret_*` key or `service_role` JWT. `REACT_APP_API_URL` is explicitly empty for same-origin production. Every production build validates the URL/public key before compilation and checks their presence in the generated main JavaScript afterward, without printing either value. Release-check builds use explicit dummy public fixtures so fork PRs need no production secrets; those builds are never deployed. The deployment builds its own image with the real repository secrets.
+
+GitHub Secrets do not populate local shells or `.env` files. For local Auth, copy `frontend/.env.example` to `frontend/.env` and fill it locally with the approved project's public URL and publishable key. For a frontend served by FastAPI on port 8000, set `REACT_APP_API_URL=` (same origin), run `npm run build` from that checkout's `frontend`, then start its backend with `uv run --locked uvicorn main:app --host 127.0.0.1 --port 8000` from `backend`. Check the existing port owner first: on 14 October 2026, localhost:8000 and :3000 came from the separate `CareerFlow-design` checkout, not this `careerflow` folder. Its served `main.cc90b52c.js` matched that checkout byte-for-byte. Rebuilding a different checkout cannot update that server. Restart when changing checkout or `FRONTEND_BUILD_DIR`; by default the backend serves its own sibling `frontend/build`. Do not replace a running checkout with a CI fixture build.
+
+For development on port 3000, `npm start` reads frontend `.env` at startup; restart it after changing those values. In Supabase Auth, enable Google/GitHub and allow the exact redirect origins in use, including `http://localhost:8000/auth/callback`, `http://localhost:3000/auth/callback` or `https://careerflow.live/auth/callback`. Use `127.0.0.1` entries separately if that hostname is used. Provider credentials stay in Supabase. Enabled sign-in buttons verify client configuration only; completing OAuth is a separate check.
 
 The existing `careerflow-github-deploy` Entra application uses issuer `https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange`, and subject:
 

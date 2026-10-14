@@ -58,7 +58,7 @@ def build_config():
     key = os.environ.get('REACT_APP_SUPABASE_PUBLISHABLE_KEY', '').strip()
     parsed = urlsplit(url)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
-        raise RuntimeError('Set the public HTTPS REACT_APP_SUPABASE_URL repository variable.')
+        raise RuntimeError('Set the public HTTPS REACT_APP_SUPABASE_URL repository secret.')
     public_key = bool(re.fullmatch(r'sb_publishable_[A-Za-z0-9_-]+', key))
     if not public_key:
         try:

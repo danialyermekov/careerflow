@@ -14,7 +14,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && node scripts/prerender.cjs && node scripts/check-seo.cjs",
+    "prebuild": "node scripts/check-auth-config.cjs",
+    "build": "react-scripts build && node scripts/check-auth-config.cjs --built && node scripts/prerender.cjs && node scripts/check-seo.cjs",
     "test": "react-scripts test --watchAll=false"
   },
   "browserslist": {
