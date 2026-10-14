@@ -155,7 +155,7 @@ export const translations = {
     },
     nav: {
       title: 'CareerFlow',
-      theme: 'Theme',
+      theme: 'Theme', settings: 'Display settings',
       themeToggle: 'Toggle theme',
       language: 'Language',
       lang: 'KZ',
@@ -601,7 +601,7 @@ export const translations = {
     },
     nav: {
       title: 'CareerFlow',
-      theme: 'Тема',
+      theme: 'Тема', settings: 'Настройки интерфейса',
       themeToggle: 'Переключить тему',
       language: 'Язык',
       lang: 'EN',
@@ -1047,7 +1047,7 @@ export const translations = {
     },
     nav: {
       title: 'CareerFlow',
-      theme: 'Тақырып',
+      theme: 'Тақырып', settings: 'Интерфейс баптаулары',
       themeToggle: 'Тақырыпты ауыстыру',
       language: 'Тіл',
       lang: 'RU',

@@ -1,3 +1,4 @@
+import { useId, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import styles from './Navbar.module.css'
 import { useAuth } from '../context/AuthContext'
@@ -19,6 +20,9 @@ const MoonIcon = () => (
 export default function Navbar({ onLogoClick }) {
   const { theme, toggleTheme, lang, setLanguage, t } = useApp()
   const { user, loading } = useAuth()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsButton = useRef(null)
+  const settingsId = useId()
   const languages = [
     { key: 'en', label: 'EN' },
     { key: 'ru', label: 'RU' },
@@ -26,16 +30,32 @@ export default function Navbar({ onLogoClick }) {
   ]
 
   return (
-    <nav className={styles.nav} aria-label={t.nav.title}>
+    <nav className={styles.nav} aria-label={t.nav.title} onKeyDown={event => {
+      if (event.key === 'Escape' && settingsOpen) {
+        event.preventDefault()
+        setSettingsOpen(false)
+        settingsButton.current?.focus()
+      }
+    }} onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setSettingsOpen(false)
+    }}>
       <div className={styles.inner}>
         <a className={styles.logo} href="/" onClick={event => { if (onLogoClick) { event.preventDefault(); onLogoClick() } }} aria-label={t.nav.title}>
           <BrandLogo />
         </a>
         <div className={styles.actions}>
-          <a className={styles.feedbackLink} href="/feedback">{t.product.feedbackNav}</a>
           <a className={styles.accountLink} href={user ? '/#account' : '/#login'} onClick={() => {
             if (!user && !['#login', '#account'].includes(window.location.hash)) sessionStorage.setItem('careerflow-auth-return', window.location.hash || window.location.pathname)
           }}>{loading ? t.beta.loading : user ? t.beta.account : t.beta.login}</a>
+          <button type="button" ref={settingsButton} className={`${styles.iconBtn} ${styles.settingsBtn}`}
+            aria-label={t.nav.settings} aria-expanded={settingsOpen} aria-controls={settingsId}
+            onClick={() => setSettingsOpen(open => !open)}>
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className={styles.preferences} id={settingsId} data-open={settingsOpen}>
+          <a className={styles.feedbackLink} href="/feedback">{t.product.feedbackNav}</a>
           <button className={styles.iconBtn} onClick={toggleTheme} title={t.nav.themeToggle || t.nav.theme} aria-label={t.nav.themeToggle || t.nav.theme} aria-pressed={theme === 'dark'}>
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
@@ -50,6 +70,7 @@ export default function Navbar({ onLogoClick }) {
                 {item.label}
               </button>
             ))}
+          </div>
           </div>
         </div>
       </div>
