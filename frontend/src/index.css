@@ -135,7 +135,7 @@ h1, h2, h3 {
 }
 
 h1, h2 { text-wrap: balance; }
-html[lang="ru"] :is(h1, h2, h3), html[lang="kk"] :is(h1, h2, h3) { letter-spacing: 0; }
+:root[lang="ru"] :is(h1, h2, h3), :root[lang="kk"] :is(h1, h2, h3) { letter-spacing: 0; }
 
 button, input, select, textarea {
   font-variant-numeric: tabular-nums;
