@@ -24,8 +24,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
         {sortOptions.map(({ key, label }) => <button key={key} type="button" data-sort={key}
           aria-pressed={sortBy === key} onClick={() => onSort(key)}>{label}</button>)}
       </div>
-      <span>{t.results.sortedBy(sortLabel)}{sortBy !== 'score' && ` · ${t.review.rankNote}`}</span>
-      {selected && <button type="button" className={styles.primaryAction} onClick={onOpenDetails}>{t.review.openCareer(profLabel(selected.name))}</button>}
+      {sortBy !== 'score' && <span>{t.review.rankNote}</span>}
     </div>
     {sortBy === 'market' && <p className={styles.marketQualifier}>{t.review.marketScope(marketTrackCount)}</p>}
     {!professions.length ? <p className={styles.methodNote}>{t.review.rankingEmpty}</p> :
@@ -40,6 +39,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
             </span>
             <span className={styles.careerRowMeta}>{secondary(profession)}</span>
           </button>
+          {selected?.name === profession.name && <button type="button" className={styles.careerOpen} onClick={onOpenDetails}><span aria-hidden="true">✓ </span>{t.review.openCareer(profLabel(profession.name))}</button>}
         </li>)}
       </ol>}
   </section>

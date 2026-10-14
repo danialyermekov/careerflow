@@ -572,9 +572,9 @@ describe('editorial All Professions master-detail', () => {
     expect(document.activeElement).toBe(row)
     expect(detail()).toBeNull()
     await act(async () => container.querySelector('.careerSort button[data-sort="trend"]').click())
-    const cta = container.querySelector('.careerToolbar .primaryAction')
-    expect(cta.textContent).toBe(translations.en.review.openCareer(names[1]))
-    expect(container.querySelectorAll('.allPanel .primaryAction')).toHaveLength(1)
+    const cta = container.querySelector('.careerRowSelected .careerOpen')
+    expect(cta.textContent).toContain(translations.en.review.openCareer(names[1]))
+    expect(container.querySelectorAll('.allPanel .careerOpen')).toHaveLength(1)
     await act(async () => cta.click())
     expect(container.querySelector('.bestName').textContent).toBe(names[1])
     expect(document.activeElement).toBe(container.querySelector('.bestName'))
@@ -590,7 +590,7 @@ describe('editorial All Professions master-detail', () => {
   test('selected-career details and roadmap retain one career identity across tabs', async () => {
     const hash = window.location.hash
     await act(async () => rows().find(row => row.dataset.profession === names[2]).click())
-    await act(async () => container.querySelector('.careerToolbar .primaryAction').click())
+    await act(async () => container.querySelector('.careerRowSelected .careerOpen').click())
     await act(async () => button(translations.en.results.viewFullRoadmap).click())
     expect(container.querySelector('#results-tab-roadmap').getAttribute('aria-selected')).toBe('true')
     expect(container.querySelector('.roadmapHint').textContent).toContain(names[2])
@@ -598,7 +598,7 @@ describe('editorial All Professions master-detail', () => {
     expect(window.location.hash).toBe(hash)
     await openAll()
     expect(rows().find(row => row.getAttribute('aria-pressed') === 'true').dataset.profession).toBe(names[2])
-    await act(async () => container.querySelector('.careerToolbar .primaryAction').click())
+    await act(async () => container.querySelector('.careerRowSelected .careerOpen').click())
     expect(container.querySelector('.bestName').textContent).toBe(names[2])
   })
 
@@ -608,7 +608,7 @@ describe('editorial All Professions master-detail', () => {
     expect(rows().find(row => row.dataset.profession === names[1]).textContent).toContain(translations.en.review.gapUnavailable)
     await act(async () => container.querySelector('.careerSort button[data-sort="market"]').click())
     expect(rows().find(row => row.dataset.profession === names[1]).textContent).not.toContain('0.0%')
-    await act(async () => container.querySelector('.careerToolbar .primaryAction').click())
+    await act(async () => container.querySelector('.careerRowSelected .careerOpen').click())
     const details = container.querySelector('.bestPanel')
     expect(details.textContent).toContain(translations.en.review.missingWeights)
     expect(details.textContent).toContain(translations.en.review.partialSignals)
@@ -624,7 +624,7 @@ describe('editorial All Professions master-detail', () => {
     await act(async () => root.render(<AppProvider><Results results={{ ...result, final_scores: undefined }} /></AppProvider>))
     expect(rows()).toHaveLength(0)
     expect(container.querySelector('.allPanel').textContent).toContain(translations.en.review.rankingEmpty)
-    expect(container.querySelector('.careerToolbar .primaryAction')).toBeNull()
+    expect(container.querySelector('.careerRowSelected .careerOpen')).toBeNull()
   })
 
   test('an unavailable saved selection resolves a stable fallback for details, roadmap and persistence', async () => {
@@ -635,7 +635,7 @@ describe('editorial All Professions master-detail', () => {
     expect(container.querySelector('.marketQualifier').textContent).toContain('among 7 tracks')
     expect(rows().every(row => !row.querySelector('.careerRowMeta').textContent.includes('among 7 tracks'))).toBe(true)
     await act(async () => container.querySelector('.careerSort button[data-sort="trend"]').click())
-    await act(async () => container.querySelector('.careerToolbar .primaryAction').click())
+    await act(async () => container.querySelector('.careerRowSelected .careerOpen').click())
     expect(container.querySelector('.gapAssessment').textContent).toContain('Skill-1')
     expect(container.querySelector('.gapAssessment').textContent).not.toContain('Skill-4')
     expect(container.querySelector('.methodologyDetails').textContent).toContain('among 7 tracks')
@@ -651,7 +651,7 @@ describe('editorial All Professions master-detail', () => {
     expect(rows().find(row => row.getAttribute('aria-pressed') === 'true').dataset.profession).toBe(names[6])
     for (const row of rows()) { expect(row.tagName).toBe('BUTTON'); expect(row.tabIndex).toBe(0) }
     await act(async () => container.querySelector('.careerSort button[data-sort="skill"]').click())
-    await act(async () => container.querySelector('.careerToolbar .primaryAction').click())
+    await act(async () => container.querySelector('.careerRowSelected .careerOpen').click())
     expect(document.activeElement).toBe(container.querySelector('.bestName'))
     await act(async () => button(translations.en.results.viewFullRoadmap).click())
     expect(container.querySelector('.roadmapProgressPanel').textContent).toContain('1 of 1')
