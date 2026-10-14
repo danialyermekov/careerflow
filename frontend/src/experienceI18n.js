@@ -2,13 +2,13 @@ export const experienceTranslations = {
   en: {
     preparingDemo: 'Preparing your example…', demoFailed: 'Could not prepare the demo. Please try again.', demoBusy: 'Too many requests. Please wait a moment and try again.',
     liveDemo: 'Try Live Demo', next: 'Next', back: 'Back', skip: 'Skip Tour', finish: 'Finish Tour',
-    tour: 'Demo walkthrough', temporary: 'Demo results and progress are temporary (up to two hours). They are never added to your account. Sign in to save future personal recommendations.',
+    tour: 'Demo walkthrough', temporary: 'This demo is temporary and will not be added to your account.',
     steps: [
       ['Your Recommendation', 'This is a real recommendation, calculated from the demo profile, skills and historical market signals.'],
       ['Why This Career?', 'Explore the score breakdown and explanation below. Profile, skill matching and historical demand contribute to the ranking. Match scores are not career-success probabilities.'],
       ['Compare Career Paths', 'Choose another supported profession in the comparison below to inspect its score and skill gaps. You can return to your top match at any time.'],
       ['Your Learning Roadmap', 'Explore missing skills and learning steps. Mark one item as completed using its checkbox, then open an associated course to learn more. Demo progress is temporary.'],
-      ['Continue Your Journey', 'Create an account or sign in to save future recommendations and progress. You can also open the optional AI Advisor; the tour does not send AI requests.'],
+      ['Continue Your Journey', 'Demo complete. Create your profile, or sign in to save future results.'],
     ],
     login: 'Create account / Sign in', advisor: 'Try AI Career Advisor',
     free: 'Try with Gemini', freeText: 'Ask up to 3 questions about your career recommendations. No API key required.',
@@ -30,13 +30,13 @@ export const experienceTranslations = {
   ru: {
     preparingDemo: 'Готовим ваш пример…', demoFailed: 'Не удалось подготовить демо. Попробуйте ещё раз.', demoBusy: 'Слишком много запросов. Немного подождите и повторите попытку.',
     liveDemo: 'Попробовать живое демо', next: 'Далее', back: 'Назад', skip: 'Пропустить тур', finish: 'Завершить тур',
-    tour: 'Знакомство с демо', temporary: 'Результаты и прогресс демо временные (до двух часов) и не добавляются в аккаунт. Войдите, чтобы сохранять будущие личные рекомендации.',
+    tour: 'Знакомство с демо', temporary: 'Демо временное и не переносится в аккаунт.',
     steps: [
       ['Ваша рекомендация', 'Это настоящая рекомендация, рассчитанная по демо-профилю, навыкам и историческим сигналам рынка.'],
       ['Почему эта профессия?', 'Посмотрите состав оценки и объяснение ниже. На ранжирование влияют профиль, соответствие навыков и исторический спрос. Match score не является вероятностью карьерного успеха.'],
       ['Сравните карьерные пути', 'Выберите другую поддерживаемую профессию в сравнении ниже, чтобы изучить её оценку и недостающие навыки. К лучшей рекомендации можно вернуться.'],
       ['Ваш учебный план', 'Изучите недостающие навыки и шаги обучения. Отметьте один пункт выполненным с помощью флажка и откройте связанный курс. Прогресс демо временный.'],
-      ['Продолжите свой путь', 'Создайте аккаунт или войдите, чтобы сохранять будущие рекомендации и прогресс. Можно также открыть опциональный AI Advisor; сам тур не отправляет AI-запросов.'],
+      ['Продолжите свой путь', 'Демо готово. Теперь можно создать свой профиль или сохранять будущие результаты после входа.'],
     ],
     login: 'Создать аккаунт / Войти', advisor: 'Попробовать AI Advisor',
     free: 'Попробовать Gemini', freeText: 'Задайте до 3 вопросов о своих карьерных рекомендациях. API-ключ не нужен.',
@@ -58,13 +58,13 @@ export const experienceTranslations = {
   kk: {
     preparingDemo: 'Үлгіңізді дайындап жатырмыз…', demoFailed: 'Демоны дайындау мүмкін болмады. Қайталап көріңіз.', demoBusy: 'Сұраулар тым көп. Сәл күтіп, қайталап көріңіз.',
     liveDemo: 'Тікелей демоны көру', next: 'Келесі', back: 'Артқа', skip: 'Турды өткізу', finish: 'Турды аяқтау',
-    tour: 'Демомен танысу', temporary: 'Демо нәтижелері мен прогресі уақытша (екі сағатқа дейін) және аккаунтқа қосылмайды. Болашақ жеке ұсыныстарды сақтау үшін кіріңіз.',
+    tour: 'Демомен танысу', temporary: 'Демо уақытша және аккаунтқа қосылмайды.',
     steps: [
       ['Сіздің ұсынысыңыз', 'Бұл демо-профиль, дағдылар және нарықтың тарихи сигналдары бойынша есептелген нақты ұсыныс.'],
       ['Неліктен осы мамандық?', 'Төмендегі баға құрамын және түсіндірмені қараңыз. Рейтингке профиль, дағдылар сәйкестігі және тарихи сұраныс әсер етеді. Match score мансаптық табыс ықтималдығы емес.'],
       ['Мансап жолдарын салыстыру', 'Бағасы мен жетіспейтін дағдыларын көру үшін төмендегі салыстырудан басқа қолдау көрсетілетін мамандықты таңдаңыз. Үздік ұсынысқа қайта оралуға болады.'],
       ['Сіздің оқу жоспарыңыз', 'Жетіспейтін дағдылар мен оқу қадамдарын зерттеңіз. Бір тармақты құсбелгімен орындалды деп белгілеп, байланысты курсты ашыңыз. Демо прогресі уақытша.',],
-      ['Жолыңызды жалғастырыңыз', 'Болашақ ұсыныстар мен прогресті сақтау үшін аккаунт жасаңыз немесе кіріңіз. Қосымша AI Advisor ашуға болады; тур AI сұрауларын жібермейді.'],
+      ['Жолыңызды жалғастырыңыз', 'Демо дайын. Өз профиліңізді жасаңыз немесе болашақ нәтижелерді сақтау үшін кіріңіз.'],
     ],
     login: 'Аккаунт жасау / Кіру', advisor: 'AI Advisor қолданып көру',
     free: 'Gemini қолданып көру', freeText: 'Мансап ұсыныстары туралы 3 сұраққа дейін қойыңыз. API кілті қажет емес.',
