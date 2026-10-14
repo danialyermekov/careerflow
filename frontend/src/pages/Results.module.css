@@ -2862,3 +2862,11 @@
 .guestNotice > summary { min-height: 44px; display: list-item; padding-block: 10px; cursor: pointer; font-size: .875rem; }
 .sessionNotice { padding-block: 0; margin-top: 8px; }
 .sessionNotice .guestNotice p { margin: 0 0 12px; max-width: 72ch; }
+
+/* Match the profile page's section rhythm while keeping nested content quiet. */
+.bestPanel > [data-tour-slot="explanation"], .bestPanel .alternatives { padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); }
+.bestPanel :is(.gapAssessment, .alternatives) h2, .bestPanel .explainCard > summary { font: 500 clamp(1.375rem, 2vw, 1.75rem)/1.35 var(--font-display); }
+.bestPanel .explainCard { margin: 0; padding: 24px; }
+.bestPanel .explainCard > summary { padding: 4px 0; }
+.bestPanel .alternatives .analysisHeading { margin-bottom: 16px; }
+@media (max-width: 640px) { .bestPanel > [data-tour-slot="explanation"], .bestPanel .alternatives, .bestPanel .explainCard { padding: 20px; } }
