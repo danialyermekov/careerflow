@@ -2885,3 +2885,7 @@
 .learningPanel .dependencyPanel > summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
 .learningPanel .courseFilterPanel { padding: 12px 16px; }
 .learningPanel .dragHint { margin: 0; }
+
+.learningPanel .courseWrap { align-items: start; flex-direction: column; gap: 8px; }
+.learningPanel .courseWrap .course { width: 100%; min-height: 44px; gap: 6px; padding-block: 8px; }
+.courseDetailsLabel { font: 500 .875rem/1.5 var(--font-sans); color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }

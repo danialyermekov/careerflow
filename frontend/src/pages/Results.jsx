@@ -517,9 +517,9 @@ function CourseCard({ course, t, onOpen, onCopy, copied }) {
   return (
     <div className={styles.courseWrap}>
       <button type="button" className={styles.course} onClick={() => onOpen(course)}>
-        <span className={styles.coursePlatform}>{course.platform}</span>
         <span className={styles.courseTitle}>{course.title || t.review.courseUntitled}</span>
         <span className={styles.courseMeta}>
+          <span className={styles.coursePlatform}>{course.platform}</span>
           {course.rating > 0 && <span className={styles.courseRating}>★ {course.rating}</span>}
           {course.reviews != null && (
             <span className={styles.courseReviews}>
@@ -530,6 +530,7 @@ function CourseCard({ course, t, onOpen, onCopy, copied }) {
           {course.hasLevel !== false && <span className={styles.courseReviews}>{t.results.courseFilters?.levels?.[course.level] || course.level}</span>}
           {formatCoursePrice(course, t) && <span className={styles.coursePrice}>{formatCoursePrice(course, t)}</span>}
         </span>
+        <span className={styles.courseDetailsLabel}>{t.review.courseDetails}</span>
       </button>
       <div className={styles.roadmapCourseActions}>
         {providerUrl && <a href={providerUrl} target="_blank" rel="noopener noreferrer" className={styles.secondaryAction}>{course.url ? t.results.openCourse : t.results.openCourseSearch.replace('{provider}', course.platform || t.results.courseFilters.platform)}</a>}
