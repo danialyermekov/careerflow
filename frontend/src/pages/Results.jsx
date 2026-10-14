@@ -342,7 +342,7 @@ function SkillImpactChart({ explanation, profile, t }) {
     </div>
     <ul className={styles.shapLegend}>{t.review.shapSigns.map(([label, description]) => <li key={label}><strong>{label}</strong><span>{description}</span></li>)}</ul>
     <p className={styles.methodNote}>{t.review.shapLimit}</p>
-    <button type="button" className={styles.featureDisclosure} aria-controls="career-feature-contributions" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? t.review.collapseFeatures : t.polish.fullFeatures} ({items.length}) <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span></button>
+    <button type="button" className={styles.featureDisclosure} aria-controls="career-feature-contributions" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? t.review.collapseFeatures : t.polish.fullFeatures} ({items.length}) <svg className={styles.disclosureChevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
     <details className={styles.featureDetails}><summary>{t.review.shapHelp}</summary>
       {t.review.shapReading.map(([title, text], index) => <p className={styles.methodNote} key={title}><strong>{title} </strong>{index === 0 ? isShap ? t.polish.shapDenominator : t.review.fallbackDenominator : text}</p>)}
       {!isShap && <p className={styles.methodNote}>{t.results.shapFallback}</p>}

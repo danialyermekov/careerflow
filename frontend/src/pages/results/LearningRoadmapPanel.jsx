@@ -80,7 +80,7 @@ export default function LearningRoadmapPanel({ profession, entries, total, compl
             <h3><button type="button" className={styles.catHeader} onClick={() => onToggleCategory(cat)} aria-expanded={isOpen} aria-controls={contentId}>
               <span className={styles.catName}>{catLabel(cat)}</span>
               <span className={styles.catCount}>{t.review.stepsRemaining(skills.length - doneCount)} · {doneCount}/{skills.length}</span>
-              <span aria-hidden="true">{isOpen ? '⌃' : '⌄'}</span>
+              <svg className={styles.disclosureChevron} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button></h3>
           </div>
           {isOpen && <div id={contentId} className={styles.skillList}>
