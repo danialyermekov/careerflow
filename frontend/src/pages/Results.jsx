@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import Feedback from '../components/Feedback'
 import styles from './Results.module.css'
-import { getScoreBreakdown, formatMatchScore, formatMatchPoints } from '../utils/scoring'
+import { getScoreBreakdown, formatMatchScore, formatMatchPoints, formatRawValue } from '../utils/scoring'
 import { isDemoSession } from '../utils/demoProfile'
 import LLMSettings from '../components/LLMSettings'
 import GuidedTour from '../components/GuidedTour'
@@ -762,7 +762,9 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
               <table className={styles.methodTable}>
                 <thead><tr><th>{t.polish.signal}</th><th>{t.review.raw}</th><th>{t.review.index}</th><th>{t.review.weight}</th><th>{t.review.contribution}</th></tr></thead>
                 <tbody>{components.map(item => <tr key={item.key}>
-                  <th scope="row">{labels[item.key]}</th><td>{item.available ? String(item.raw) : '—'}</td><td>{item.available ? `${item.value !== 0 && Math.abs(item.value * 100) < .005 ? (item.value * 100).toPrecision(5) : (item.value * 100).toFixed(2)} / 100` : '—'}</td>
+                  <th scope="row">{labels[item.key]}</th><td>{item.available ? <details className={styles.rawValue}>
+                    <summary aria-label={`${t.review.showExactValue}: ${formatRawValue(item.raw)}`}>{formatRawValue(item.raw)}</summary><code>{String(item.raw)}</code>
+                  </details> : '—'}</td><td>{item.available ? `${item.value !== 0 && Math.abs(item.value * 100) < .005 ? (item.value * 100).toPrecision(5) : (item.value * 100).toFixed(2)} / 100` : '—'}</td>
                   <td>{item.weight == null ? '—' : `${Number((item.weight * 100).toFixed(2))}%`}</td><td>{!item.available || item.contribution == null ? '—' : t.review.pointsValue(item.contribution)}</td>
                 </tr>)}</tbody>
               </table>

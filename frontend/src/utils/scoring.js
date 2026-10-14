@@ -18,3 +18,4 @@ export function getScoreBreakdown(results, profession) {
 
 export const formatMatchPoints = value => (Math.round(Number(value || 0) * 1000) / 10).toFixed(1)
 export const formatMatchScore = value => `${formatMatchPoints(value)} / 100`
+export const formatRawValue = value => Number(value.toPrecision(6)).toString()

@@ -251,8 +251,22 @@ describe('editorial results navigation and Best Match', () => {
   test.each([[0, '0.00 / 100'], [1e-10, '6.6667e-8 / 100']])('technical indices distinguish zero from small values (%s)', async (value, expected) => {
     await act(async () => root.render(<AppProvider><Results results={{ ...result, skill_scores: { ...result.skill_scores, 'Data Analyst': value } }} /></AppProvider>))
     const row = container.querySelector('.methodTable tbody tr:nth-child(2)')
-    expect(row.querySelectorAll('td')[0].textContent).toBe(String(value))
+    expect(row.querySelectorAll('td')[0].querySelector('summary').textContent).toBe(String(value))
     expect(row.querySelectorAll('td')[1].textContent).toBe(expected)
+  })
+
+  test('raw values are compact until the keyboard-accessible exact value disclosure opens', async () => {
+    const raw = 0.9865577206853644
+    const edited = { ...result, classification_scores: { ...result.classification_scores, 'Data Analyst': raw } }
+    await act(async () => root.render(<AppProvider><Results results={edited} /></AppProvider>))
+    const detail = container.querySelector('.methodTable tbody tr:first-child .rawValue')
+    expect(detail.open).toBe(false)
+    expect(detail.querySelector('summary').textContent).toBe('0.986558')
+    expect(detail.querySelector('code').textContent).toBe(String(raw))
+    await act(async () => detail.querySelector('summary').click())
+    expect(detail.open).toBe(true)
+    expect(edited.classification_scores['Data Analyst']).toBe(raw)
+    expect(container.querySelector('.heroScore').textContent).toContain('95.0')
   })
 
   test('compact context retains inputs without duplicated rankings/history/roadmap and actions remain accessible', async () => {

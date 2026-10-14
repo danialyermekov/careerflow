@@ -2842,3 +2842,5 @@
   .bestPanel .skillImpactRow { grid-template-columns: minmax(0, 1fr) 70px; }
   .bestPanel .skillImpactTrack { grid-column: 1 / 3; grid-row: 2; }
 }
+.bestPanel .rawValue > summary { cursor: pointer; width: fit-content; font: inherit; }
+.rawValue > code { display: block; margin-top: 8px; overflow-wrap: anywhere; }
