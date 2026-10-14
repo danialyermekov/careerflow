@@ -132,3 +132,10 @@
 .betaPage h2 { font: 500 clamp(1.375rem, 2.5vw, 1.75rem)/1.35 var(--font-display); }
 .betaPage h3 { font: 600 1.125rem/1.5 var(--font-sans); }
 .betaPage .feedbackCard h2 { font-size: 1.25rem; }
+
+@media (max-width: 768px) {
+  .betaPage { margin-top: 28px; margin-bottom: 32px; }
+  .betaPage > .betaCard:first-child { margin-top: 0; }
+  .loginPage { margin-top: 28px; min-height: calc(100dvh - 160px); }
+  .betaPage :is(h1, h2, h3), .loginTitle { scroll-margin-top: 88px; }
+}
