@@ -76,7 +76,7 @@ test('live demo calls the real API directly and guides all five steps without an
     'https://huggingface.co/datasets/lukebarousse/data_jobs',
     'https://www.kaggle.com/datasets/hafsaatm/career-path-recommendation',
   ]))
-  await act(async () => button('Try Live Demo').click())
+  await act(async () => button('Try the demo').click())
   expect(api.getRecommendation).toHaveBeenCalledWith({ ...DEMO_PROFILE, lang: 'en' }, { demo: true })
   expect(container.querySelector('#profile-gpa')).toBeNull()
   expect(isDemoSession(result.session_id)).toBe(true)
@@ -117,7 +117,7 @@ test('pending demo has one status and a later profile submission ignores the old
     .mockImplementationOnce(() => new Promise(resolve => { resolveDemo = resolve }))
     .mockImplementationOnce(() => new Promise(resolve => { resolveProfile = resolve }))
   await act(async () => root.render(<App />))
-  const launch = button('Try Live Demo')
+  const launch = button('Try the demo')
   await act(async () => { launch.click(); launch.click() })
   expect(api.getRecommendation).toHaveBeenCalledTimes(1)
   expect(container.querySelectorAll('button[aria-label="Preparing your example…"]')).toHaveLength(3)
@@ -142,7 +142,7 @@ test.each(['hashchange', 'popstate'])('leaving demo via %s ignores a late succes
   let rejectDemo
   api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectDemo = reject }))
   await act(async () => root.render(<App />))
-  await act(async () => button('Try Live Demo').click())
+  await act(async () => button('Try the demo').click())
   await act(async () => {
     window.history.pushState({}, '', '/#login')
     window.dispatchEvent(new Event(event))
@@ -158,7 +158,7 @@ test.each(['success', 'failure'])('changing language keeps the pending demo and 
   let resolveDemo, rejectDemo
   api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { resolveDemo = resolve; rejectDemo = reject }))
   await act(async () => root.render(<App />))
-  await act(async () => button('Try Live Demo').click())
+  await act(async () => button('Try the demo').click())
   await act(async () => button('RU').click())
   expect(container.querySelectorAll('button[aria-label="Готовим ваш пример…"]')).toHaveLength(3)
   expect([...container.querySelectorAll('button[aria-label="Готовим ваш пример…"]')].every(el => el.disabled)).toBe(true)
@@ -176,11 +176,11 @@ test.each([500, 429])('failed demo (%s) restores all actions and Retry can succe
   let rejectDemo
   api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectDemo = reject }))
   await act(async () => root.render(<App />))
-  await act(async () => button('Try Live Demo').click())
+  await act(async () => button('Try the demo').click())
   await act(async () => rejectDemo(Object.assign(new Error('Request failed'), { status })))
   const text = require('./i18n').translations.en.experience
   expect(container.querySelector('[role="alert"]').textContent).toBe(status === 429 ? text.demoBusy : text.demoFailed)
-  expect([...container.querySelectorAll('button[aria-label="Try Live Demo"]')].every(el => !el.disabled)).toBe(true)
+  expect([...container.querySelectorAll('button[aria-label="Try the demo"]')].every(el => !el.disabled)).toBe(true)
   await act(async () => button('Try again').click())
   expect(window.location.hash).toBe('#results/review-test-session')
   expect(container.querySelector('.guidedTour')).not.toBeNull()
@@ -215,9 +215,9 @@ test('profile help has three steps and links to the existing methodology, with d
   expect(guide.querySelector('a').getAttribute('href')).toBe('/#methodology')
 })
 
-test('editorial landing has the compass, four-step flow, seven tracks and scroll-only section navigation', async () => {
+test('editorial landing explains career exploration, four-step flow, seven tracks and scroll-only section navigation', async () => {
   await act(async () => root.render(<App />))
-  expect(container.querySelector('h1').textContent).toBe('A rigorous, auditable compass for your career in technology.')
+  expect(container.querySelector('h1').textContent).toBe('Explore your IT career options. Find your next learning step.')
   expect(button('Create your profile')).toBeTruthy()
   expect(container.querySelectorAll('#how-it-works ol > li')).toHaveLength(4)
   expect(container.querySelectorAll('#career-tracks article')).toHaveLength(7)
@@ -338,7 +338,7 @@ test('profile resume import merges reviewed skills and preserves all technical a
 
 test('keyboard Escape skips the demo without calling an AI provider', async () => {
   await act(async () => root.render(<App />))
-  await act(async () => button('Try Live Demo').click())
+  await act(async () => button('Try the demo').click())
   expect(document.activeElement).toBe(container.querySelector('.guidedTour'))
   await act(async () => Simulate.keyDown(container.querySelector('.guidedTour'), { key: 'Escape' }))
   expect(container.querySelector('.guidedTour')).toBeNull()

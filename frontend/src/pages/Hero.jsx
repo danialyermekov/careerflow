@@ -10,7 +10,7 @@ export default function Hero({ onStart, onDemo, demoLoading = false, error = '' 
   const [demoSource, setDemoSource] = useState('hero')
   const launchDemo = source => { setDemoSource(source); onDemo() }
   const demoButton = source => <>
-    <button className={`${styles.cta} ${styles.demoCta}`} onClick={() => launchDemo(source)} disabled={demoLoading}
+    <button className={`${styles.secondaryCta} ${styles.demoCta}`} onClick={() => launchDemo(source)} disabled={demoLoading}
       aria-label={demoLoading ? t.experience.preparingDemo : t.experience.liveDemo}>
       <span aria-hidden="true" style={{ visibility: demoLoading ? 'hidden' : 'visible' }}>{t.experience.liveDemo}</span>
       <span aria-hidden="true" style={{ visibility: demoLoading ? 'visible' : 'hidden' }}>{t.experience.preparingDemo}</span>
@@ -35,13 +35,15 @@ export default function Hero({ onStart, onDemo, demoLoading = false, error = '' 
     <span className="visuallyHidden" role="status">{demoLoading ? t.experience.preparingDemo : ''}</span>
     <div className={styles.landing} aria-busy={demoLoading}>
     <section className={styles.hero}>
-      <h1 className={styles.title}>{t.hero.titleStart}<em>{t.hero.titleEnd}</em></h1>
+      <h1 className={styles.title}>{t.hero.titleStart}{t.hero.titleEnd}</h1>
       <p className={styles.subtitle}>{t.hero.subtitle}</p>
       <div className={styles.ctaGroup}>
+        <button className={styles.cta} onClick={onStart}>{t.review.start}</button>
         {demoButton('hero')}
-        <button className={styles.secondaryCta} onClick={onStart}>{t.review.start}</button>
-        <a className={styles.secondaryCta} href="#methodology" onClick={scrollToSection}>{t.hero.methodology}</a>
       </div>
+      <a className={styles.methodologyLink} href="#methodology" onClick={scrollToSection}>{t.hero.methodology}</a>
+      <p className={styles.accessNote}>{t.hero.recommendationAccess}</p>
+      <p className={styles.guestNote}>{t.hero.guestNote}</p>
       <div className={styles.metrics}>
         {[t.hero.trackCount, '2023', t.hero.signalCount, t.hero.guestAccess].map((value, index) => <div key={value}>
           <strong>{value}</strong><span>{t.hero.metricDescriptions[index]}</span>
@@ -128,8 +130,8 @@ export default function Hero({ onStart, onDemo, demoLoading = false, error = '' 
       <div className={styles.finalCta}>
         <h2>{t.review.ctaTitle}</h2><p>{t.review.ctaText}</p>
         <div className={styles.ctaGroup}>
+          <button className={styles.cta} onClick={onStart}>{t.review.start}</button>
           {demoButton('closing')}
-          <button className={styles.secondaryCta} onClick={onStart}>{t.hero.cta}</button>
           <a className={styles.secondaryCta} href="#career-tracks" onClick={scrollToSection}>{t.hero.tracksTitle}</a>
         </div>
         <p className={styles.note}>{t.experience.byokText}</p>

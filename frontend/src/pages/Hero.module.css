@@ -1,7 +1,9 @@
 .landing { padding-top: 73px; }
-.hero { max-width: 1024px; margin: auto; padding: 64px 24px 96px; text-align: center; }
-.title { max-width: 900px; margin: auto; font-size: clamp(2.5rem, 4.5vw, 3.875rem); font-weight: 400; line-height: 1.12; letter-spacing: -.025em; text-wrap: balance; }
-.title em { font-weight: 400; }
+.hero { max-width: 1024px; margin: auto; padding: 64px 24px; text-align: center; }
+.title { max-width: 900px; margin: auto; font-size: clamp(2.25rem, 4.2vw, 3.75rem); font-weight: 400; line-height: 1.12; letter-spacing: -.02em; text-wrap: balance; }
+.methodologyLink { display: inline-flex; align-items: center; min-height: 44px; margin-top: 12px; font-size: .9375rem; text-decoration: underline; text-underline-offset: 3px; }
+.accessNote { margin-top: 16px; color: var(--text-2); font-size: .875rem; }
+.guestNote { max-width: 65ch; margin: 8px auto 0; color: var(--text-2); font-size: .875rem; line-height: 1.6; }
 .subtitle { max-width: 680px; margin: 24px auto 32px; color: var(--text-2); font-size: 1.125rem; line-height: 1.75; }
 .ctaGroup { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 16px; }
 .cta, .secondaryCta { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 12px 24px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); font: inherit; font-size: .875rem; font-weight: 600; text-align: center; cursor: pointer; transition: background var(--transition); }
@@ -9,7 +11,7 @@
 .cta:hover { background: var(--primary-hover); }
 .secondaryCta { background: var(--bg-secondary); color: var(--text); }
 .secondaryCta:hover { background: var(--bg-tertiary); }
-.cta:disabled { opacity: .65; cursor: wait; }
+.demoCta:disabled { opacity: .65; cursor: wait; }
 .demoCta { position: relative; display: inline-grid; max-width: 100%; overflow: hidden; }
 .demoCta > span { grid-area: 1 / 1; }
 .busyLine { position: absolute; bottom: 5px; left: 15%; width: 24%; height: 2px; background: currentColor; animation: demoProgress 1s ease-in-out infinite alternate; }
@@ -19,14 +21,14 @@
 @media (prefers-reduced-motion: reduce) { .busyLine { animation: none; left: 38%; } }
 .metrics { max-width: 900px; margin: 48px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .metrics > div { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 16px; }
-.metrics strong { display: block; font: 500 1.5rem/1.25 var(--font-display); }
+.metrics strong { display: block; font: 600 1.5rem/1.25 var(--font-sans); font-variant-numeric: tabular-nums; }
 .metrics span { display: block; margin-top: 8px; font-size: .875rem; color: var(--text-2); }
 .section { padding: 80px 32px; border-top: 1px solid var(--border); scroll-margin-top: 96px; }
 .shaded { background: var(--bg-tertiary); }
 .container { max-width: 1024px; margin: auto; }
 .sectionHeader { max-width: 680px; margin: 0 auto 48px; text-align: center; }
-.sectionHeader h2, .finalCta h2 { font-size: clamp(1.875rem, 3vw, 2.5rem); font-weight: 400; line-height: 1.2; letter-spacing: -.015em; text-wrap: balance; }
-.sectionHeader p { margin-top: 16px; color: var(--text-2); line-height: 1.75; }
+.sectionHeader h2, .finalCta h2 { font-size: clamp(1.5rem, 2.4vw, 1.875rem); font-weight: 400; line-height: 1.2; letter-spacing: -.015em; text-wrap: balance; }
+.sectionHeader p { margin-top: 12px; color: var(--text-2); line-height: 1.6; }
 .flow, .roadmapFlow { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
 .flow li, .roadmapFlow li { min-width: 0; position: relative; }
 .flow li::before { content: ''; position: absolute; height: 1px; background: var(--border); top: 22px; left: 44px; right: -24px; }
