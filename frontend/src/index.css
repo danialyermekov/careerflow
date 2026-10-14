@@ -22,13 +22,13 @@
   --content-width: 1280px;
   --text-1: var(--text);
 
-  --bg: #FBFBFA;
+  --bg: #FAFAFA;
   --bg-secondary: #FFFFFF;
-  --bg-tertiary: #F2F3F1;
+  --bg-tertiary: #F5F5F5;
   --panel: #FFFFFF;
-  --panel-strong: #F2F3F1;
-  --nav-bg: #FBFBFA;
-  --border: #D9DDD8;
+  --panel-strong: #F5F5F5;
+  --nav-bg: #FAFAFA;
+  --border: #E0E2E4;
   --border-control: #7A828D;
   --border-hover: #7A828D;
   --grid-line: rgba(17, 20, 24, .04);
