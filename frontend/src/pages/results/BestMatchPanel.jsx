@@ -18,14 +18,13 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
           </p>}
           <div className={styles.heroActions}>
             <button type="button" className={styles.primaryAction} onClick={onRoadmap}>{t.results.viewFullRoadmap}</button>
+            <button type="button" className={styles.secondaryAction} onClick={onCompare}>{t.results.compareAll}</button>
+            <button type="button" className={styles.advisorLink} aria-label={aiCtaInfo.buttonFull} onClick={onAdvisor}>{aiCtaInfo.buttonFull}</button>
           </div>
         </div>
         <div className={styles.heroScore}><strong>{t.review.scoreTitle}</strong>{score}<p>{t.review.scoreNote}</p></div>
       </div>
       {incompleteProfile}
-      <div className={styles.aiRecommendationCta}>
-        <button type="button" className={styles.secondaryAction} aria-label={aiCtaInfo.buttonFull} onClick={onAdvisor}>{aiCtaInfo.buttonFull}</button>
-      </div>
     </section>
 
     <div data-tour-slot="explanation">{scoring}</div>

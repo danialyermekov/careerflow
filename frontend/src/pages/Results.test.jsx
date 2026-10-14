@@ -120,7 +120,7 @@ describe('Results component', () => {
   })
 
   test('AI CTA button is rendered near top recommendation and dynamically updates label', async () => {
-    const ctaBtn = container.querySelector('.aiRecommendationCta button')
+    const ctaBtn = container.querySelector('.heroActions .advisorLink')
     expect(ctaBtn).not.toBeNull()
     expect(ctaBtn.textContent).toContain(translations.en.results.askAiRecommendation)
 

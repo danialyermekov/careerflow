@@ -290,7 +290,7 @@ function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey
   return (
     <div
       style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke}/>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
           strokeLinecap="round"
@@ -354,12 +354,10 @@ function ExplainabilityPanel({ profession, t, skillExplanation, profile }) {
   if (!profession) return null
 
   return (
-    <section className={styles.explainCard} data-tour-detail="explanation">
-      <div className={styles.compareHeader}>
-        <span>{t.polish.classifierExplanation}</span>
-      </div>
+    <details className={styles.explainCard} data-tour-detail="explanation">
+      <summary>{t.polish.classifierExplanation}</summary>
       <SkillImpactChart explanation={skillExplanation} profile={profile} t={t}/>
-    </section>
+    </details>
   )
 }
 
@@ -1888,7 +1886,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 onSelect={handleSelectProf} onRoadmap={() => setTab('roadmap')} onCompare={() => setTab('all')}
                 aiCtaInfo={aiCtaInfo} onAdvisor={handleOpenAiAdvisor}
                 incompleteProfile={Array.isArray(profile.skills) && profile.skills.length === 0 ? <p className={styles.profileNotice}>{t.review.incompleteProfile} <button type="button" className={styles.secondaryAction} onClick={() => onEditProfile ? onEditProfile(profile) : onRetry?.()}>{t.review.addSkills}</button></p> : null}
-                score={<ProgressRing value={activeProf.final_score ?? 0} size={144} stroke={8}
+                score={<ProgressRing value={activeProf.final_score ?? 0} size={112} stroke={6}
                   color="var(--accent)" animKey={animKey} />}
                 scoring={<ScoringFormulaHeader results={results} profession={activeProf.name} t={t} profile={profile} />}
                 skillGap={<section className={styles.gapAssessment} aria-label={t.review.skillGaps}>
@@ -1901,7 +1899,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
                     {missingSkills.length ? <div className={styles.gapChips}>{missingSkills.map(({cat, skill}) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div> : <p>{t.review.gapEmpty}</p>}
                   </>}
                   <p className={styles.methodNote}>{t.review.coverageNote}</p>
-                  <button type="button" className={styles.primaryAction} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
+                  <button type="button" className={styles.secondaryAction} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
                 </section>}
                 explanation={<ExplainabilityPanel
                 profession={activeProf}
