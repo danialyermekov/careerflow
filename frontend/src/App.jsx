@@ -38,6 +38,9 @@ function AppInner() {
   const [profileDraft, setProfileDraft] = useState(null)
   const [advisorRequested, setAdvisorRequested] = useState(false)
   const pendingRequest = useRef(null)
+  // Changing language updates request errors without restarting routing.
+  const requestText = useRef(t)
+  requestText.current = t
   const reducedMotion = useReducedMotion()
   const cancelPendingRequest = () => { pendingRequest.current = null; setLoading(false) }
   useEffect(() => () => { pendingRequest.current = null }, [])
@@ -67,7 +70,7 @@ function AppInner() {
           setPage('results')
         }
       } catch {
-        if (!cancelled && pendingRequest.current === request && window.location.hash === hash) { setError(t.errors.api); setPage('form') }
+        if (!cancelled && pendingRequest.current === request && window.location.hash === hash) { setError(requestText.current.errors.api); setPage('form') }
       } finally {
         if (!cancelled && pendingRequest.current === request) cancelPendingRequest()
       }
@@ -76,7 +79,7 @@ function AppInner() {
     window.addEventListener('hashchange', route)
     window.addEventListener('popstate', route)
     return () => { cancelled = true; window.removeEventListener('hashchange', route); window.removeEventListener('popstate', route) }
-  }, [results, t.errors.api, authLoading])
+  }, [results, authLoading])
 
   useEffect(() => {
     if (page !== 'results' || !results) updatePageMetadata(page, t, lang)
@@ -114,7 +117,8 @@ function AppInner() {
       showResult({ ...data, _formData: profile, _isDemo: isDemo, _guided: guided })
     } catch (e) {
       if (pendingRequest.current === request && window.location.href === routeUrl) {
-        setError(isDemo ? e.status === 429 ? t.experience.demoBusy : t.experience.demoFailed : t.errors.api)
+        const text = requestText.current
+        setError(isDemo ? e.status === 429 ? text.experience.demoBusy : text.experience.demoFailed : text.errors.api)
       }
     } finally {
       if (pendingRequest.current === request) cancelPendingRequest()

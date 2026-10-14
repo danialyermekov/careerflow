@@ -154,6 +154,24 @@ test.each(['hashchange', 'popstate'])('leaving demo via %s ignores a late succes
   expect(container.querySelector('[aria-busy="true"]')).toBeNull()
 })
 
+test.each(['success', 'failure'])('changing language keeps the pending demo and localizes its %s', async outcome => {
+  let resolveDemo, rejectDemo
+  api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { resolveDemo = resolve; rejectDemo = reject }))
+  await act(async () => root.render(<App />))
+  await act(async () => button('Try Live Demo').click())
+  await act(async () => button('RU').click())
+  expect(container.querySelectorAll('button[aria-label="Готовим ваш пример…"]')).toHaveLength(3)
+  expect([...container.querySelectorAll('button[aria-label="Готовим ваш пример…"]')].every(el => el.disabled)).toBe(true)
+  if (outcome === 'success') {
+    await act(async () => resolveDemo(result))
+    expect(window.location.hash).toBe('#results/review-test-session')
+    expect(container.querySelector('.guidedTour')).not.toBeNull()
+  } else {
+    await act(async () => rejectDemo(new Error('Request failed')))
+    expect(container.querySelector('[role="alert"]').textContent).toBe(require('./i18n').translations.ru.experience.demoFailed)
+  }
+})
+
 test.each([500, 429])('failed demo (%s) restores all actions and Retry can succeed', async status => {
   let rejectDemo
   api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectDemo = reject }))
