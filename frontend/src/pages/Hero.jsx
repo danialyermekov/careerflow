@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { formatNumber } from '../utils/scoring'
 import { DEMO_PROFILE } from '../utils/demoProfile'
 import styles from './Hero.module.css'
 
 const tracks = ['Data Analyst', 'Software Engineer', 'Machine Learning Engineer', 'Cloud Engineer', 'Data Scientist', 'Data Engineer', 'Business Analyst']
 
 export default function Hero({ onStart, onDemo, demoLoading = false, error = '' }) {
-  const { t } = useApp()
+  const { t, lang } = useApp()
   const [demoSource, setDemoSource] = useState('hero')
   const launchDemo = source => { setDemoSource(source); onDemo() }
   const demoButton = source => <>
@@ -66,7 +67,7 @@ export default function Hero({ onStart, onDemo, demoLoading = false, error = '' 
         <div className={styles.preview}>
           <div className={styles.previewHeader}>
             <div><strong>{t.hero.sampleProfile}</strong><p>{t.hero.demoInput}</p></div>
-            <span className={styles.badge}>GPA: {DEMO_PROFILE.gpa} / 4.0</span>
+            <span className={styles.badge}>GPA: {formatNumber(DEMO_PROFILE.gpa, lang, { minimumFractionDigits: 1 })} / {formatNumber(4, lang, { minimumFractionDigits: 1 })}</span>
             <div className={styles.chips}>{DEMO_PROFILE.skills.map(skill => <span key={skill}>{skill}</span>)}</div>
           </div>
           <div className={styles.previewBody}>

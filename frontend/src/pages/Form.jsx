@@ -1,3 +1,4 @@
+import { formatNumber } from '../utils/scoring'
 import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { parseResume } from '../utils/api'
@@ -400,7 +401,7 @@ export default function Form({ onSubmit, loading, initialDemo = false, initialPr
 
             {/* ── Soft Skills ── */}
             <div className={styles.section}>
-              <div className={styles.sectionHeader}><h2 className={styles.sectionLabel}>{t.form.soft.label}</h2><span className={styles.badge}>{t.form.average} {softAvg.toFixed(1)} / 5</span></div>
+              <div className={styles.sectionHeader}><h2 className={styles.sectionLabel}>{t.form.soft.label}</h2><span className={styles.badge}>{t.form.average} {formatNumber(softAvg, lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 5</span></div>
               <p className={styles.hint}>{t.form.softDescription}</p>
               <div className={styles.softGrid}>
                 {SOFT_KEYS.map(key => (
