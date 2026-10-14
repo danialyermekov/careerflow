@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from api.auth import optional_user
+from api.auth import optional_user, require_user
 from api.dependencies import get_llm, get_llm_credentials
 from api.errors import llm_http_error
 from api.routes.recommendations import recommendation_state
@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.get('/ai/preview', response_model=PreviewStatusResponse, response_model_exclude_unset=True)
-def preview_status(request: Request, response: Response, user=Depends(optional_user)):
+def preview_status(request: Request, response: Response, user=Depends(require_user)):
     try:
         return ai_trial.status(request, response, user)
     except RuntimeError:
@@ -28,7 +28,7 @@ def preview_status(request: Request, response: Response, user=Depends(optional_u
 
 
 @router.post('/ai/preview', response_model=PreviewChatResponse)
-def preview_chat(payload: TrialRequest, request: Request, response: Response, user=Depends(optional_user)):
+def preview_chat(payload: TrialRequest, request: Request, response: Response, user=Depends(require_user)):
     if request.headers.get('x-demo-session') == 'true':
         result = guest_sessions.state(payload.session_id, guest_sessions.guest_owner(request))['results']
     else:

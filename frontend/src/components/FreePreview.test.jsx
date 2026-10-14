@@ -5,12 +5,16 @@ import { AppProvider } from '../context/AppContext'
 import { translations } from '../i18n'
 import * as api from '../utils/api'
 import FreePreview from './FreePreview'
+import { useAuth } from '../context/AuthContext'
+
+jest.mock('../context/AuthContext', () => ({ useAuth: jest.fn() }))
 
 jest.mock('../utils/api')
 let root, container
 beforeEach(() => {
   global.IS_REACT_ACT_ENVIRONMENT = true
   localStorage.clear()
+  useAuth.mockReturnValue({ user: { id: 'signed-in-user' }, loading: false })
   api.getTrialStatus.mockResolvedValue({ available: true, remaining: 3, total: 3 })
   api.sendTrialMessage.mockResolvedValue({ response: 'Learn SQL first.', remaining: 2, provider: 'gemini' })
   container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
@@ -53,4 +57,35 @@ test('exhausted preview identifies quota exhaustion separately', async () => {
   expect(container.textContent).toContain(translations.en.experience.exhausted)
   expect(container.textContent).not.toContain(translations.en.experience.unavailable)
   expect(container.querySelector('textarea')).toBeNull()
+})
+
+
+test.each(['en', 'ru', 'kk'])('guest preview requires sign-in in %s without requesting a quota', async lang => {
+  useAuth.mockReturnValue({ user: null, loading: false })
+  await act(async () => root.render(<AppProvider initialLanguage={lang}><FreePreview sessionId="guest-session" /></AppProvider>))
+  expect(container.textContent).toContain(translations[lang].experience.signInRequired)
+  expect(container.querySelector('a').getAttribute('href')).toBe('/#login')
+  expect(container.querySelector('textarea')).toBeNull()
+  expect(api.getTrialStatus).not.toHaveBeenCalled()
+  expect(api.sendTrialMessage).not.toHaveBeenCalled()
+})
+
+test('sign-out removes the preview and sign-in reloads the account quota', async () => {
+  const render = () => root.render(<AppProvider initialLanguage="en"><FreePreview sessionId="owned-session" /></AppProvider>)
+  await act(async () => render())
+  expect(api.getTrialStatus).toHaveBeenCalledTimes(1)
+  useAuth.mockReturnValue({ user: null, loading: false })
+  await act(async () => render())
+  expect(container.querySelector('textarea')).toBeNull()
+  expect(api.getTrialStatus).toHaveBeenCalledTimes(1)
+  useAuth.mockReturnValue({ user: { id: 'another-user' }, loading: false })
+  await act(async () => render())
+  expect(api.getTrialStatus).toHaveBeenCalledTimes(2)
+})
+
+test('preview waits for authentication before requesting a quota', async () => {
+  useAuth.mockReturnValue({ user: null, loading: true })
+  await act(async () => root.render(<AppProvider initialLanguage="en"><FreePreview sessionId="owned-session" /></AppProvider>))
+  expect(container.textContent).toContain(translations.en.beta.loading)
+  expect(api.getTrialStatus).not.toHaveBeenCalled()
 })

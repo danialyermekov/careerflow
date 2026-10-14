@@ -90,7 +90,7 @@ The backend requires **Python >=3.11,<3.14**, as specified in [pyproject.toml](p
    Follow [development configuration](../README.md#development-configuration) and the [checked migration example](../README.md#safe-local-migrations) in the root README. Create `.env` from [.env.example](.env.example) only if it does not already exist. `DATABASE_URL`, `SUPABASE_URL` and the public Auth key must refer to your development project, never production. Migrations reference `auth.users`; a bare PostgreSQL database is not sufficient. Startup does not create tables.
 
 4. **Optional AI assistant:**
-   Gemini Free Preview is enabled on production with up to three messages per preview identity; local installations default to disabled. Its server key is `GEMINI_DEMO_API_KEY`, with `API_KEY` as a legacy fallback **for Preview only**. BYOK never falls back to server keys, and no owner Anthropic key is required.
+   Gemini Free Preview is enabled on production with up to three lifetime messages per verified account; local installations default to disabled. Its server key is `GEMINI_DEMO_API_KEY`, with `API_KEY` as a legacy fallback **for Preview only**. BYOK never falls back to server keys, and no owner Anthropic key is required.
 
    In the frontend AI assistant panel, select Claude or Gemini, enter a key, and select **Use key** for the currently loaded page. **Remove key** disables BYOK immediately. The frontend keeps credentials only in memory until a full refresh or page close, and sends `X-LLM-Provider` and `X-LLM-API-Key` exclusively to `/chat`, `/chat/stream`, and `/voice/transcribe`. The backend uses short-lived SDK clients and does not persist BYOK keys. Voice transcription is Gemini-only. Missing BYOK credentials return 400; provider errors are sanitized, including SSE failures. Operational failures log the operation and exception type, excluding provider exception text and credentials. See [AI Advisor](../README.md#ai-advisor) for the full flow, quotas and security limits.
 
@@ -138,7 +138,7 @@ uv run --locked python -m pyright
 *   **Payload**: Requires the provider/key headers above, `session_id`, `history` (array of prior message objects), and the user's current `message`.
 
 ### `GET /ai/preview` and `POST /ai/preview`
-*   **Description**: Reads the server-managed Gemini allowance or submits a consented preview question about an owned recommendation. Guest and account allowances are tracked separately in PostgreSQL.
+*   **Description**: Reads the server-managed Gemini allowance or submits a consented preview question about an owned recommendation. Both endpoints require a verified Supabase access token (HTTP 401 for guests). Lifetime account allowances are tracked in PostgreSQL and shared with Guided Demo.
 
 See the root [API endpoint table](../README.md#api-endpoints) for streaming, resume parsing, courses, history, progress, accounts, public feedback and roadmap routes.
 
