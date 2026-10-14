@@ -458,6 +458,12 @@ describe('editorial results navigation and Best Match', () => {
     await act(async () => button(translations.en.results.downloadPdf).click())
     expect(printWindow.document.write.mock.calls[0][0]).toContain('<div class="prof-name">Data Scientist</div>')
     expect(printWindow.document.write.mock.calls[0][0]).toContain('40.0 / 100')
+    const html = printWindow.document.write.mock.calls[0][0]
+    expect(html).not.toContain('score-circles')
+    expect(html).not.toContain('score-fill')
+    expect(html).toContain(translations.en.review.manualProgress)
+    expect(html).toContain(translations.en.results.courseCatalogNote)
+    expect(html).toContain('Noto+Serif')
     await act(async () => button(translations.en.results.tabs.best).click())
     expect(container.querySelectorAll('[data-tour-slot="recommendation"],[data-tour-slot="explanation"]')).toHaveLength(2)
     await act(async () => container.querySelector('button[aria-label*="Ask"]').click())

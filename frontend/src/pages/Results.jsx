@@ -44,12 +44,6 @@ const BAR_COLORS = {
   trend_score: 'var(--text-3)',
   market_share: 'var(--text-2)',
 }
-const PDF_BAR_COLORS = {
-  skill_match:   '#5b8dee',
-  profile_match: '#9b6ddf',
-  trend_score:   '#4caf82',
-  market_share:  '#f0943a',
-}
 const PROFILE_TECH_LABELS = {
   python: 'Python', java: 'Java', c_cpp: 'C/C++', sql: 'SQL', machine_learning: 'Machine Learning',
   data_analysis: 'Data Analysis', cloud_computing: 'Cloud Computing', cybersecurity: 'Cybersecurity',
@@ -1595,68 +1589,31 @@ export default function Results({ results: initialResults, formData, onBack, onR
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 
-  const scoreLines = rows
-    .filter(r => activeProf?.[r.key] != null)
-    .map(r => `<div class="score-row">
-      <span class="score-label">${r.label}</span>
-      <div class="score-bar-wrap">
-        <div class="score-bar">
-          <div class="score-fill" style="width:${Math.round(parseFloat(activeProf[r.key]) / r.max * 100)}%;background:${PDF_BAR_COLORS[r.key]}"></div>
-        </div>
-        <span class="score-pct">${Math.round(parseFloat(activeProf[r.key]) / r.max * 100)} / 100</span>
-      </div>
-    </div>`).join('')
-
-  const allScoreLines = sorted.map(p => {
-    const factors = rows.map(r => `<span style="background:${PDF_BAR_COLORS[r.key]};width:${(p.contributions?.[r.key] ?? 0)}%"></span>`).join('')
-    return `<div class="all-score-row">
-      <span class="all-score-name">${esc(profLabel(p.name))}</span>
-      <div class="all-score-track"><i style="width:${pct(p.final_score)}%"></i><b>${factors}</b></div>
-      <span class="all-score-pct">${formatMatchScore(p.final_score)}</span>
-    </div>`
-  }).join('')
-
-  const scoreCircles = sorted.map(p => {
-    const score = pct(p.final_score)
-    return `<div class="score-circle">
-      <div class="circle" style="--score:${score * 3.6}deg"><span>${formatMatchPoints(p.final_score)}<small>/100</small></span></div>
-      <strong>${esc(profLabel(p.name))}</strong>
-    </div>`
-  }).join('')
-
+  const allScoreLines = sorted.map(p => `<div class="all-score-row">
+    <span class="all-score-name">${esc(profLabel(p.name))}</span>
+    <span class="all-score-pct">${formatMatchScore(p.final_score)}</span>
+  </div>`).join('')
+  const scoreLines = rows.filter(r => activeProf?.[r.key] != null).map(r => `<div class="all-score-row">
+    <span>${esc(r.label)}</span><span>${formatMatchScore(activeProf[r.key] / r.max)}</span>
+  </div>`).join('')
   const gapRows = sorted.map(p => {
     const summary = getProfessionRoadmapSummary(results, p.name)
     const total = sumSkillCount(summary.full)
-    const gap = sumSkillCount(summary.gap)
-    const known = Math.max(total - gap, 0)
-    const completion = total ? Math.round(known / total * 100) : 0
-    return `<div class="gap-row">
-      <span>${esc(profLabel(p.name))}</span>
-      <div class="gap-track"><i style="width:${completion}%"></i></div>
-      <b>${known}/${total}</b>
-    </div>`
+    const known = Math.max(total - sumSkillCount(summary.gap), 0)
+    return `<div class="all-score-row"><span>${esc(profLabel(p.name))}</span><span>${known}/${total}</span></div>`
   }).join('')
-
-  const explainRows = rows
-    .filter(r => activeProf?.[r.key] != null)
-    .map(r => `<div class="explain-row">
-      <span>${esc(r.label)}</span>
-      <div><i style="width:${pct(activeProf[r.key], r.max)}%;background:${PDF_BAR_COLORS[r.key]}"></i></div>
-      <b>${pct(activeProf[r.key], r.max)} / 100</b>
-    </div>`)
-    .join('')
 
   const roadmapSections = Object.entries(roadmapAdapted).map(([cat, skills]) =>
     `<div class="rm-section">
       <div class="rm-cat">
-        <span>${catLabel(cat).toUpperCase()}</span>
+        <span>${esc(catLabel(cat))}</span>
         <span class="rm-count">${skillWord(skills.length)}</span>
       </div>
       ${skills.map(s => `<div class="rm-skill">
         <span class="rm-check">□</span>
         <div class="rm-skill-body">
           <span class="rm-skill-name">${esc(cap(s.skill))}</span>
-          ${s.courses.slice(0, 2).map(c => {
+          ${s.courses.map(c => {
             const rating = c.rating && !isNaN(parseFloat(c.rating))
               ? `<span class="rm-rating">★ ${parseFloat(c.rating).toFixed(1)}</span>`
               : ''
@@ -1664,9 +1621,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
               ? `<span class="rm-reviews">${Number(c.reviews).toLocaleString()} ${t.results.reviews}</span>`
               : ''
             return `<div class="rm-course">
-              <span class="rm-platform">${esc(c.platform)}</span>
-              <span class="rm-title">${esc(c.title)}</span>
-              <span class="rm-meta">${rating}${reviews}</span>
+              <strong class="rm-title">${esc(c.title)}</strong>
+              <span class="rm-meta">${esc(c.platform)} · ${esc(t.results.courseLanguages?.[c.language] || c.language)} · ${esc(t.results.courseFilters?.levels?.[c.level] || c.level)} · ${esc(formatCoursePrice(c, t))} ${rating}${reviews}</span>
+              <span class="rm-meta">${esc(c.certificate ? t.results.courseFilters.withCertificate : t.results.courseFilters.withoutCertificate)}</span>
+              <a href="${getCourseProviderUrl(c).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">${esc(c.url ? t.results.openCourse : t.results.openCourseSearch.replace('{provider}', c.platform || t.results.courseFilters.platform))}</a>
             </div>`
           }).join('')}
         </div>
@@ -1681,70 +1639,37 @@ export default function Results({ results: initialResults, formData, onBack, onR
     ? `${t.results.pdfFor} ${userName} · ${new Date().toLocaleDateString()}`
     : new Date().toLocaleDateString()
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  const html = `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">
   <title>${t.results.pdfRoadmap}: ${esc(profLabel(activeProfName))}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500&amp;family=Noto+Sans:wght@400;500;600&amp;family=Noto+Serif:wght@400;500&amp;display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,Segoe UI,sans-serif;color:#1e1e1c;font-size:13px;line-height:1.5}
-    .header{background:#5b8dee;color:white;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
-    .header-title{font-size:15px;font-weight:700}
-    .header-sub{font-size:11px;opacity:0.8}
-    .body{padding:24px}
-    .prof-name{font-size:22px;font-weight:800;letter-spacing:-0.03em;margin-bottom:4px}
-    .prof-sub{font-size:12px;color:#888;margin-bottom:18px}
-    .section-title{font-size:9px;font-weight:700;letter-spacing:0.1em;color:#999;text-transform:uppercase;font-family:monospace;margin-bottom:10px}
-    .scores{margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #eee}
-    .score-circles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-    .score-circle{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #eee;border-radius:8px;break-inside:avoid}
-    .circle{width:38px;height:38px;border-radius:50%;background:conic-gradient(#5b8dee var(--score),#e8edf5 0);display:grid;place-items:center;flex-shrink:0}
-    .circle span{width:29px;height:29px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:9px;font-family:monospace;font-weight:700}
-    .score-circle strong{font-size:10px;line-height:1.25}
-    .all-scores{display:flex;flex-direction:column;gap:7px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #eee}
-    .all-score-row{display:grid;grid-template-columns:150px 1fr 88px;gap:10px;align-items:center}
-    .all-score-name{font-size:11px;color:#444}
-    .all-score-track{position:relative;height:8px;background:#edf1f7;border-radius:99px;overflow:hidden}
-    .all-score-track>i{position:absolute;inset:0 auto 0 0;background:#5b8dee;border-radius:99px}
-    .all-score-track>b{position:absolute;inset:0;display:flex;opacity:.55}
-    .all-score-track>b span{display:block;height:100%}
-    .all-score-pct{font-size:11px;font-family:monospace;text-align:right}
-    .score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-    .score-label{font-size:11px;color:#666;font-family:monospace;min-width:130px}
-    .score-bar-wrap{flex:1;display:flex;align-items:center;gap:8px}
-    .score-bar{flex:1;height:5px;background:#eee;border-radius:3px;overflow:hidden}
-    .score-fill{height:100%;border-radius:3px}
-    .score-pct{font-size:11px;font-family:monospace;color:#444;min-width:66px;text-align:right}
-    .explain-copy{font-size:12px;color:#555;margin-bottom:10px}
-    .explain{display:flex;flex-direction:column;gap:7px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #eee}
-    .explain-row{display:grid;grid-template-columns:130px 1fr 34px;gap:10px;align-items:center}
-    .explain-row span{font-size:11px;color:#555}
-    .explain-row div{height:6px;background:#eee;border-radius:99px;overflow:hidden}
-    .explain-row i{display:block;height:100%;border-radius:99px}
-    .explain-row b{font-size:11px;font-family:monospace;text-align:right}
-    .gap-summary{display:flex;flex-direction:column;gap:7px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #eee}
-    .gap-row{display:grid;grid-template-columns:150px 1fr 42px;gap:10px;align-items:center}
-    .gap-row span{font-size:11px}
-    .gap-row b{font-size:11px;font-family:monospace;text-align:right}
-    .gap-track{height:7px;background:#edf1f7;border-radius:99px;overflow:hidden}
-    .gap-track i{display:block;height:100%;background:#4caf82;border-radius:99px}
-    .progress-line{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:10px;border:1px solid #eee;border-radius:8px}
-    .progress-line span{font-size:12px;font-weight:600;min-width:170px}
-    .progress-line i{flex:1;height:8px;background:#edf1f7;border-radius:99px;overflow:hidden}
-    .progress-line b{display:block;height:100%;background:#5b8dee;border-radius:99px}
-    .rm-section{margin-bottom:20px;break-inside:avoid}
-    .rm-cat{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-family:monospace;color:#5b8dee;background:#f0f4ff;padding:5px 10px;border-radius:4px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
-    .rm-count{font-weight:400;opacity:0.7;font-size:9px}
-    .rm-skill{display:flex;gap:8px;margin-bottom:10px;padding-left:4px}
-    .rm-check{font-size:12px;color:#bbb;margin-top:1px;flex-shrink:0;font-family:monospace}
-    .rm-skill-body{flex:1}
-    .rm-skill-name{font-size:13px;font-weight:600;display:block;margin-bottom:4px}
-    .rm-course{display:flex;gap:8px;align-items:center;margin-top:3px}
-    .rm-platform{font-size:10px;font-family:monospace;color:#aaa;min-width:48px;flex-shrink:0}
-    .rm-title{font-size:11px;color:#555;flex:1}
-    .rm-meta{display:flex;gap:6px;align-items:center;flex-shrink:0}
-    .rm-rating{font-size:10px;color:#e8a045;font-family:monospace;white-space:nowrap}
-    .rm-reviews{font-size:10px;color:#bbb;font-family:monospace;white-space:nowrap}
-    .footer{margin-top:32px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#bbb;font-family:monospace}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:12mm 14mm}}
+    body{font-family:"Noto Sans","Segoe UI",sans-serif;color:#20262c;background:white;font-size:11pt;line-height:1.55}
+    .header{padding:8mm 0 5mm;border-bottom:1px solid #b9c0c5}
+    .header-title,.prof-name,.section-title,.rm-cat{font-family:${lang === 'en' ? 'Newsreader' : '"Noto Serif"'},Georgia,serif;font-weight:500;line-height:1.3}
+    .header-title{font-size:16pt;display:block}
+    .header-sub,.prof-sub,.rm-meta,.footer{font-size:10pt;color:#4b5560}
+    .body{padding-top:6mm}
+    .prof-name{font-size:26pt;margin-bottom:2mm}
+    .prof-sub{margin-bottom:4mm}
+    p{margin:2mm 0 4mm;max-width:72ch;orphans:3;widows:3}
+    .section-title{font-size:17pt;margin:7mm 0 3mm;break-after:avoid}
+    .all-score-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6mm;padding:2mm 0;border-bottom:1px solid #e1e4e6;break-inside:avoid}
+    .all-score-row span:last-child{font-variant-numeric:tabular-nums;text-align:right}
+    .progress-line{padding:3mm 0;border-block:1px solid #b9c0c5}
+    .rm-cat{font-size:14pt;padding:3mm 0;margin-top:5mm;border-bottom:1px solid #b9c0c5;display:flex;justify-content:space-between;gap:5mm;break-after:avoid}
+    .rm-count{font:400 10pt "Noto Sans",sans-serif;white-space:nowrap}
+    .rm-skill{display:flex;gap:3mm;padding:4mm 0;break-inside:avoid}
+    .rm-check{flex-shrink:0}
+    .rm-skill-body{min-width:0;flex:1}
+    .rm-skill-name{font-weight:600;font-size:12pt}
+    .rm-course{margin-top:3mm;break-inside:avoid;overflow-wrap:anywhere}
+    .rm-title,.rm-meta{display:block}
+    .rm-title{font-weight:500}
+    .rm-rating,.rm-reviews{margin-left:2mm}
+    a{color:#405d73;text-underline-offset:2px;font-size:10pt}
+    .footer{margin-top:8mm;padding-top:3mm;border-top:1px solid #b9c0c5}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4;margin:14mm 16mm}}
   </style></head>
   <body>
     <div class="header">
@@ -1755,18 +1680,14 @@ export default function Results({ results: initialResults, formData, onBack, onR
       <div class="prof-name">${esc(profLabel(activeProfName))}</div>
       <div class="prof-sub">${t.results.pdfSubtitle}</div><p>${esc(t.review.scoreNote)}</p><p>${esc(t.review.marketNote)}</p>
       <div class="section-title">${t.results.pdfAllScores}</div>
-      <div class="score-circles">${scoreCircles}</div>
       <div class="all-scores">${allScoreLines}</div>
       <div class="section-title">${t.results.pdfScores}</div>
-      <div class="scores">${scoreLines}</div><p>${esc(t.review.normalization)}</p>
-      <div class="section-title">${t.results.pdfExplain}</div>
-      <div class="explain-copy">${esc(t.results.whyTop ? t.results.whyTop(profLabel(activeProf.name)) : '')}</div>
-      <div class="explain">${explainRows}</div>
+      <div class="scores">${scoreLines}</div><p>${esc(t.review.normalization)}</p><p>${esc(t.review.profileText)}</p><a href="${window.location.origin}/#methodology">${esc(t.review.sources)}</a>
       <div class="section-title">${t.results.pdfSkillGap}</div>
-      <div class="gap-summary">${gapRows}</div>
+      <div class="gap-summary">${gapRows}</div><p>${esc(t.review.coverageNote)}</p>
       <div class="section-title">${t.results.pdfProgress}</div>
-      <div class="progress-line"><span>${esc(t.results.roadmapProgress(doneRoadmapSteps, totalRoadmapSteps))}</span><i><b style="width:${totalRoadmapSteps ? Math.round(doneRoadmapSteps / totalRoadmapSteps * 100) : 0}%"></b></i></div>
-      <div class="section-title">${t.results.pdfRoadmap}</div><p>${esc(t.review.roadmapNote)}</p>
+      <div class="progress-line"><span>${esc(t.results.roadmapProgress(doneRoadmapSteps, totalRoadmapSteps))}</span><p>${esc(t.review.manualProgress)}</p></div>
+      <div class="section-title">${t.results.pdfRoadmap}</div><p>${esc(t.review.roadmapNote)}</p><p>${esc(t.results.courseCatalogNote)}</p>
       ${roadmapSections}
       <div class="footer">${t.results.pdfGenerated}</div>
     </div>
@@ -1775,7 +1696,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   const win = window.open('', '_blank', 'width=800,height=900')
   win.document.write(html)
   win.document.close()
-  win.onload = () => { win.focus(); win.print() }
+  win.onload = async () => { await win.document.fonts.ready; win.focus(); win.print() }
   setPdfLoading(false)
 }
 
