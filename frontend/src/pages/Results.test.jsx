@@ -306,7 +306,9 @@ describe('editorial results navigation and Best Match', () => {
     const technical = container.querySelector('.methodologyDetails')
     expect(technical.open).toBe(false)
     expect(container.querySelector('.inputTable').textContent).toContain('java0')
-    expect(technical.textContent).toContain('0.123456')
+    expect(container.querySelector('.formulaBanner').textContent).toContain('0.123456')
+    const weights = [...container.querySelectorAll('.formulaBanner > details')].find(el => el.textContent.includes('0.123456'))
+    expect(weights.querySelector('p').textContent).toBe(translations.en.results.skillsTooltip)
 
   })
 

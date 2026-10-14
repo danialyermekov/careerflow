@@ -747,6 +747,10 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
           </div>
         ))}
       </div>
+          {!!results.user_skills_ranked?.length && <details className={styles.technicalGroup}>
+            <summary>{t.polish.calculatedSkills}</summary><p>{t.results.skillsTooltip}</p>
+            <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
+          </details>}
       <details className={styles.methodDetails}>
         <summary>{t.review.calculationTitle}</summary>
         <p>{hasWeights ? t.review.weightExplanation(components.map(item => Number((item.weight * 100).toFixed(2)))) : t.review.missingWeights}</p>
@@ -778,10 +782,7 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
             <p>{t.review.marketNote}</p>
             <a href="/#methodology">{t.review.sources}</a>
           </section>
-          {!!results.user_skills_ranked?.length && <details className={styles.technicalGroup}>
-            <summary>{t.polish.calculatedSkills}</summary><p>{t.results.skillsTooltip}</p>
-            <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
-          </details>}
+
         </details>
       </details>
           <details className={styles.technicalGroup}>
