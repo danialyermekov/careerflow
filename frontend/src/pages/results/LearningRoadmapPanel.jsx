@@ -63,8 +63,8 @@ export default function LearningRoadmapPanel({ profession, entries, total, compl
         <i style={{ width: `${percentage}%` }} />
       </div>
       <p>{t.review.manualProgress}</p>
+      {dependencies}
     </section>
-    {dependencies}
     <p className={styles.dragHint}>{t.results.dragHint} {t.review.keyboardReorder}</p>
     {filters}
     {!total && <p className={styles.courseEmptyState}>{t.review.learningEmpty}</p>}

@@ -376,11 +376,9 @@ function SkillDependencyTree({ roadmap, doneSkills, formSkills, t }) {
   if (!enriched.length) return null
 
   return (
-    <section className={styles.dependencyPanel}>
-      <div className={styles.dependencyHeading}>
-        <h3>{t.results.dependencyTree}</h3>
-        {next && <small>{t.results.nextStep}: {cap(next.skill)}</small>}
-      </div>
+    <div className={styles.nextStepContext}>
+      {next && <p className={styles.nextStep}><strong>{t.results.nextStep}: {cap(next.skill)}</strong></p>}
+    <details className={styles.dependencyPanel}><summary>{t.results.dependencyTree}</summary>
       <p className={styles.methodNote}>{t.review.dependencyShort}</p>
       <details className={styles.featureDetails}><summary>{t.review.dependencyHelp}</summary><p className={styles.methodNote}>{t.review.dependencyNote}</p></details>
       <div className={styles.dependencyTree}>
@@ -403,7 +401,7 @@ function SkillDependencyTree({ roadmap, doneSkills, formSkills, t }) {
           </div>
         ))}
       </div>
-    </section>
+    </details></div>
   )
 }
 
