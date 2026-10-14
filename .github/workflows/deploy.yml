@@ -14,6 +14,10 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - name: Require main and public build configuration
         env:
           REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
@@ -24,10 +28,7 @@ jobs:
             echo "::error::Production deployment is only allowed from danialyermekov/careerflow main."
             exit 1
           fi
-          if [[ -z "$REACT_APP_SUPABASE_URL" || -z "$REACT_APP_SUPABASE_PUBLISHABLE_KEY" ]]; then
-            echo "::error::Set repository secrets REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_PUBLISHABLE_KEY (public browser key only)."
-            exit 1
-          fi
+          python3 .github/scripts/deploy.py --validate
 
   checks:
     needs: guard
@@ -45,6 +46,8 @@ jobs:
       REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL }}
       REACT_APP_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
       AZURE_CORE_COLLECT_TELEMETRY: 'false'
+      DOCKER_BUILD_SUMMARY: 'false'
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
     steps:
       - name: Check out the checked deployment commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -54,6 +57,28 @@ jobs:
       - name: Verify checkout identity
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Prepare traceable image tag and validate public build configuration
+        id: image
+        run: python3 .github/scripts/deploy.py --prepare-image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build production image on the runner
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ steps.image.outputs.tag }}
+          build-args: |
+            REACT_APP_API_URL=
+            REACT_APP_SUPABASE_URL=${{ env.REACT_APP_SUPABASE_URL }}
+            REACT_APP_SUPABASE_PUBLISHABLE_KEY=${{ env.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
+          cache-from: type=gha,scope=careerflow-production
+          cache-to: type=gha,scope=careerflow-production,mode=max
+          provenance: false
+          sbom: false
       # No environment: retain the existing main-branch OIDC subject.
       - name: Azure OIDC login
         uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac # v2
@@ -61,5 +86,8 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Build or reuse the image, deploy and verify production
+      - name: Preflight, push runner image, deploy by digest and verify production
         run: python3 .github/scripts/deploy.py
+      - name: Remove runner registry credentials
+        if: always()
+        run: docker logout careerflowacr.azurecr.io

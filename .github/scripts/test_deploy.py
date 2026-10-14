@@ -5,6 +5,7 @@ import io
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -21,6 +22,8 @@ ENV = {
     'GITHUB_REF': 'refs/heads/main',
     'GITHUB_REPOSITORY': 'danialyermekov/careerflow',
     'GITHUB_SHA': SHA,
+    'GITHUB_RUN_ID': '123',
+    'GITHUB_RUN_ATTEMPT': '1',
     'REACT_APP_SUPABASE_URL': 'https://test.supabase.co',
     'REACT_APP_SUPABASE_PUBLISHABLE_KEY': 'sb_publishable_public',
 }
@@ -38,17 +41,11 @@ class Azure:
             'ingress': {'external': True, 'targetPort': 8000, 'customDomains': [{'name': 'careerflow.live'}]},
         }
         self.registry = {'loginServer': 'careerflowacr.azurecr.io', 'roleAssignmentMode': 'LegacyRegistryPermissions'}
-        self.runs = []
-        self.history_queries = []
-        self.build_status = 'Succeeded'
+        self.digest = DIGEST
         self.writes = []
-        self.tag = PREFIX + 'cached'
         self.stale = False
         self.wrong_image = False
         self.running = 'Running'
-
-    def image(self):
-        return {'registry': 'careerflowacr.azurecr.io', 'repository': 'careerflow', 'tag': self.tag, 'digest': DIGEST}
 
     def __call__(self, *args):
         command = args[:2]
@@ -56,15 +53,10 @@ class Azure:
             return copy.deepcopy(self.app)
         if command == ('acr', 'show'):
             return copy.deepcopy(self.registry)
-        if args[:3] == ('acr', 'task', 'list-runs'):
-            self.history_queries.append(args)
-            return copy.deepcopy(self.runs)
-        if command == ('acr', 'build'):
-            self.writes.append(args)
-            self.tag = args[args.index('--image') + 1].split(':', 1)[1].replace('{{.Run.ID}}', 'newrun')
-            return {'runId': 'newrun'}
-        if args[:3] == ('acr', 'task', 'show-run'):
-            return {'runId': 'newrun', 'status': self.build_status, 'outputImages': [self.image()]}
+        if command == ('acr', 'login'):
+            return {}
+        if args[:3] == ('acr', 'repository', 'show'):
+            return self.digest
         if command == ('containerapp', 'update'):
             self.writes.append(args)
             self.app['containers'][0]['image'] = args[args.index('--image') + 1]
@@ -88,9 +80,39 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(workflow.count('${{ secrets.' + name + ' }}'), 2)
             self.assertNotIn('${{ vars.' + name + ' }}', workflow)
 
+    def test_workflow_builds_before_oidc_and_preserves_manual_ci_gate(self):
+        workflow = (Path(__file__).resolve().parents[1] / 'workflows' / 'deploy.yml').read_text(encoding='utf-8')
+        self.assertLess(workflow.index('docker/build-push-action@'), workflow.index('azure/login@'))
+        for required in ('workflow_dispatch:', 'needs: checks', 'uses: ./.github/workflows/ci.yml',
+                         'group: careerflow-production', 'cancel-in-progress: false', 'platforms: linux/amd64',
+                         'load: true', 'push: false', 'persist-credentials: false',
+                         'DOCKER_BUILD_RECORD_UPLOAD:', 'cache-to: type=gha', 'if: always()'):
+            self.assertIn(required, workflow)
+        self.assertNotIn('acr build', workflow)
+        self.assertNotIn('acr task', workflow)
+
+    def test_prepare_emits_tag_and_normalized_public_build_config_without_logging_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output, environment = Path(directory) / 'output', Path(directory) / 'env'
+            with patch.dict(os.environ, {'GITHUB_OUTPUT': str(output), 'GITHUB_ENV': str(environment)}), \
+                    patch('deploy.az') as azure, redirect_stdout(io.StringIO()) as logs:
+                deploy.prepare_image()
+            self.assertEqual(output.read_text(), 'tag=' + deploy.SERVER + '/careerflow:' + PREFIX + '123-1\n')
+            self.assertIn('REACT_APP_API_URL=\n', environment.read_text())
+            self.assertNotIn('sb_publishable_public', output.read_text() + logs.getvalue())
+            azure.assert_not_called()
+
+    def test_configuration_rejects_multiline_url_before_output_or_build(self):
+        with patch.dict(os.environ, {'REACT_APP_SUPABASE_URL': 'https://test.supabase.co\nINJECTED=value'}):
+            with self.assertRaises(RuntimeError):
+                deploy.deployment_config()
+
     def setUp(self):
         self.azure = Azure()
         self.messages = []
+        self.docker = patch('deploy.command', return_value='tag: digest: ' + DIGEST + ' size: 123')
+        self.docker_mock = self.docker.start()
+        self.addCleanup(self.docker.stop)
         self.environment = patch.dict(os.environ, ENV, clear=True)
         self.environment.start()
         self.addCleanup(self.environment.stop)
@@ -135,54 +157,53 @@ class DeploymentTests(unittest.TestCase):
             self.run_deployment()
         self.assertEqual(self.azure.writes, [])
 
-    def test_successful_build_uses_public_arguments_and_updates_only_image(self):
+    def test_push_updates_only_image_by_registry_confirmed_digest(self):
         self.run_deployment()
-        self.assertNotIn('--image', self.azure.history_queries[0])
-        build, update = self.azure.writes
-        self.assertEqual(build[:2], ('acr', 'build'))
-        self.assertIn('REACT_APP_API_URL=', build)
-        self.assertIn('REACT_APP_SUPABASE_URL=https://test.supabase.co', build)
-        self.assertIn('REACT_APP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_public', build)
-        self.assertIn('careerflow:' + PREFIX + '{{.Run.ID}}', build)
-        self.assertEqual(update, (
+        self.docker_mock.assert_called_once_with(
+            'docker', ('push', deploy.SERVER + '/careerflow:' + PREFIX + '123-1'), timeout=1800)
+        self.assertEqual(self.azure.writes, [(
             'containerapp', 'update', '--name', 'careerflow', '--resource-group', 'careerflow-rg',
             '--container-name', 'careerflow', '--image', IMAGE, '--no-wait', '--output', 'none',
-        ))
+        )])
         notes = '\n'.join(self.messages)
-        self.assertIn('careerflow--old', notes)
-        self.assertIn('careerflowacr.azurecr.io/careerflow:previous', notes)
-        self.assertIn(IMAGE, notes)
+        for value in ('careerflow--old', 'careerflowacr.azurecr.io/careerflow:previous', IMAGE):
+            self.assertIn(value, notes)
         self.assertNotIn('sb_publishable_public', notes)
 
-    def test_retained_matching_build_is_reused_without_retagging(self):
-        self.azure.runs = [{'status': 'Succeeded', 'outputImages': [self.azure.image()]}]
-        self.run_deployment()
-        self.assertNotIn('--image', self.azure.history_queries[0])
-        self.assertEqual([args[:2] for args in self.azure.writes], [('containerapp', 'update')])
-
-    def test_changed_public_configuration_does_not_reuse_old_frontend(self):
-        self.azure.runs = [{'status': 'Succeeded', 'outputImages': [self.azure.image()]}]
+    def test_tag_tracks_commit_configuration_and_unique_attempt(self):
+        tag = deploy.image_tag(SHA, deploy.build_config())
+        self.assertEqual(tag, PREFIX + '123-1')
+        with patch.dict(os.environ, {'GITHUB_RUN_ATTEMPT': '2'}):
+            self.assertNotEqual(tag, deploy.image_tag(SHA, deploy.build_config()))
         with patch.dict(os.environ, {'REACT_APP_SUPABASE_URL': 'https://other.supabase.co'}):
-            self.run_deployment()
-        self.assertEqual(self.azure.writes[0][:2], ('acr', 'build'))
+            self.assertNotEqual(tag, deploy.image_tag(SHA, deploy.build_config()))
+        with patch.dict(os.environ, {'GITHUB_RUN_ID': 'invalid'}):
+            with self.assertRaises(RuntimeError):
+                self.run_deployment()
+        self.assertEqual(self.azure.writes, [])
 
-    def test_build_failure_never_updates_production(self):
-        self.azure.build_status = 'Failed'
-        with self.assertRaisesRegex(RuntimeError, 'newrun'):
+    def test_push_failure_never_updates_production(self):
+        self.docker_mock.side_effect = RuntimeError('Push rejected')
+        with self.assertRaisesRegex(RuntimeError, 'Push rejected'):
             self.run_deployment()
-        self.assertEqual([args[:2] for args in self.azure.writes], [('acr', 'build')])
+        self.assertEqual(self.azure.writes, [])
 
-    def test_stuck_build_is_bounded_and_never_updates_production(self):
-        self.azure.build_status = 'Running'
-        with self.assertRaisesRegex(RuntimeError, 'build.*timed out'):
-            self.run_deployment()
-        self.assertEqual([args[:2] for args in self.azure.writes], [('acr', 'build')])
+    def test_invalid_or_mismatched_digest_never_updates_production(self):
+        for output, registry in [('no digest', DIGEST), ('digest: sha256:invalid', DIGEST),
+                                 ('digest: ' + DIGEST, 'sha256:' + 'c' * 64),
+                                 ('digest: ' + DIGEST + ' digest: ' + DIGEST, DIGEST)]:
+            with self.subTest(output=output):
+                self.docker_mock.return_value = output
+                self.azure.digest = registry
+                with self.assertRaisesRegex(RuntimeError, 'digest'):
+                    self.run_deployment()
+                self.assertEqual(self.azure.writes, [])
 
     def test_healthy_old_revision_is_not_accepted(self):
         self.azure.stale = True
         with self.assertRaisesRegex(RuntimeError, 'verification.*timed out'):
             self.run_deployment(health=True)
-        self.assertEqual(len(self.azure.writes), 2)
+        self.assertEqual(len(self.azure.writes), 1)
 
     def test_wrong_revision_image_is_not_accepted(self):
         self.azure.wrong_image = True
@@ -212,30 +233,30 @@ class DeploymentTests(unittest.TestCase):
     def test_unhealthy_endpoint_is_bounded_without_automatic_rollback(self):
         with self.assertRaisesRegex(RuntimeError, 'verification.*timed out'):
             self.run_deployment(health=False)
-        self.assertEqual(len(self.azure.writes), 2)
+        self.assertEqual(len(self.azure.writes), 1)
 
     def test_already_deployed_digest_does_not_create_a_revision(self):
-        self.azure.runs = [{'status': 'Succeeded', 'outputImages': [self.azure.image()]}]
         self.azure.app['containers'][0]['image'] = IMAGE
         self.run_deployment()
         self.assertEqual(self.azure.writes, [])
 
     def test_cli_error_reports_azure_reason_without_command_or_credentials(self):
         secret = 'private-build-value'
-        args = ('acr', 'build', '--build-arg', f'CUSTOM={secret}', '--password=cli-password')
+        args = ('acr', 'login', '--build-arg', f'CUSTOM={secret}', '--password=cli-password')
         result = subprocess.CompletedProcess([], 1, stdout='', stderr=(
             'ERROR: (AuthorizationFailed) Cannot queue build. Request ID: request-123\n'
-            f"Command: az acr build --build-arg CUSTOM={secret} --password=cli-password\n"
+            f"Command: az acr login --build-arg CUSTOM={secret} --password=cli-password\n"
             f'Build value: {secret}; password=cli-password'
         ))
+        self.docker.stop()
         with patch('deploy.subprocess.run', return_value=result):
-            with self.assertRaisesRegex(RuntimeError, 'acr build') as failure:
+            with self.assertRaisesRegex(RuntimeError, 'acr login') as failure:
                 deploy.az(*args)
         message = str(failure.exception)
         self.assertIn('exit 1', message)
         self.assertIn('AuthorizationFailed', message)
         self.assertIn('request-123', message)
-        for value in (secret, 'cli-password', 'az acr build', 'CUSTOM='):
+        for value in (secret, 'cli-password', 'az acr login', 'CUSTOM='):
             self.assertNotIn(value, message)
 
     def test_cli_diagnostics_redact_environment_and_common_credentials(self):
@@ -255,7 +276,7 @@ class DeploymentTests(unittest.TestCase):
             'AccountKey=db-password;Database=example\n'
             'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.signature sb_secret_private sb_publishable_public'
         )
-        args = ('acr', 'build', '--build-arg=CUSTOM=build-public-value',
+        args = ('acr', 'login', '--build-arg=CUSTOM=build-public-value',
                 '--secret-build-arg', 'OTHER=secret-build-value', '--access-token', 'unlabelled-cli-token')
         with patch.dict(os.environ, {'AZURE_CLIENT_SECRET': credentials[0]}):
             cleaned = deploy.redact_diagnostics(output, args)
@@ -270,19 +291,30 @@ class DeploymentTests(unittest.TestCase):
             ('Upload context failed', 'ERROR: Request rejected', 'Upload context failed'),
             ('', '', 'No Azure CLI error output was captured'),
         ):
+            self.docker.stop()
             with self.subTest(stdout=stdout), patch('deploy.subprocess.run', return_value=
                     subprocess.CompletedProcess([], 1, stdout=stdout, stderr=stderr)):
                 with self.assertRaisesRegex(RuntimeError, expected):
-                    deploy.az('acr', 'build')
+                    deploy.az('acr', 'login')
 
     def test_cli_timeout_reports_redacted_partial_output(self):
-        timeout = subprocess.TimeoutExpired(['az', 'acr', 'build', '--password', 'hidden-value'], 300,
+        timeout = subprocess.TimeoutExpired(['az', 'acr', 'login', '--password', 'hidden-value'], 60,
                                             output=b'Upload started', stderr=b'ERROR: token=hidden-value')
+        self.docker.stop()
         with patch('deploy.subprocess.run', side_effect=timeout):
-            with self.assertRaisesRegex(RuntimeError, '300s command timeout') as failure:
-                deploy.az('acr', 'build', '--password', 'hidden-value')
+            with self.assertRaisesRegex(RuntimeError, '60s command timeout') as failure:
+                deploy.az('acr', 'login', '--password', 'hidden-value')
         self.assertIn('Upload started', str(failure.exception))
         self.assertNotIn('hidden-value', str(failure.exception))
+
+    def test_docker_push_timeout_reports_redacted_output_without_updating(self):
+        self.docker.stop()
+        timeout = subprocess.TimeoutExpired(['docker', 'push'], 1800, stderr=b'ERROR: password=hidden-value')
+        with patch('deploy.subprocess.run', side_effect=timeout), patch('deploy.az', self.azure):
+            with self.assertRaisesRegex(RuntimeError, '1800s command timeout') as failure:
+                deploy.main()
+        self.assertNotIn('hidden-value', str(failure.exception))
+        self.assertEqual(self.azure.writes, [])
 
     def test_diagnostics_redact_escaped_values_and_multiline_credentials(self):
         value = 'private value/with+punctuation'
@@ -296,7 +328,7 @@ class DeploymentTests(unittest.TestCase):
             '-----BEGIN RSA PRIVATE KEY-----\nprivate-key-body\n-----END RSA PRIVATE KEY-----\n'
             'ghp_privategithubtoken github_pat_privategithubtoken\n'
         )
-        cleaned = deploy.redact_diagnostics(output, ('acr', 'build', '--build-arg', f'NAME={value}'))
+        cleaned = deploy.redact_diagnostics(output, ('acr', 'login', '--build-arg', f'NAME={value}'))
         self.assertIn('Context upload rejected', cleaned)
         for secret in ('private%', 'private+', 'UNKNOWN=', 'two private words', 'two\\nprivate words',
                        'private-user', 'private-password', 'private-token', 'private-key-body',
@@ -310,18 +342,17 @@ class DeploymentTests(unittest.TestCase):
         for character in ('\n', '\r', '\x1b', '\x00'):
             self.assertNotIn(character, cleaned)
 
-    def test_submission_failure_never_reaches_container_update(self):
-        def cli(command, **kwargs):
-            if command[1:3] == ['acr', 'build']:
-                return subprocess.CompletedProcess(command, 1, '', 'ERROR: TasksOperationsNotAllowed')
-            if command[1:4] == ['acr', 'task', 'list-runs']:
-                return subprocess.CompletedProcess(command, 0, '[]', '')
-            self.fail('Unexpected CLI call after submission failure')
-
-        with patch('deploy.subprocess.run', side_effect=cli), patch('deploy.summary') as notes:
-            with self.assertRaisesRegex(RuntimeError, 'TasksOperationsNotAllowed'):
-                deploy.build_image(SHA, deploy.build_config())
-        notes.assert_not_called()
+    def test_login_failure_never_pushes_or_updates(self):
+        original = self.azure
+        def azure(*args):
+            if args[:2] == ('acr', 'login'):
+                raise RuntimeError('ACR login denied')
+            return original(*args)
+        with patch('deploy.az', side_effect=azure), patch('deploy.summary'):
+            with self.assertRaisesRegex(RuntimeError, 'ACR login denied'):
+                deploy.main()
+        self.docker_mock.assert_not_called()
+        self.assertEqual(self.azure.writes, [])
 
 
 if __name__ == '__main__':

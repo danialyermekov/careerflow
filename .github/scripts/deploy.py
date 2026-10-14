@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from urllib.error import URLError
 from urllib.parse import quote, quote_plus, urlsplit
@@ -52,7 +53,7 @@ def redact_diagnostics(output, args):
             if option in {'--build-arg', '--secret-build-arg'} and '=' in value:
                 values.append(value.split('=', 1)[1])
     # Remove echoed commands entirely, including their non-sensitive arguments.
-    output = re.sub(r'(?im)^.*\baz(?:\.cmd|\.exe)?\s+[^\r\n]*', '<REDACTED>', output)
+    output = re.sub(r'(?im)^.*\b(?:az|docker)(?:\.cmd|\.exe)?\s+[^\r\n]*', '<REDACTED>', output)
     for value in sorted({variant for value in values if value for variant in (
             value, quote(value, safe=''), quote_plus(value), json.dumps(value)[1:-1],
     )}, key=len, reverse=True):
@@ -76,24 +77,29 @@ def redact_diagnostics(output, args):
     return output[:6000] or 'No Azure CLI error output was captured.'
 
 
-def az(*args):
-    timeout = 300 if args[:2] == ('acr', 'build') else 60
+def command(program, args, timeout=60):
+    label = 'Azure' if program == 'az' else 'Docker'
     try:
         result = subprocess.run(
-            ['az', *args, '--only-show-errors'], capture_output=True, text=True, timeout=timeout,
+            [program, *args], capture_output=True, text=True, timeout=timeout,
         )
     except subprocess.TimeoutExpired as error:
         details = ' '.join(redact_diagnostics(part, args) for part in (error.stderr, error.stdout) if part)
         raise RuntimeError(
-            f'Azure {" ".join(args[:2])} exceeded its {timeout}s command timeout. '
+            f'{label} {" ".join(args[:2])} exceeded its {timeout}s command timeout. '
             + (details or 'No Azure CLI error output was captured.')
         ) from None
     if result.returncode:
         details = redact_diagnostics('\n'.join(part for part in (result.stderr, result.stdout) if part), args)
         raise RuntimeError(
-            f'Azure {" ".join(args[:2])} failed (exit {result.returncode}). {details}'
+            f'{label} {" ".join(args[:2])} failed (exit {result.returncode}). {details}'
         )
-    return json.loads(result.stdout) if result.stdout.strip() else {}
+    return result.stdout
+
+
+def az(*args):
+    output = command('az', (*args, '--only-show-errors'))
+    return json.loads(output) if output.strip() else {}
 
 
 def summary(message):
@@ -107,7 +113,8 @@ def build_config():
     url = os.environ.get('REACT_APP_SUPABASE_URL', '').strip()
     key = os.environ.get('REACT_APP_SUPABASE_PUBLISHABLE_KEY', '').strip()
     parsed = urlsplit(url)
-    if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password
+            or any(character.isspace() for character in url)):
         raise RuntimeError('Set the public HTTPS REACT_APP_SUPABASE_URL repository secret.')
     public_key = bool(re.fullmatch(r'sb_publishable_[A-Za-z0-9_-]+', key))
     if not public_key:
@@ -116,7 +123,7 @@ def build_config():
             public_key = json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))['role'] == 'anon'
         except (IndexError, KeyError, ValueError, TypeError):
             pass
-    if not public_key:
+    if not public_key or any(character.isspace() for character in key):
         raise RuntimeError('Set REACT_APP_SUPABASE_PUBLISHABLE_KEY to a publishable or legacy anon key, never a server key.')
     return {'REACT_APP_API_URL': '', 'REACT_APP_SUPABASE_URL': url, 'REACT_APP_SUPABASE_PUBLISHABLE_KEY': key}
 
@@ -157,49 +164,26 @@ def preflight():
     return app
 
 
-def image_from_run(run, prefix):
-    if run.get('status') != 'Succeeded':
-        return None
-    for image in run.get('outputImages') or []:
-        if (image.get('registry') == SERVER and image.get('repository') == APP
-                and image.get('tag', '').startswith(prefix)
-                and re.fullmatch(r'sha256:[0-9a-f]{64}', image.get('digest', ''))):
-            return image
-    return None
-
-
-def build_image(sha, config):
+def image_tag(sha, config):
     fingerprint = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()[:12]
-    prefix = f'sha-{sha}-{fingerprint}-'
-    # Task history can expire; unique run-ID tags also prevent retagging when a rebuild is necessary.
-    runs = az(
-        'acr', 'task', 'list-runs', '--registry', REGISTRY, '--resource-group', GROUP,
-        '--run-status', 'Succeeded', '--top', '100', '--output', 'json',
-    )
-    for run in runs:
-        if image := image_from_run(run, prefix):
-            summary('Reusing a retained successful ACR build for this SHA and public build configuration.')
-            return image
-    arguments = [argument for name, value in config.items() for argument in ('--build-arg', f'{name}={value}')]
-    queued = az(
-        'acr', 'build', '--registry', REGISTRY, '--resource-group', GROUP,
-        '--image', f'{APP}:{prefix}{{{{.Run.ID}}}}', '--file', 'Dockerfile', '--platform', 'linux/amd64',
-        '--timeout', '1800', '--no-wait', '--no-logs', *arguments, '.', '--output', 'json',
-    )
-    run_id = queued['runId']
-    summary(f'ACR build run: `{run_id}`. Diagnose with `az acr task logs --registry {REGISTRY} --run-id {run_id}`.')
-    deadline = time.monotonic() + 1800
-    while time.monotonic() < deadline:
-        run = az(
-            'acr', 'task', 'show-run', '--registry', REGISTRY, '--resource-group', GROUP,
-            '--run-id', run_id, '--output', 'json',
-        )
-        if image := image_from_run(run, prefix):
-            return image
-        if run.get('status') in {'Failed', 'Error', 'Canceled', 'Timeout', 'Succeeded'}:
-            raise RuntimeError(f'ACR build {run_id} failed or returned no matching image ({run.get("status")}).')
-        time.sleep(15)
-    raise RuntimeError(f'ACR build {run_id} timed out; inspect/cancel that run manually. Production was not updated.')
+    run_id, attempt = os.environ.get('GITHUB_RUN_ID', ''), os.environ.get('GITHUB_RUN_ATTEMPT', '')
+    if not all(re.fullmatch(r'[0-9]+', value) for value in (run_id, attempt)):
+        raise RuntimeError('GitHub run ID and attempt are required for a unique image tag.')
+    return f'sha-{sha}-{fingerprint}-{run_id}-{attempt}'
+
+
+def push_image(tag):
+    # OIDC supplies a short-lived Docker credential; never enable the registry admin account.
+    az('acr', 'login', '--name', REGISTRY, '--output', 'none')
+    output = command('docker', ('push', f'{SERVER}/{APP}:{tag}'), timeout=1800)
+    matches = re.findall(r'\bdigest: (sha256:[0-9a-f]{64})\b', output)
+    if len(matches) != 1:
+        raise RuntimeError('Docker push did not return exactly one valid image digest; production was not updated.')
+    digest = az('acr', 'repository', 'show', '--name', REGISTRY, '--image', f'{APP}:{tag}',
+                '--query', 'digest', '--output', 'json')
+    if digest != matches[0]:
+        raise RuntimeError('Registry digest does not match the pushed image; production was not updated.')
+    return digest
 
 
 def ready_revision(image):
@@ -235,7 +219,7 @@ def health_ok():
         return False
 
 
-def main():
+def deployment_config():
     if (os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch'
             or os.environ.get('GITHUB_REF') != 'refs/heads/main'
             or os.environ.get('GITHUB_REPOSITORY') != 'danialyermekov/careerflow'):
@@ -244,11 +228,27 @@ def main():
     if not re.fullmatch(r'[0-9a-f]{40}', sha):
         raise RuntimeError('A full Git commit SHA is required.')
     config = build_config()
+    return sha, config
+
+
+def prepare_image():
+    sha, config = deployment_config()
+    tag = image_tag(sha, config)
+    with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
+        stream.write(f'tag={SERVER}/{APP}:{tag}\n')
+    # Normalized public values must match both the fingerprint and Docker build arguments.
+    with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+        for name, value in config.items():
+            stream.write(f'{name}={value}\n')
+
+
+def main():
+    sha, config = deployment_config()
+    tag = image_tag(sha, config)
     previous = preflight()
     summary(f'Checked/deployed Git commit: `{sha}`.')
-    built = build_image(sha, config)
-    image = f'{SERVER}/{APP}@{built["digest"]}'
-    summary(f'Image tag: `{SERVER}/{APP}:{built["tag"]}`; immutable deployment image: `{image}`.')
+    image = f'{SERVER}/{APP}@{push_image(tag)}'
+    summary(f'Image tag: `{SERVER}/{APP}:{tag}`; immutable deployment image: `{image}`.')
     if previous['containers'][0]['image'] != image:
         az(
             'containerapp', 'update', '--name', APP, '--resource-group', GROUP,
@@ -267,7 +267,14 @@ def main():
 
 if __name__ == '__main__':
     try:
-        main()
+        if sys.argv[1:] == ['--prepare-image']:
+            prepare_image()
+        elif sys.argv[1:] == ['--validate']:
+            deployment_config()
+        elif not sys.argv[1:]:
+            main()
+        else:
+            raise RuntimeError('Unknown deployment command.')
     except (RuntimeError, KeyError, ValueError) as error:
         summary(f'::error::{error}')
         raise SystemExit(1) from None
