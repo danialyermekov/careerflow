@@ -1732,7 +1732,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <ResultsNavigation tabs={tabs} activeTab={tab} onTabChange={setTab} label={t.results.title} />
           <div className={styles.sessionNotice}>
             {(results._isDemo || isDemoSession(results.session_id)) && <span className={styles.demoBadge}>{t.review.demoLabel}</span>}
-            {!user ? <p>{t.beta.guestNote} <a href="#login">{t.beta.login}</a></p>
+            {!user ? <details className={styles.guestNotice}><summary>{t.review.guestTemporary}</summary><p>{t.beta.guestNote} <a href="#login">{t.beta.login}</a></p></details>
               : (results._isDemo || isDemoSession(results.session_id)) && <p>{t.experience.temporary}</p>}
             {persistenceError && <p role="alert">{t.beta.saveError}</p>}
           </div>

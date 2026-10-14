@@ -2085,7 +2085,7 @@
   color: var(--accent) !important;
 }
 
-.resultsIntro { margin-bottom: 18px; }
+.resultsIntro { margin-bottom: 0; }
 .resultsIntro h1 { font-size: clamp(1.4rem, 2.5vw, 2rem); line-height: 1.25; }
 .resultsIntro p, .methodNote { color: var(--text-2); font-size: .9rem; line-height: 1.65; margin: 12px 0 18px; }
 .demoBadge { display: inline-block; margin-top: 10px; padding: 4px 9px; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--accent-light); color: var(--accent); font-size: .8rem; }
@@ -2319,7 +2319,7 @@
   padding: 24px 32px 80px;
   overflow: visible;
 }
-.contextHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 16px; }
+.contextHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 8px; }
 .contextHeading h1 { font: 600 1rem/1.5 var(--font-sans); }
 .contextHeading .backBtn { margin: 0; min-height: 44px; padding: 0 8px; font: 500 .875rem/1.5 var(--font-sans); }
 .profileMeta { background: var(--bg-tertiary); padding: 4px 10px; border-radius: var(--radius-full); font-size: .875rem; color: var(--text-2); }
@@ -2756,7 +2756,7 @@
 }
 
 /* Focused consistency pass; protected history/roadmap internals are not targeted. */
-.resultsTools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 12px 0 16px; }
+.resultsTools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 4px 0 12px; }
 .contextTools { min-width: 0; border: 0; }
 .contextTools summary { padding: 10px 0; font: 500 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
 .contextGrid { grid-template-columns: 1fr; gap: 8px; padding: 8px 0 0; }
@@ -2857,3 +2857,8 @@
 }
 .bestPanel .rawValue > summary { cursor: pointer; width: fit-content; font: inherit; }
 .rawValue > code { display: block; margin-top: 8px; overflow-wrap: anywhere; }
+
+.guestNotice { flex: 1; min-width: 0; }
+.guestNotice > summary { min-height: 44px; display: list-item; padding-block: 10px; cursor: pointer; font-size: .875rem; }
+.sessionNotice { padding-block: 0; margin-top: 8px; }
+.sessionNotice .guestNotice p { margin: 0 0 12px; max-width: 72ch; }
