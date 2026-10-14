@@ -1815,12 +1815,12 @@ export default function Results({ results: initialResults, formData, onBack, onR
                 skillGap={<section className={styles.gapAssessment} aria-label={t.review.skillGaps}>
                   <h2>{t.review.skillGaps}</h2>
                   {activeProf.skillCoverage && <p>{t.review.coverageCount(activeProf.skillCoverage.known.length, activeProf.skillCoverage.total)}</p>}
-                  {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : <>
+                  {missingSkills == null ? <p>{t.review.gapUnavailable}</p> : <div className={styles.skillGroups}><div>
                     <h3>{t.review.knownSkills}</h3>
                     {activeProf.skillCoverage?.known.length ? <div className={styles.gapChips}>{activeProf.skillCoverage.known.map(({cat, skill}) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div> : <p>{t.review.noSkills}</p>}
-                    <h3>{t.review.missingSkills}</h3>
+                    </div><div><h3>{t.review.missingSkills}</h3>
                     {missingSkills.length ? <div className={styles.gapChips}>{missingSkills.map(({cat, skill}) => <span key={`${cat}-${skill}`}>{cap(skill)}</span>)}</div> : <p>{t.review.gapEmpty}</p>}
-                  </>}
+                  </div></div>}
                   <p className={styles.methodNote}>{t.review.coverageNote}</p>
                   <button type="button" className={styles.advisorLink} onClick={() => setTab('roadmap')}>{t.results.viewFullRoadmap}</button>
                 </section>}
