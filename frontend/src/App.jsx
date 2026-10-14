@@ -133,7 +133,6 @@ function AppInner() {
 
   return (
     <div className="appShell">
-      <div className="dataGrid" aria-hidden="true" />
 
       <Navbar onLogoClick={handleBack} />
       {(authLoading || (loading && page !== 'hero' && page !== 'form')) && <p className="routeLoading" role="status">{t.beta.loading}</p>}

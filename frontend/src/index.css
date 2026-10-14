@@ -31,7 +31,6 @@
   --border: #E0E2E4;
   --border-control: #7A828D;
   --border-hover: #7A828D;
-  --grid-line: rgba(17, 20, 24, .04);
   --orbit-line: #E4E4DE;
 
   --text: #111418;
@@ -72,7 +71,6 @@
   --border: #2C394B;
   --border-hover: #64748B;
   --border-control: #64748B;
-  --grid-line: rgba(148, 163, 184, 0.04);
   --orbit-line: #2C394B;
 
   --text: #F1F5F9;
@@ -150,24 +148,6 @@ button, input, select, textarea {
   position: relative;
   min-height: 100vh;
   isolation: isolate;
-}
-
-.dataGrid {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 72px 72px;
-  opacity: .55;
-  mask-image: linear-gradient(to bottom, black, transparent 86%);
-  -webkit-mask-image: linear-gradient(to bottom, black, transparent 86%);
-}
-
-:root:not([data-theme="dark"]) .dataGrid {
-  display: none;
 }
 
 .routeLoading { margin: 96px auto 24px; padding: 0 24px; text-align: center; }
