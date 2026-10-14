@@ -102,9 +102,9 @@
 
 /* ─── Sign In / Login Page ─────────────────────────────────────── */
 .loginPage { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 220px); margin: 100px auto 48px; padding: 0 16px; width: 100%; }
-.loginCard { width: 100%; max-width: 440px; padding: 36px 32px; border: 1px solid var(--border); border-radius: var(--radius-lg, 16px); background: var(--panel); box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18); display: flex; flex-direction: column; align-items: stretch; text-align: center; }
+.loginCard { width: 100%; max-width: 440px; padding: 32px 28px; border: 1px solid var(--border); border-radius: var(--radius-lg, 16px); background: var(--panel); box-shadow: none; display: flex; flex-direction: column; align-items: stretch; text-align: center; }
 .loginBrand { display: flex; justify-content: center; margin-bottom: 24px; }
-.loginTitle { font-size: 1.5rem; font-weight: 700; color: var(--text-1, var(--text)); margin: 0 0 8px; line-height: 1.25; }
+.loginTitle { font: 500 2rem/1.25 var(--font-display); color: var(--text-1, var(--text)); margin: 0 0 8px; line-height: 1.25; }
 .loginSubtitle { font-size: 0.88rem; line-height: 1.5; color: var(--text-2); margin: 0 0 24px; }
 .loginOAuthGroup { display: flex; flex-direction: column; gap: 12px; width: 100%; }
 .loginBtn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 46px; padding: 10px 18px; border-radius: var(--radius-md, 10px); font-size: 0.92rem; font-weight: 500; cursor: pointer; transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.1s ease; user-select: none; }
