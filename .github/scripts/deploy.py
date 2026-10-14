@@ -99,6 +99,9 @@ def command(program, args, timeout=60):
 
 def az(*args):
     output = command('az', (*args, '--only-show-errors'))
+    # Docker login writes plain text directly, even when Azure CLI uses --output none.
+    if '--output' in args and args[args.index('--output') + 1] == 'none':
+        return {}
     return json.loads(output) if output.strip() else {}
 
 

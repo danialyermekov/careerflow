@@ -240,6 +240,21 @@ class DeploymentTests(unittest.TestCase):
         self.run_deployment()
         self.assertEqual(self.azure.writes, [])
 
+    def test_successful_acr_login_does_not_parse_docker_stdout_as_json(self):
+        self.docker.stop()
+        result = subprocess.CompletedProcess([], 0, stdout='Login Succeeded\n', stderr='')
+        with patch('deploy.subprocess.run', return_value=result):
+            self.assertEqual(deploy.az('acr', 'login', '--name', deploy.REGISTRY, '--output', 'none'), {})
+
+    def test_json_commands_still_parse_and_reject_invalid_json(self):
+        self.docker.stop()
+        for stdout, expected in [('"' + DIGEST + '"', DIGEST), ('{"mode":"Single"}', {'mode': 'Single'})]:
+            with patch('deploy.subprocess.run', return_value=subprocess.CompletedProcess([], 0, stdout, '')):
+                self.assertEqual(deploy.az('acr', 'repository', 'show', '--output', 'json'), expected)
+        with patch('deploy.subprocess.run', return_value=subprocess.CompletedProcess([], 0, 'invalid', '')):
+            with self.assertRaises(ValueError):
+                deploy.az('acr', 'repository', 'show', '--output', 'json')
+
     def test_cli_error_reports_azure_reason_without_command_or_credentials(self):
         secret = 'private-build-value'
         args = ('acr', 'login', '--build-arg', f'CUSTOM={secret}', '--password=cli-password')
