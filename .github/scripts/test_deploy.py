@@ -220,12 +220,108 @@ class DeploymentTests(unittest.TestCase):
         self.run_deployment()
         self.assertEqual(self.azure.writes, [])
 
-    def test_cli_error_does_not_echo_credentials_or_raw_server_output(self):
-        result = subprocess.CompletedProcess([], 1, stdout='', stderr='do-not-print-this-server-secret')
+    def test_cli_error_reports_azure_reason_without_command_or_credentials(self):
+        secret = 'private-build-value'
+        args = ('acr', 'build', '--build-arg', f'CUSTOM={secret}', '--password=cli-password')
+        result = subprocess.CompletedProcess([], 1, stdout='', stderr=(
+            'ERROR: (AuthorizationFailed) Cannot queue build. Request ID: request-123\n'
+            f"Command: az acr build --build-arg CUSTOM={secret} --password=cli-password\n"
+            f'Build value: {secret}; password=cli-password'
+        ))
         with patch('deploy.subprocess.run', return_value=result):
             with self.assertRaisesRegex(RuntimeError, 'acr build') as failure:
-                deploy.az('acr', 'build')
-        self.assertNotIn('do-not-print-this-server-secret', str(failure.exception))
+                deploy.az(*args)
+        message = str(failure.exception)
+        self.assertIn('exit 1', message)
+        self.assertIn('AuthorizationFailed', message)
+        self.assertIn('request-123', message)
+        for value in (secret, 'cli-password', 'az acr build', 'CUSTOM='):
+            self.assertNotIn(value, message)
+
+    def test_cli_diagnostics_redact_environment_and_common_credentials(self):
+        credentials = [
+            'env-private-value', 'build-public-value', 'secret-build-value', 'unlabelled-cli-token',
+            'bearer-value', 'basic-value', 'json-password', 'client-secret-value',
+            'url-user', 'url-password', 'sas-value', 'db-password',
+            'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.signature',
+            'sb_secret_private', 'sb_publishable_public',
+        ]
+        output = (
+            'ERROR: InvalidArgument; correlation-id=correlation-123\n'
+            'env-private-value build-public-value secret-build-value unlabelled-cli-token\n'
+            'Authorization: Bearer bearer-value\nAuthorization: Basic basic-value\n'
+            '{"password": "json-password", "clientSecret": "client-secret-value"}\n'
+            'https://url-user:url-password@example.com/upload?sv=2026&sig=sas-value\n'
+            'AccountKey=db-password;Database=example\n'
+            'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.signature sb_secret_private sb_publishable_public'
+        )
+        args = ('acr', 'build', '--build-arg=CUSTOM=build-public-value',
+                '--secret-build-arg', 'OTHER=secret-build-value', '--access-token', 'unlabelled-cli-token')
+        with patch.dict(os.environ, {'AZURE_CLIENT_SECRET': credentials[0]}):
+            cleaned = deploy.redact_diagnostics(output, args)
+        self.assertIn('InvalidArgument', cleaned)
+        self.assertIn('correlation-123', cleaned)
+        for value in credentials:
+            self.assertNotIn(value, cleaned)
+
+    def test_cli_failure_includes_stdout_and_handles_empty_output(self):
+        for stdout, stderr, expected in (
+            ('ERROR: Upload failed', '', 'Upload failed'),
+            ('Upload context failed', 'ERROR: Request rejected', 'Upload context failed'),
+            ('', '', 'No Azure CLI error output was captured'),
+        ):
+            with self.subTest(stdout=stdout), patch('deploy.subprocess.run', return_value=
+                    subprocess.CompletedProcess([], 1, stdout=stdout, stderr=stderr)):
+                with self.assertRaisesRegex(RuntimeError, expected):
+                    deploy.az('acr', 'build')
+
+    def test_cli_timeout_reports_redacted_partial_output(self):
+        timeout = subprocess.TimeoutExpired(['az', 'acr', 'build', '--password', 'hidden-value'], 300,
+                                            output=b'Upload started', stderr=b'ERROR: token=hidden-value')
+        with patch('deploy.subprocess.run', side_effect=timeout):
+            with self.assertRaisesRegex(RuntimeError, '300s command timeout') as failure:
+                deploy.az('acr', 'build', '--password', 'hidden-value')
+        self.assertIn('Upload started', str(failure.exception))
+        self.assertNotIn('hidden-value', str(failure.exception))
+
+    def test_diagnostics_redact_escaped_values_and_multiline_credentials(self):
+        value = 'private value/with+punctuation'
+        output = (
+            'ERROR: Context upload rejected\n'
+            'private%20value%2Fwith%2Bpunctuation private+value%2Fwith%2Bpunctuation\n'
+            '--secret-build-arg "UNKNOWN=two private words"\n'
+            '--build-arg UNKNOWN=private-comma,private-semicolon;private-query&private-tail\n'
+            '{"refresh_token": "two\\nprivate words", "username": "private-user"}\n'
+            '{"password": "escaped\\\"private-password", "accessToken": "escaped\\\\private-token"}\n'
+            '-----BEGIN RSA PRIVATE KEY-----\nprivate-key-body\n-----END RSA PRIVATE KEY-----\n'
+            'ghp_privategithubtoken github_pat_privategithubtoken\n'
+        )
+        cleaned = deploy.redact_diagnostics(output, ('acr', 'build', '--build-arg', f'NAME={value}'))
+        self.assertIn('Context upload rejected', cleaned)
+        for secret in ('private%', 'private+', 'UNKNOWN=', 'two private words', 'two\\nprivate words',
+                       'private-user', 'private-password', 'private-token', 'private-key-body',
+                       'private-comma', 'private-semicolon', 'private-query', 'private-tail', 'ghp_', 'github_pat_'):
+            self.assertNotIn(secret, cleaned)
+
+    def test_diagnostics_are_bounded_and_cannot_inject_workflow_commands(self):
+        cleaned = deploy.redact_diagnostics('ERROR: rejected\n::warning::injected\x1b\x00' + 'x' * 7000, ())
+        self.assertTrue(cleaned.startswith('ERROR: rejected'))
+        self.assertLessEqual(len(cleaned), 6000)
+        for character in ('\n', '\r', '\x1b', '\x00'):
+            self.assertNotIn(character, cleaned)
+
+    def test_submission_failure_never_reaches_container_update(self):
+        def cli(command, **kwargs):
+            if command[1:3] == ['acr', 'build']:
+                return subprocess.CompletedProcess(command, 1, '', 'ERROR: TasksOperationsNotAllowed')
+            if command[1:4] == ['acr', 'task', 'list-runs']:
+                return subprocess.CompletedProcess(command, 0, '[]', '')
+            self.fail('Unexpected CLI call after submission failure')
+
+        with patch('deploy.subprocess.run', side_effect=cli), patch('deploy.summary') as notes:
+            with self.assertRaisesRegex(RuntimeError, 'TasksOperationsNotAllowed'):
+                deploy.build_image(SHA, deploy.build_config())
+        notes.assert_not_called()
 
 
 if __name__ == '__main__':

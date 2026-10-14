@@ -8,7 +8,7 @@ import re
 import subprocess
 import time
 from urllib.error import URLError
-from urllib.parse import urlsplit
+from urllib.parse import quote, quote_plus, urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -29,19 +29,69 @@ REVISION_QUERY = (
 )
 
 
+SENSITIVE_NAME = (
+    r'(?:[\w-]*(?:secret|token|password|passwd|credential|key)[\w-]*'
+    r'|[\w-]*username[\w-]*|authorization|sig|connection[_-]?string)'
+)
+DIAGNOSTIC_VALUE = r'''(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;&"'<>]+)'''
+
+
+def redact_diagnostics(output, args):
+    """Keep CLI failure reasons while removing credentials and command echoes."""
+    if isinstance(output, bytes):
+        output = output.decode('utf-8', errors='replace')
+    output = output or ''
+    values = [value for name, value in os.environ.items()
+              if re.fullmatch(SENSITIVE_NAME, name, re.IGNORECASE) or name.startswith('REACT_APP_')]
+    for index, argument in enumerate(args):
+        option, separator, value = argument.partition('=')
+        if option in {'--build-arg', '--secret-build-arg'} or re.fullmatch(
+                '--' + SENSITIVE_NAME, option, re.IGNORECASE):
+            value = value if separator else args[index + 1] if index + 1 < len(args) else ''
+            values.append(value)
+            if option in {'--build-arg', '--secret-build-arg'} and '=' in value:
+                values.append(value.split('=', 1)[1])
+    # Remove echoed commands entirely, including their non-sensitive arguments.
+    output = re.sub(r'(?im)^.*\baz(?:\.cmd|\.exe)?\s+[^\r\n]*', '<REDACTED>', output)
+    for value in sorted({variant for value in values if value for variant in (
+            value, quote(value, safe=''), quote_plus(value), json.dumps(value)[1:-1],
+    )}, key=len, reverse=True):
+        output = output.replace(value, '<REDACTED>')
+    output = re.sub(r'-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----',
+                    '<REDACTED>', output, flags=re.DOTALL)
+    output = re.sub(r'(?i)\b(?:Bearer|Basic)\s+[^\s,;\"\']+', '<REDACTED>', output)
+    output = re.sub(r'(?i)([a-z][a-z0-9+.-]*://)[^/\s]+@', r'\1<REDACTED>@', output)
+    # Handles JSON, headers, connection strings, query parameters and CLI options.
+    output = re.sub(
+        r'(?i)([\"\']?(?:--)?' + SENSITIVE_NAME + r'[\"\']?\s*(?:=|:|\s)\s*)' + DIAGNOSTIC_VALUE,
+        r'\1<REDACTED>', output,
+    )
+    output = re.sub(r'''(?i)--(?:secret-)?build-arg(?:=|\s+)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s]+)''',
+                    '--build-arg <REDACTED>', output)
+    output = re.sub(r'\b(?:eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'
+                    r'|sb_(?:secret|publishable)_[A-Za-z0-9_-]+'
+                    r'|gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+)\b', '<REDACTED>', output)
+    # Flatten control characters so CLI text cannot inject GitHub workflow commands.
+    output = ' '.join(re.sub(r'[\x00-\x1f\x7f-\x9f]', ' ', output).split())
+    return output[:6000] or 'No Azure CLI error output was captured.'
+
+
 def az(*args):
-    # Never echo raw CLI output: app responses and errors can contain runtime credentials.
     timeout = 300 if args[:2] == ('acr', 'build') else 60
     try:
         result = subprocess.run(
             ['az', *args, '--only-show-errors'], capture_output=True, text=True, timeout=timeout,
         )
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f'Azure {" ".join(args[:2])} exceeded its {timeout}s command timeout.') from None
-    if result.returncode:
+    except subprocess.TimeoutExpired as error:
+        details = ' '.join(redact_diagnostics(part, args) for part in (error.stderr, error.stdout) if part)
         raise RuntimeError(
-            f'Azure {" ".join(args[:2])} failed (exit {result.returncode}). '
-            'Inspect the named ACR run or Container App operation in Azure; raw output is suppressed.'
+            f'Azure {" ".join(args[:2])} exceeded its {timeout}s command timeout. '
+            + (details or 'No Azure CLI error output was captured.')
+        ) from None
+    if result.returncode:
+        details = redact_diagnostics('\n'.join(part for part in (result.stderr, result.stdout) if part), args)
+        raise RuntimeError(
+            f'Azure {" ".join(args[:2])} failed (exit {result.returncode}). {details}'
         )
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
