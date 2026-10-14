@@ -1,5 +1,6 @@
 export const experienceTranslations = {
   en: {
+    signInRequired: 'Sign in to ask up to 3 questions with Gemini for free.',
     preparingDemo: 'Preparing your example…', demoFailed: 'Could not prepare the demo. Please try again.', demoBusy: 'Too many requests. Please wait a moment and try again.',
     liveDemo: 'Try Live Demo', next: 'Next', back: 'Back', skip: 'Skip Tour', finish: 'Finish Tour',
     tour: 'Demo walkthrough', temporary: 'This demo is temporary and will not be added to your account.',
@@ -28,6 +29,7 @@ export const experienceTranslations = {
     contact: 'Questions or feedback:',
   },
   ru: {
+    signInRequired: 'Войдите в аккаунт, чтобы задать до 3 вопросов Gemini бесплатно.',
     preparingDemo: 'Готовим ваш пример…', demoFailed: 'Не удалось подготовить демо. Попробуйте ещё раз.', demoBusy: 'Слишком много запросов. Немного подождите и повторите попытку.',
     liveDemo: 'Попробовать живое демо', next: 'Далее', back: 'Назад', skip: 'Пропустить тур', finish: 'Завершить тур',
     tour: 'Знакомство с демо', temporary: 'Демо временное и не переносится в аккаунт.',
@@ -56,6 +58,7 @@ export const experienceTranslations = {
     contact: 'Вопросы или обратная связь:',
   },
   kk: {
+    signInRequired: 'Gemini-ге 3 сұраққа дейін тегін қою үшін аккаунтыңызға кіріңіз.',
     preparingDemo: 'Үлгіңізді дайындап жатырмыз…', demoFailed: 'Демоны дайындау мүмкін болмады. Қайталап көріңіз.', demoBusy: 'Сұраулар тым көп. Сәл күтіп, қайталап көріңіз.',
     liveDemo: 'Тікелей демоны көру', next: 'Келесі', back: 'Артқа', skip: 'Турды өткізу', finish: 'Турды аяқтау',
     tour: 'Демомен танысу', temporary: 'Демо уақытша және аккаунтқа қосылмайды.',

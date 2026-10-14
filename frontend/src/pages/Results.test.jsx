@@ -400,6 +400,8 @@ describe('editorial results navigation and Best Match', () => {
   })
 
   test('unavailable preview hides its composer and offers BYOK', async () => {
+    api.getRecommendationHistory.mockResolvedValue({ items: [] })
+    jest.spyOn(auth, 'useAuth').mockReturnValue({ user: { id: 'preview-owner' }, loading: false })
     await act(async () => container.querySelector('.aiFab').click())
     expect(container.querySelector('.advisorPreview [data-advisor-composer]')).toBeNull()
     expect(container.querySelector('.advisorPreview .previewQuota')).toBeNull()
@@ -1024,6 +1026,7 @@ describe('editorial AI Advisor drawer', () => {
   const drawer = () => container.querySelector('.advisorModal[open]')
   const mode = async name => click(container.querySelector(`.advisorModes button[data-mode="${name}"]`))
   beforeEach(async () => {
+    jest.spyOn(auth, 'useAuth').mockReturnValue({ user: { id: 'advisor-owner' }, loading: false })
     global.IS_REACT_ACT_ENVIRONMENT = true; global.TextDecoder = TextDecoder
     localStorage.clear(); sessionStorage.clear(); localStorage.setItem('lang', 'en'); clearLLMSettings()
     HTMLElement.prototype.scrollIntoView = jest.fn()

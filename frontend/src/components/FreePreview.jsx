@@ -1,9 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { getTrialStatus, sendTrialMessage } from '../utils/api'
 import AdvisorComposer from './AdvisorComposer'
 
 export default function FreePreview({ sessionId, careerContext, onByok }) {
+  const { user, loading } = useAuth()
+  const { t } = useApp()
+  if (loading) return <p role="status">{t.beta.loading}</p>
+  if (!user) return (
+    <section className="freePreview" aria-label={t.experience.free}>
+      <p>{t.experience.signInRequired}</p>
+      <a href="/#login" onClick={() => {
+        sessionStorage.setItem('careerflow-auth-return', window.location.hash || window.location.pathname)
+      }}>{t.beta.login}</a>
+      {onByok && <button type="button" onClick={onByok}>{t.experience.connectKey}</button>}
+    </section>
+  )
+  return <SignedInPreview key={`${user.id}:${sessionId}`} sessionId={sessionId} careerContext={careerContext} onByok={onByok} />
+}
+
+function SignedInPreview({ sessionId, careerContext, onByok }) {
   const { t, lang } = useApp()
   const text = t.experience
   const [quota, setQuota] = useState(null)

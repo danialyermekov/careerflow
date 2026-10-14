@@ -8,7 +8,7 @@ import os
 
 import pytest
 import sqlalchemy as sa
-from fastapi import Response
+from fastapi import HTTPException, Response
 from core.errors import ServiceError
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
@@ -42,16 +42,49 @@ def payload(session):
     return {'session_id': session, 'message': 'Which skill should I learn first?', 'history': [], 'consent': True}
 
 
-def test_guest_quota_survives_refresh_and_client_key_is_ignored(client, recommendation_response, provider):
+@pytest.mark.parametrize('headers', [{}, {'X-Demo-Session': 'true'}, {'Authorization': 'Basic fake'}])
+def test_guest_preview_requires_sign_in_without_spending_budget(client, recommendation_response, provider, headers):
+    client.cookies.set('careerflow_ai_trial', 'a' * 64)
+    for _ in range(2):
+        status = client.get('/ai/preview', headers=headers)
+        response = client.post('/ai/preview', json=payload(recommendation_response['session_id']), headers=headers)
+        assert status.status_code == response.status_code == 401
+        assert 'set-cookie' not in status.headers
+        client.cookies.clear()
+    assert not provider.called
+    with db.get_connection() as conn:
+        assert conn.scalar(sa.select(sa.func.count()).select_from(db.ai_trial_usage)) == 0
+        assert conn.scalar(sa.select(sa.func.count()).select_from(db.ai_trial_budget)) == 0
+
+
+def test_invalid_token_never_calls_preview_provider(client, recommendation_response, provider, monkeypatch):
+    def reject(token):
+        raise HTTPException(401, 'Invalid or expired access token.')
+    monkeypatch.setattr(auth, 'verify_access_token', reject)
+    headers = {'Authorization': 'Bearer expired'}
+    assert client.get('/ai/preview', headers=headers).status_code == 401
+    assert client.post('/ai/preview', json=payload(recommendation_response['session_id']), headers=headers).status_code == 401
+    assert not provider.called
+
+
+@pytest.fixture
+def signed_in(client, monkeypatch):
+    user = str(uuid4())
+    monkeypatch.setattr(auth, 'verify_access_token', lambda token: {'id': user, 'display_name': 'Owner'})
+    client.headers.update({'Authorization': 'Bearer verified', 'X-Demo-Session': 'true'})
+    return user
+
+
+def test_account_quota_survives_refresh_and_client_key_is_ignored(client, recommendation_response, provider, signed_in):
     session = recommendation_response['session_id']
     status = client.get('/ai/preview')
     assert status.json()['remaining'] == 3
-    assert 'HttpOnly' in status.headers['set-cookie'] and 'SameSite=lax' in status.headers['set-cookie']
+    assert 'set-cookie' not in status.headers
     response = client.post('/ai/preview', json=payload(session), headers={'X-LLM-API-Key': 'client-key', 'X-LLM-Provider': 'anthropic'})
     assert response.status_code == 200 and response.json()['provider'] == 'gemini'
     assert provider.call_args.args[0] == 'server-only-test-secret'
     assert 'server-only-test-secret' not in response.text + status.text
-    with TestClient(main.app, cookies=client.cookies, headers={'X-Guest-Token': 'a'*64}) as refreshed:
+    with TestClient(main.app, headers=dict(client.headers)) as refreshed:
         assert refreshed.get('/ai/preview').json()['remaining'] == 2
         assert refreshed.post('/ai/preview', json=payload(session)).json()['remaining'] == 1
         assert refreshed.post('/ai/preview', json=payload(session)).json()['remaining'] == 0
@@ -84,15 +117,18 @@ def test_signed_in_demo_is_guest_owned_and_does_not_save_into_account(client, mo
     assert client.post('/ai/preview', json=payload(session), headers=headers).json()['remaining'] == 2
     assert client.get('/recommendation/history', headers=headers).json()['items'] == []
     assert client.post('/ai/preview', json=payload(session), headers={**headers, 'X-Guest-Token': 'b'*64}).status_code == 404
+    owned_headers = {'Authorization': 'Bearer verified'}
+    owned_session = client.post('/recommend', json=TEST_PROFILE, headers=owned_headers).json()['session_id']
+    assert client.post('/ai/preview', json=payload(owned_session), headers=owned_headers).json()['remaining'] == 1
 
 
 @pytest.mark.parametrize('change', [{'message': 'x'*1001}, {'history': [{'role': 'user', 'content': 'x'}]*5}, {'consent': False}, {'deep': True}, {'message': ''}, {'message': '   '}])
-def test_cost_boundary_rejects_invalid_requests(client, recommendation_response, provider, change):
+def test_cost_boundary_rejects_invalid_requests(client, recommendation_response, provider, change, signed_in):
     assert client.post('/ai/preview', json={**payload(recommendation_response['session_id']), **change}).status_code == 422
     assert not provider.called
 
 
-def test_provider_failure_refunds_user_but_counts_global_attempt(client, recommendation_response, provider, monkeypatch):
+def test_provider_failure_refunds_user_but_counts_global_attempt(client, recommendation_response, provider, monkeypatch, signed_in):
     provider.side_effect = RuntimeError('server-only-test-secret')
     monkeypatch.setenv('GEMINI_DEMO_GLOBAL_DAILY_LIMIT', '1')
     response = client.post('/ai/preview', json=payload(recommendation_response['session_id']))
@@ -104,16 +140,17 @@ def test_provider_failure_refunds_user_but_counts_global_attempt(client, recomme
 
 
 @pytest.mark.parametrize('name,value', [('GEMINI_DEMO_API_KEY', ''), ('GEMINI_DEMO_ENABLED', 'false'), ('GEMINI_DEMO_MODEL', 'gemini-2.5-pro')])
-def test_disabled_preview_preserves_byok(client, recommendation_response, provider, monkeypatch, name, value):
+def test_disabled_preview_preserves_byok(client, recommendation_response, provider, monkeypatch, name, value, signed_in):
     monkeypatch.setenv(name, value)
     assert client.get('/ai/preview').json()['available'] is False
     assert client.post('/ai/preview', json=payload(recommendation_response['session_id'])).status_code == 503
     assert not provider.called
+    client.headers.pop('Authorization')
     assert client.post('/chat', json={'session_id': recommendation_response['session_id'], 'message': 'Career advice', 'history': []},
                        headers={'X-LLM-API-Key': 'byok-test', 'X-LLM-Provider': 'anthropic'}).status_code == 200
 
 
-def test_fallback_to_api_key_when_gemini_demo_key_unset(client, recommendation_response, provider, monkeypatch):
+def test_fallback_to_api_key_when_gemini_demo_key_unset(client, recommendation_response, provider, monkeypatch, signed_in):
     monkeypatch.delenv('GEMINI_DEMO_API_KEY', raising=False)
     monkeypatch.setenv('API_KEY', 'server-only-fallback-key')
     status = client.get('/ai/preview')
@@ -123,7 +160,7 @@ def test_fallback_to_api_key_when_gemini_demo_key_unset(client, recommendation_r
     assert provider.call_args.args[0] == 'server-only-fallback-key'
 
 
-def test_explicit_gemini_demo_key_takes_precedence_over_api_key(client, recommendation_response, provider, monkeypatch):
+def test_explicit_gemini_demo_key_takes_precedence_over_api_key(client, recommendation_response, provider, monkeypatch, signed_in):
     monkeypatch.setenv('GEMINI_DEMO_API_KEY', 'explicit-demo-key')
     monkeypatch.setenv('API_KEY', 'fallback-key')
     res = client.post('/ai/preview', json=payload(recommendation_response['session_id']))
@@ -131,7 +168,7 @@ def test_explicit_gemini_demo_key_takes_precedence_over_api_key(client, recommen
     assert provider.call_args.args[0] == 'explicit-demo-key'
 
 
-def test_both_keys_unset_disables_preview(client, recommendation_response, provider, monkeypatch):
+def test_both_keys_unset_disables_preview(client, recommendation_response, provider, monkeypatch, signed_in):
     monkeypatch.delenv('GEMINI_DEMO_API_KEY', raising=False)
     monkeypatch.delenv('API_KEY', raising=False)
     assert client.get('/ai/preview').json()['available'] is False
@@ -139,7 +176,7 @@ def test_both_keys_unset_disables_preview(client, recommendation_response, provi
     assert not provider.called
 
 
-def test_ip_rate_limit_and_global_concurrency(client, recommendation_response, provider):
+def test_ip_rate_limit_and_global_concurrency(client, recommendation_response, provider, signed_in):
     for _ in range(10):
         assert client.get('/ai/preview').status_code == 200
     assert client.get('/ai/preview').status_code == 429
@@ -151,7 +188,7 @@ def test_ip_rate_limit_and_global_concurrency(client, recommendation_response, p
     assert not provider.called
 
 
-def test_storage_unavailable_never_calls_provider(client, recommendation_response, provider, monkeypatch):
+def test_storage_unavailable_never_calls_provider(client, recommendation_response, provider, monkeypatch, signed_in):
     @contextmanager
     def unavailable():
         raise OperationalError('unavailable', None, Exception('internal'))
@@ -212,16 +249,18 @@ def test_postgres_concurrent_lifetime_quota(monkeypatch):
             conn.execute(db.ai_trial_budget.delete())
             conn.execute(db.ai_trial_ip.delete())
         monkeypatch.setenv('GEMINI_DEMO_GLOBAL_DAILY_LIMIT', '2')
-        def guest_attempt(index):
+        def account_attempt(index):
             request = SimpleNamespace(client=SimpleNamespace(host=str(index)), cookies={}, url=SimpleNamespace(hostname='testserver'))
             try:
-                ai_trial.reserve(request, Response(), None)
+                account = {'id': str(uuid4()), 'display_name': 'Budget test'}
+                db.ensure_user(account)
+                ai_trial.reserve(request, Response(), account)
                 return True
             except ServiceError as error:
                 assert error.status_code in {429, 503}
                 return False
         with ThreadPoolExecutor(max_workers=8) as pool:
-            assert sum(pool.map(guest_attempt, range(8))) == 2
+            assert sum(pool.map(account_attempt, range(8))) == 2
         with test_engine.connect() as conn:
             assert conn.scalar(sa.select(db.ai_trial_budget.c.attempts)) == 2
             assert conn.scalar(sa.select(sa.func.sum(db.ai_trial_usage.c.used))) == 2

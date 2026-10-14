@@ -192,7 +192,7 @@ Current tables:
 | `course_filter_preferences` | Saved filter state per recommendation session |
 | `feedback` | Private submissions, publication consent, moderation status and origin |
 | `feedback_votes` | Authenticated votes on published feature requests |
-| `ai_trial_usage` | Preview allowance per guest cookie or authenticated identity |
+| `ai_trial_usage` | Preview allowance per verified account |
 | `ai_trial_budget` | Shared daily preview attempt budget |
 | `ai_trial_ip` | Short-lived preview IP rate-limit counters |
 
@@ -229,7 +229,7 @@ The AI Advisor is optional. No personal AI API key is required to use CareerFlow
 
 #### Gemini Free Preview
 
-Choose **Try with Gemini** to ask up to three questions about the current recommendation without supplying an API key. The preview is enabled on production: `/ai/preview` reported `available: true`, `total: 3` and model `gemini-3.5-flash-lite` during the 9 October 2026 audit. It requires consent, uses a server-managed Gemini key, and enforces PostgreSQL-backed quotas and daily cost limits. The allowance is tracked separately per guest cookie or verified account; it is not three messages per day or a verified per-person entitlement. Availability depends on remaining quota, the shared daily budget and provider status; core recommendations continue to work when the preview is unavailable.
+Sign in and choose **Try with Gemini** to ask up to three questions about the current recommendation without supplying an API key. Both `/ai/preview` endpoints require a verified Supabase access token; guests receive HTTP 401 before quota reservation or provider calls. It requires consent, uses a server-managed Gemini key, and enforces PostgreSQL-backed quotas and daily cost limits. The lifetime allowance is tracked per verified account and shared between personal recommendations and Guided Demo; clearing cookies does not reset it. It is not three messages per day or a verified per-person entitlement. Availability depends on remaining quota, the shared daily budget and provider status; core recommendations continue to work when the preview is unavailable.
 
 Fresh local installations default to `GEMINI_DEMO_ENABLED=false`. When deliberately enabled, the preview uses `GEMINI_DEMO_API_KEY`, falling back to the legacy server-side `API_KEY` only for this preview. Neither key belongs in React variables or Docker build arguments. Preview conversations are not saved to recommendation history; the request sends a limited recommendation context. See [development configuration](#development-configuration) for the quota and model variables. Supported preview models are `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` and `gemini-2.5-flash-lite`; other model IDs fail closed, with no Pro fallback.
 
@@ -547,7 +547,7 @@ Create `backend/.env` and `frontend/.env` from the respective [backend template]
 | `GEMINI_DEMO_ENABLED` | Backend; `false` by default, explicitly opt in for a development preview |
 | `GEMINI_DEMO_API_KEY` / `API_KEY` | Backend only; dedicated preview key / legacy fallback, never BYOK credentials |
 | `GEMINI_DEMO_MODEL` | Backend; `gemini-3.5-flash-lite` (default), `gemini-3.1-flash-lite` or `gemini-2.5-flash-lite` |
-| `GEMINI_DEMO_FREE_MESSAGES` | Backend; default 3, allowed positive maximum 3 per preview identity |
+| `GEMINI_DEMO_FREE_MESSAGES` | Backend; default 3, allowed positive maximum 3 per verified account |
 | `GEMINI_DEMO_GLOBAL_DAILY_LIMIT` | Backend; default 100 shared preview attempts/day, not a per-user allowance |
 
 Never put database passwords, administrator keys or AI keys in `REACT_APP_*` variables: React values are public in the build. Backend configuration loads `backend/.env` without overriding inherited environment variables; check the effective target before running migrations or starting the server. Neither `.env` file is committed.
@@ -655,7 +655,7 @@ In Docker/production, the React build is served by FastAPI on port `8000`, so `R
 | `/parse-resume` | POST | Parses uploaded resume/CV bytes |
 | `/courses/filter` | POST | Filters course recommendations |
 | `/voice/transcribe` | POST | Transcribes short audio input via Gemini |
-| `/ai/preview` | GET / POST | Server quota status / optional three-message Gemini preview |
+| `/ai/preview` | GET / POST | Signed-in account quota status / optional three-message Gemini preview |
 | `/chat` | POST | Non-streaming BYOK AI advisor response |
 | `/chat/stream` | POST | Streaming AI advisor response |
 | `/account` | GET / DELETE | Verified account summary / account deletion (Auth deletion requires the server administrator key) |
@@ -865,7 +865,7 @@ Get-NetTCPConnection -LocalPort 8000
 
 ### AI chat does not answer
 
-Choose **Try with Gemini** for the enabled production preview, subject to the three-message allowance and shared daily budget. Alternatively, save your Claude or Gemini API key in the assistant for the current loaded application session. If a provider rejects it, check the key, permissions and provider quota; the key remains in memory until you replace/remove it or reload the page. BYOK ignores server environment keys. A local preview is disabled by default. Other features continue to work without an AI key.
+Sign in and choose **Try with Gemini** for the preview, subject to the three-message account allowance and shared daily budget. Alternatively, save your Claude or Gemini API key in the assistant for the current loaded application session. If a provider rejects it, check the key, permissions and provider quota; the key remains in memory until you replace/remove it or reload the page. BYOK ignores server environment keys. A local preview is disabled by default. Other features continue to work without an AI key.
 
 ### Database schema and legacy SQLite
 

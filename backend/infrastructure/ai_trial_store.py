@@ -1,6 +1,5 @@
 """Server-owned Gemini preview; PostgreSQL serializes every budget reservation."""
 import hashlib
-import secrets
 from datetime import timedelta
 from uuid import uuid4
 
@@ -11,7 +10,6 @@ from infrastructure import database as db
 from core.errors import ServiceError
 from core.settings import PREVIEW_MODELS, PreviewSettings
 
-COOKIE = 'careerflow_ai_trial'
 MODELS = PREVIEW_MODELS
 UNAVAILABLE = 'Free AI preview is temporarily unavailable. You can still use career recommendations or connect your own AI provider key.'
 
@@ -33,21 +31,11 @@ def digest(value):
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-def identity(conn, request, response, user):
-    if user:
-        key = digest('user:' + user['id'])
-    else:
-        token = request.cookies.get(COOKIE, '')
-        key = digest('guest:' + token)
-        # Opaque credentials are accepted only if this server previously issued them.
-        exists = len(token) == 64 and conn.scalar(sa.select(db.ai_trial_usage.c.identity).where(db.ai_trial_usage.c.identity == key))
-        if not exists:
-            token = secrets.token_hex(32)
-            key = digest('guest:' + token)
-            response.set_cookie(COOKIE, token, max_age=31536000, httponly=True,
-                                secure=request.url.hostname not in {'localhost', '127.0.0.1', 'testserver'},
-                                samesite='lax', path='/')
-    conn.execute(insert(db.ai_trial_usage).values(identity=key, user_id=user['id'] if user else None, used=0)
+def identity(conn, user):
+    if not user:
+        error('trial_sign_in_required', 401)
+    key = digest('user:' + user['id'])
+    conn.execute(insert(db.ai_trial_usage).values(identity=key, user_id=user['id'], used=0)
                  .on_conflict_do_nothing(index_elements=['identity']))
     return key
 
@@ -82,7 +70,7 @@ def status(request, response, user):
         current = db.now()
         attempts = budget_lock(conn, current)
         ip_limit(conn, request, current)
-        key = identity(conn, request, response, user)
+        key = identity(conn, user)
         used = conn.execute(sa.select(db.ai_trial_usage.c.used).where(db.ai_trial_usage.c.identity == key)).scalar_one()
     return {'available': attempts < daily, 'remaining': max(0, total - used), 'total': total, 'provider': 'gemini', 'model': model}
 
@@ -97,7 +85,7 @@ def reserve(request, response, user):
         if attempts >= daily:
             error('trial_unavailable')
         ip_limit(conn, request, current)
-        key = identity(conn, request, response, user)
+        key = identity(conn, user)
         row = conn.execute(sa.select(db.ai_trial_usage).where(db.ai_trial_usage.c.identity == key).with_for_update()).mappings().one()
         if row['used'] >= total:
             error('trial_exhausted', 429)
