@@ -7,7 +7,7 @@ import AdvisorComposer from './AdvisorComposer'
 export default function FreePreview({ sessionId, careerContext, onByok }) {
   const { user, loading } = useAuth()
   const { t } = useApp()
-  if (loading) return <p role="status">{t.beta.loading}</p>
+  if (loading) return <section className="freePreview"><p role="status">{t.beta.loading}</p></section>
   if (!user) return (
     <section className="freePreview" aria-label={t.experience.free}>
       <p>{t.experience.signInRequired}</p>
