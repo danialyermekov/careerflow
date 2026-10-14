@@ -340,8 +340,23 @@ test('a direct result URL reloads the saved result through the existing state en
   await act(async () => root.render(<App />))
   expect(api.getRecommendationState).toHaveBeenCalledWith('review-test-session')
   expect(container.textContent).toContain('Your recommendation')
+  expect(document.title).toBe('Your recommendation — CareerFlow')
   expect(container.textContent).toContain('90.5 / 100')
   expect(api.getRecommendation).not.toHaveBeenCalled()
+})
+
+test('results tab title stays localized when language changes and profile navigation resets it', async () => {
+  window.history.replaceState({}, '', '/#results/review-test-session')
+  await act(async () => root.render(<App />))
+  await act(async () => button('Learning roadmap').click())
+  expect(document.title).toBe('Learning roadmap — CareerFlow')
+  await act(async () => button('RU').click())
+  expect(document.title).toBe('План обучения — CareerFlow')
+  await act(async () => {
+    window.history.pushState({}, '', '/#profile')
+    window.dispatchEvent(new Event('popstate'))
+  })
+  expect(document.title).toBe('Создать свой профиль — CareerFlow')
 })
 
 

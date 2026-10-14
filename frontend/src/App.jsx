@@ -79,8 +79,8 @@ function AppInner() {
   }, [results, t.errors.api, authLoading])
 
   useEffect(() => {
-    updatePageMetadata(page, t, lang)
-  }, [page, t, lang])
+    if (page !== 'results' || !results) updatePageMetadata(page, t, lang)
+  }, [page, results, t, lang])
 
   useEffect(() => { window.scrollTo(0, 0) }, [page])
 

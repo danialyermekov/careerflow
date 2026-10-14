@@ -5,6 +5,7 @@ import Feedback from '../components/Feedback'
 import styles from './Results.module.css'
 import { getScoreBreakdown, formatMatchScore, formatMatchPoints, formatRawValue } from '../utils/scoring'
 import { isDemoSession } from '../utils/demoProfile'
+import { updatePageMetadata } from '../utils/seo'
 import LLMSettings from '../components/LLMSettings'
 import GuidedTour from '../components/GuidedTour'
 import FreePreview from '../components/FreePreview'
@@ -819,6 +820,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
   const [results,      setResults]      = useState(initialResults)
   const [tab,          setTab]          = useState('best')
+  useEffect(() => {
+    const titles = { best: t.results.title, all: t.results.allScores, roadmap: t.results.roadmap, history: t.review.historyTab }
+    updatePageMetadata('results', t, lang, titles[tab])
+  }, [tab, t, lang])
   const careerHeading = useRef(null)
   const detailFocusRequested = useRef(false)
   useEffect(() => {
