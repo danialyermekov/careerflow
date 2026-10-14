@@ -16,6 +16,8 @@ export function getScoreBreakdown(results, profession) {
   })
 }
 
-export const formatMatchPoints = value => (Math.round(Number(value || 0) * 1000) / 10).toFixed(1)
-export const formatMatchScore = value => `${formatMatchPoints(value)} / 100`
+export const formatNumber = (value, lang = 'en', options = {}) => Number(value).toLocaleString(lang === 'kk' ? 'kk-KZ' : lang, { useGrouping: false, ...options })
+export const formatDate = (value, lang = 'en', options = {}) => new Date(value).toLocaleDateString(lang === 'kk' ? 'kk-KZ' : lang === 'en' ? 'en-GB' : lang, options)
+export const formatMatchPoints = (value, lang = 'en') => formatNumber(Math.round(Number(value || 0) * 1000) / 10, lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+export const formatMatchScore = (value, lang = 'en') => `${formatMatchPoints(value, lang)} / 100`
 export const formatRawValue = value => Number(value.toPrecision(6)).toString()

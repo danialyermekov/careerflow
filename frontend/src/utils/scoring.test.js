@@ -1,4 +1,4 @@
-import { getScoreBreakdown, formatMatchScore, formatRawValue } from './scoring'
+import { getScoreBreakdown, formatMatchScore, formatRawValue, formatMatchPoints, formatNumber, formatDate } from './scoring'
 
 test.each([[0, '0'], [0.9865577206853644, '0.986558'], [0.29306611424689877, '0.293066'], [1e-10, '1e-10'], [Number.MIN_VALUE, '5e-324']])('raw display keeps six significant digits and nonzero values: %s', (value, expected) => {
   expect(formatRawValue(value)).toBe(expected)
@@ -21,4 +21,12 @@ test('the displayed contributions reproduce backend sum/max normalization withou
   expect(getScoreBreakdown({}, 'A').every(item => item.value === 0 && item.contribution === null)).toBe(true)
   expect(getScoreBreakdown({}, 'A').every(item => !item.available)).toBe(true)
   expect(getScoreBreakdown({ ...results, skill_scores: { A: 0, B: 0 } }, 'A')[1].available).toBe(true)
+})
+
+test.each([['en', '94.3'], ['ru', '94,3'], ['kk', '94,3']])('localized score keeps one conversion and raw precision in %s', (lang, expected) => {
+  expect(formatMatchPoints(.943, lang)).toBe(expected)
+  expect(formatMatchScore(.943, lang)).toBe(`${expected} / 100`)
+  expect(formatNumber(3, lang, { minimumFractionDigits: 1 })).toBe(lang === 'en' ? '3.0' : '3,0')
+  expect(formatRawValue(.9865577206853644)).toBe('0.986558')
+  expect(formatDate('2026-10-15T12:00:00Z', lang, { timeZone: 'UTC' })).toBe(lang === 'en' ? '15/10/2026' : '15.10.2026')
 })

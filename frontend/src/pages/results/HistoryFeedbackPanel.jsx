@@ -1,4 +1,4 @@
-import { formatMatchScore } from '../../utils/scoring'
+import { formatMatchScore, formatNumber } from '../../utils/scoring'
 import { isDemoSession } from '../../utils/demoProfile'
 import styles from '../Results.module.css'
 
@@ -19,13 +19,13 @@ function HistoryRecord({ record, current, selectedProfession, t, lang, profLabel
       <div><h3>{profLabel(name)}</h3>
         {hasDate && <time dateTime={date.toISOString()}>{date.toLocaleString(lang === 'kk' ? 'kk-KZ' : lang === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'medium' })}</time>}
       </div>
-      <div className={styles.historyRecordScore}><span>{t.review.scoreTitle}</span><strong>{typeof score === 'number' ? formatMatchScore(score) : '—'}</strong></div>
+      <div className={styles.historyRecordScore}><span>{t.review.scoreTitle}</span><strong>{typeof score === 'number' ? formatMatchScore(score, lang) : '—'}</strong></div>
     </div>
     {viewed && viewed !== name && <p>{t.review.viewingAlternative(profLabel(viewed))}</p>}
     {profile && <div className={styles.historyProfile}>
       {Array.isArray(profile.skills) && <span>{profile.skills.length} {t.review.historySkills}</span>}
       {profile.field_of_study && <span>{t.form.fields[profile.field_of_study] || profile.field_of_study}</span>}
-      {profile.gpa != null && <span>GPA {profile.gpa}</span>}
+      {profile.gpa != null && <span>GPA {formatNumber(profile.gpa, lang, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}</span>}
     </div>}
     {result.session_id && <details className={styles.historyTechnical}><summary>{t.review.technicalDetails}</summary><code>{result.session_id}</code></details>}
     <button type="button" className={current ? styles.primaryAction : styles.secondaryAction} onClick={onOpen}>{current ? t.review.viewResults : t.review.inspectRun}</button>

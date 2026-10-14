@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import Feedback from '../components/Feedback'
 import styles from './Results.module.css'
-import { getScoreBreakdown, formatMatchScore, formatMatchPoints, formatRawValue } from '../utils/scoring'
+import { getScoreBreakdown, formatMatchScore, formatMatchPoints, formatRawValue, formatNumber, formatDate } from '../utils/scoring'
 import { isDemoSession } from '../utils/demoProfile'
 import { updatePageMetadata } from '../utils/seo'
 import LLMSettings from '../components/LLMSettings'
@@ -86,7 +86,7 @@ const formatCoursePrice = (course, t) => {
   const labels = t.results.courseFilters || {}
   const numeric = Number(course?.price)
   if (type === 'free') return labels.free || 'Free'
-  if ((type === 'paid' || numeric > 0) && Number.isFinite(numeric) && numeric > 0 && /^[A-Z]{3}$/.test(course?.currency || '')) return `${numeric.toFixed(2)} ${course.currency}`
+  if ((type === 'paid' || numeric > 0) && Number.isFinite(numeric) && numeric > 0 && /^[A-Z]{3}$/.test(course?.currency || '')) return `${t.review.pointsValue(numeric)} ${course.currency}`
   if (type === 'paid' || numeric > 0) return `${labels.paid || 'Paid'} · ${t.results.verifyPrice}`
   return ''
 }
@@ -270,6 +270,7 @@ const CheckIcon = ({ size = 12 }) => (
 
 /* ─── Progress Ring ──────────────────────────────────────────── */
 function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey }) {
+  const { lang } = useApp()
   const [progress, setProgress] = useState(0)
   const r    = (size - stroke) / 2
   const circ = 2 * Math.PI * r
@@ -298,12 +299,13 @@ function ProgressRing({ value, size = 64, stroke = 5, color = '#5b8dee', animKey
         justifyContent: 'center', fontSize: size < 60 ? '0.65rem' : '0.78rem',
         fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text)',
         flexDirection: 'column', lineHeight: 1.2,
-      }} aria-label={formatMatchScore(value)}><span>{formatMatchPoints(value)}</span><small style={{ fontSize: '.6rem', color: 'var(--text-2)' }}>/100</small></div>
+      }} aria-label={formatMatchScore(value, lang)}><span>{formatMatchPoints(value, lang)}</span><small style={{ fontSize: '.6rem', color: 'var(--text-2)' }}>/100</small></div>
     </div>
   )
 }
 
 function SkillImpactChart({ explanation, profile, t }) {
+  const { lang } = useApp()
   const [expanded, setExpanded] = useState(false)
   const isShap = !!explanation?.shap_explanations?.length
   const rawItems = isShap ? explanation.shap_explanations : explanation?.items || []
@@ -327,7 +329,7 @@ function SkillImpactChart({ explanation, profile, t }) {
       <i className={item.value >= 0 ? styles.skillImpactPositive : styles.skillImpactNegative}
         style={{ [item.value >= 0 ? 'left' : 'right']: '50%', width: `${Math.abs(item.value) / maxAbs * 50}%` }} />
     </span>
-    <span className={styles.skillImpactValue}>{item.value > 0 ? '+' : ''}{item.value.toFixed(2)}%</span>
+    <span className={styles.skillImpactValue}>{item.value > 0 ? '+' : ''}{formatNumber(item.value, lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</span>
   </div>)}</div>
   return <div className={styles.skillExplainBlock}>
     <div className={styles.featureSummary} id="career-feature-contributions">
@@ -513,6 +515,7 @@ export function getCourseProviderUrl(course) {
 }
 
 function CourseCard({ course, t, onOpen, onCopy, copied }) {
+  const { lang } = useApp()
   const providerUrl = getCourseProviderUrl(course)
   return (
     <div className={styles.courseWrap}>
@@ -520,10 +523,10 @@ function CourseCard({ course, t, onOpen, onCopy, copied }) {
         <span className={styles.courseTitle}>{course.title || t.review.courseUntitled}</span>
         <span className={styles.courseMeta}>
           <span className={styles.coursePlatform}>{course.platform}</span>
-          {course.rating > 0 && <span className={styles.courseRating}>★ {course.rating}</span>}
+          {course.rating > 0 && <span className={styles.courseRating}>★ {t.review.pointsValue(Number(course.rating))}</span>}
           {course.reviews != null && (
             <span className={styles.courseReviews}>
-              {Number(course.reviews).toLocaleString()} {t.results.reviews}
+              {Number(course.reviews).toLocaleString(lang)} {t.results.reviews}
             </span>
           )}
           {course.hasLanguage !== false && <span className={styles.courseReviews}>{t.results.courseLanguages?.[course.language] || course.language}</span>}
@@ -658,7 +661,7 @@ function CourseModal({ course, onClose, t }) {
           <div className={styles.modalMeta}>
             <span className={styles.modalPlatform}>{course.platform}</span>
             {course.rating > 0 && (
-              <span className={styles.modalRating}>★ {course.rating}</span>
+              <span className={styles.modalRating}>★ {t.review.pointsValue(Number(course.rating))}</span>
             )}
           </div>
           <button type="button" className={styles.modalClose} aria-label={t.review.closeCourse} onClick={onClose}>
@@ -718,6 +721,7 @@ function DeepModeBtn({ active, onClick, disabled, lang, t }) {
 
 /* ─── Scoring Formula Header ─────────────────────────────────── */
 function ScoringFormulaHeader({ results, profession, t, profile }) {
+  const { lang } = useApp()
   const components = getScoreBreakdown(results, profession)
   const labels = {
     profile_match: t.results.classification, skill_match: t.results.skillMatch,
@@ -763,7 +767,7 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
           <section className={styles.technicalGroup} aria-label={t.review.scoreCalculation}>
             <h3>{t.review.scoreCalculation}</h3>
             {hasWeights && components.every(item => item.available) ? <code className={styles.scoreEquation}>
-              {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession])}
+              {components.map(item => `${(item.value * 100).toFixed(2)} × ${item.weight.toFixed(2)}`).join(' + ')} ≈ {formatMatchScore(results.final_scores[profession], lang)}
             </code> : <p>{hasWeights ? t.review.partialSignals : t.review.missingWeights}</p>}
             <p>{t.review.normalization}</p>
             <p>{t.review.displayPrecision}</p>
@@ -1383,7 +1387,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
   }, [courseFilters, lang, gapSkillsList, rawRoadmap])
 
   const handleShare = () => {
-    const text = `${t.results.selectedCareer}: ${profLabel(activeProfName)} · ${t.review.scoreTitle}: ${activeProf?.final_score != null ? formatMatchScore(activeProf.final_score) : '—'} · CareerFlow · https://careerflow.live`
+    const text = `${t.results.selectedCareer}: ${profLabel(activeProfName)} · ${t.review.scoreTitle}: ${activeProf?.final_score != null ? formatMatchScore(activeProf.final_score, lang) : '—'} · CareerFlow · https://careerflow.live`
     if (navigator.share) {
       navigator.share({ title: 'CareerFlow', text }).catch(() => {})
     } else {
@@ -1591,10 +1595,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
 
   const allScoreLines = sorted.map(p => `<div class="all-score-row">
     <span class="all-score-name">${esc(profLabel(p.name))}</span>
-    <span class="all-score-pct">${formatMatchScore(p.final_score)}</span>
+    <span class="all-score-pct">${formatMatchScore(p.final_score, lang)}</span>
   </div>`).join('')
   const scoreLines = rows.filter(r => activeProf?.[r.key] != null).map(r => `<div class="all-score-row">
-    <span>${esc(r.label)}</span><span>${formatMatchScore(activeProf[r.key] / r.max)}</span>
+    <span>${esc(r.label)}</span><span>${formatMatchScore(activeProf[r.key] / r.max, lang)}</span>
   </div>`).join('')
   const gapRows = sorted.map(p => {
     const summary = getProfessionRoadmapSummary(results, p.name)
@@ -1615,10 +1619,10 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <span class="rm-skill-name">${esc(cap(s.skill))}</span>
           ${s.courses.map(c => {
             const rating = c.rating && !isNaN(parseFloat(c.rating))
-              ? `<span class="rm-rating">★ ${parseFloat(c.rating).toFixed(1)}</span>`
+              ? `<span class="rm-rating">★ ${formatNumber(c.rating, lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>`
               : ''
             const reviews = c.reviews && Number(c.reviews) > 10
-              ? `<span class="rm-reviews">${Number(c.reviews).toLocaleString()} ${t.results.reviews}</span>`
+              ? `<span class="rm-reviews">${Number(c.reviews).toLocaleString(lang)} ${t.results.reviews}</span>`
               : ''
             return `<div class="rm-course">
               <strong class="rm-title">${esc(c.title)}</strong>
@@ -1636,8 +1640,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
   // Username from formData
   const userName = formData?.name || formData?.fullName || ''
   const headerSub = userName
-    ? `${t.results.pdfFor} ${userName} · ${new Date().toLocaleDateString()}`
-    : new Date().toLocaleDateString()
+    ? `${t.results.pdfFor} ${userName} · ${formatDate(new Date(), lang)}`
+    : formatDate(new Date(), lang)
 
   const html = `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">
   <title>${t.results.pdfRoadmap}: ${esc(profLabel(activeProfName))}</title>
@@ -1726,7 +1730,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <div className={styles.contextHeading}>
             <button className={styles.backBtn} onClick={onBack}>{t.results.back}</button>
             <h1 ref={resultHeading} tabIndex={-1}>{t.results.title}</h1>
-            {(results._formData || formData)?.gpa != null && <span className={styles.profileMeta}>GPA {(results._formData || formData).gpa}</span>}
+            {(results._formData || formData)?.gpa != null && <span className={styles.profileMeta}>GPA {formatNumber((results._formData || formData).gpa, lang, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}</span>}
             {(results._formData || formData)?.field_of_study && <span className={styles.profileMeta}>{t.form.fields[(results._formData || formData).field_of_study] || (results._formData || formData).field_of_study}</span>}
           </div>
           <ResultsNavigation tabs={tabs} activeTab={tab} onTabChange={setTab} label={t.results.title} />
@@ -1875,7 +1879,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
       {/* ─ RIGHT CHAT ─ */}
       <AdvisorDrawer open={rightOpen} onClose={closeAdvisor} title={t.results.chatTitle} closeLabel={t.results.closeAiPanel}
         provider={advisorMode === 'preview' ? 'Google Gemini' : LLM_PROVIDERS.find(provider => provider.id === llmProvider)?.name || t.experience.byok}
-        context={<><strong>{profLabel(activeProfName)}</strong><span>{t.review.scoreTitle}: {activeProf?.final_score != null ? formatMatchScore(activeProf.final_score) : '—'}</span></>}
+        context={<><strong>{profLabel(activeProfName)}</strong><span>{t.review.scoreTitle}: {activeProf?.final_score != null ? formatMatchScore(activeProf.final_score, lang) : '—'}</span></>}
         width={chatSize.width} widthLabel={t.review.advisorWidth} onResize={startChatResize} onWidthChange={width => setChatSize(size => ({ ...size, width }))}>
         <div className="advisorModes" aria-label={t.results.chatTitle}>
           <button type="button" data-mode="preview" aria-pressed={advisorMode === 'preview'} onClick={() => setAdvisorMode('preview')}>{t.experience.free}</button>

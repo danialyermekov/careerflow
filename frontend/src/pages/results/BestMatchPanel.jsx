@@ -1,9 +1,11 @@
+import { useApp } from '../../context/AppContext'
 import styles from '../Results.module.css'
 import { formatMatchScore } from '../../utils/scoring'
 
 export default function BestMatchPanel({ profession, rank, isTop, name, t, score, scoring,
   skillGap, explanation, alternatives, profLabel, onSelect, onRoadmap, onCompare,
   aiCtaInfo, onAdvisor, ranks, incompleteProfile, headingRef }) {
+  const { lang } = useApp()
   const description = t.hero.trackDescriptions[['Data Analyst', 'Software Engineer', 'Machine Learning Engineer', 'Cloud Engineer', 'Data Scientist', 'Data Engineer', 'Business Analyst'].indexOf(profession.name)]
   return <div className={styles.bestPanel}>
     <section className={styles.recommendationHero}>
@@ -14,7 +16,7 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
           <h2 className={styles.bestName} ref={headingRef} tabIndex={-1}>{name}</h2>
           {description && <p className={styles.summaryText}>{description}</p>}
           {profession.vacancies_per_week != null && <p className={styles.methodNote}>
-            {profession.vacancies_per_week.toLocaleString()} {t.results.vacanciesWeek}
+            {profession.vacancies_per_week.toLocaleString(lang)} {t.results.vacanciesWeek}
           </p>}
           <div className={styles.heroActions}>
             <button type="button" className={styles.primaryAction} onClick={onRoadmap}>{t.results.viewFullRoadmap}</button>
@@ -36,7 +38,7 @@ export default function BestMatchPanel({ profession, rank, isTop, name, t, score
       </header>
       <div className={styles.alternativeGrid}>{alternatives.map(p => <button key={p.name} type="button" onClick={() => onSelect(p.name)}>
         <span className={styles.alternativeRank}>#{ranks[p.name]}</span>
-        <span>{profLabel(p.name)}</span><strong>{formatMatchScore(p.final_score)}</strong>
+        <span>{profLabel(p.name)}</span><strong>{formatMatchScore(p.final_score, lang)}</strong>
         <span className={styles.alternativeTrack} aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, (p.final_score ?? 0) * 100))}%` }} /></span>
       </button>)}</div>
     </section>

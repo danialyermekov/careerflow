@@ -1,8 +1,10 @@
+import { useApp } from '../../context/AppContext'
 import styles from '../Results.module.css'
-import { formatMatchScore } from '../../utils/scoring'
+import { formatMatchScore, formatNumber } from '../../utils/scoring'
 
 export default function AllProfessionsPanel({ professions, selected, ranks, topName, profLabel, t,
   sortOptions, sortBy, onSort, onSelect, onOpenDetails, marketTrackCount }) {
+  const { lang } = useApp()
   const criterion = { skill: 'skill_match', profile: 'profile_match', trend: 'trend_score', market: 'market_share' }[sortBy]
   const sortLabel = sortOptions.find(option => option.key === sortBy)?.label
   const secondary = profession => {
@@ -11,7 +13,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
     const signal = profession.breakdown.find(item => item.key === criterion)
     if (!signal.available) return `${sortLabel}: —`
     return sortBy === 'market' ? `${t.review.demandShare}: ${t.review.marketPercentage(signal.raw)}`
-      : `${sortLabel} · ${t.review.index}: ${(signal.value * 100).toFixed(1)} / 100`
+      : `${sortLabel} · ${t.review.index}: ${formatNumber(signal.value * 100, lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 100`
   }
   return <section className={styles.allPanel} aria-label={t.results.tabs.all}>
     <div data-tour-slot="comparison" />
@@ -35,7 +37,7 @@ export default function AllProfessionsPanel({ professions, selected, ranks, topN
             <span className={styles.careerRowHeading}>
               <span className={styles.careerRank} aria-label={`${t.results.overallRank} ${ranks[profession.name]}`}>#{ranks[profession.name]}</span>
               <span className={styles.careerName}>{profLabel(profession.name)} {profession.name === topName && <span className={styles.careerTopBadge}>{t.results.bestMatch}</span>}</span>
-              <strong className={styles.careerScore}>{profession.final_score == null ? '—' : formatMatchScore(profession.final_score)}</strong>
+              <strong className={styles.careerScore}>{profession.final_score == null ? '—' : formatMatchScore(profession.final_score, lang)}</strong>
             </span>
             <span className={styles.careerRowMeta}>{secondary(profession)}</span>
           </button>
