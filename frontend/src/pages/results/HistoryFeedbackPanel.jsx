@@ -14,7 +14,6 @@ function HistoryRecord({ record, current, selectedProfession, t, lang, profLabel
     <div className={styles.historyRecordMeta}>
       <strong>{current ? t.review.currentRecommendation : t.review.previousRecommendation}</strong>
       {(result._isDemo || isDemoSession(result.session_id)) && <span>{t.review.demoLabel}</span>}
-      {result.session_id && <span>#{result.session_id.slice(0, 8)}</span>}
     </div>
     <div className={styles.historyRecordHeading}>
       <div><h3>{profLabel(name)}</h3>
@@ -28,6 +27,7 @@ function HistoryRecord({ record, current, selectedProfession, t, lang, profLabel
       {profile.field_of_study && <span>{t.form.fields[profile.field_of_study] || profile.field_of_study}</span>}
       {profile.gpa != null && <span>GPA {profile.gpa}</span>}
     </div>}
+    {result.session_id && <details className={styles.historyTechnical}><summary>{t.review.technicalDetails}</summary><code>{result.session_id}</code></details>}
     <button type="button" className={current ? styles.primaryAction : styles.secondaryAction} onClick={onOpen}>{current ? t.review.viewResults : t.review.inspectRun}</button>
   </article>
 }
@@ -39,7 +39,7 @@ export default function HistoryFeedbackPanel({ results, profession, history, use
     <header><h2 id="history-title">{t.results.historyTitle}</h2><p>{t.review.historyPrivacy}</p></header>
     <HistoryRecord record={{ results, createdAt: saved?.createdAt || results.created_at }} current selectedProfession={profession} t={t} lang={lang} profLabel={profLabel} onOpen={onCurrent} />
     <h3 className={styles.historyPreviousTitle}>{t.review.previousRecommendation}</h3>
-    {previous.length ? previous.map(item => <HistoryRecord key={item.id} record={item} t={t} lang={lang} profLabel={profLabel} onOpen={() => onOpen(item)} />) : <p>{t.results.noHistory}</p>}
+    {previous.length ? previous.map(item => <HistoryRecord key={item.id} record={item} t={t} lang={lang} profLabel={profLabel} onOpen={() => onOpen(item)} />) : <p className={styles.historyEmpty}>{user ? t.results.noHistory : t.review.guestHistoryEmpty}</p>}
     {user && history.length > 0 && <button type="button" className={styles.historyClear} onClick={onClear}>{t.results.clearHistory}</button>}
   </section>
 }

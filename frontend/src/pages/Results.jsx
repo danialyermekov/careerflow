@@ -817,6 +817,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
     const titles = { best: t.results.title, all: t.results.allScores, roadmap: t.results.roadmap, history: t.review.historyTab }
     updatePageMetadata('results', t, lang, titles[tab])
   }, [tab, t, lang])
+  const feedbackDisclosure = useRef(null)
   const careerHeading = useRef(null)
   const detailFocusRequested = useRef(false)
   useEffect(() => {
@@ -1757,7 +1758,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <details className={styles.actionsDisclosure}>
           <summary>{t.polish.actions}</summary>
           <div className={styles.actionsMenu}>
-          <button type="button" className={styles.actionBtn} onClick={() => setTab('history')}>{t.product.shareFeedback}</button>
+          <button type="button" className={styles.actionBtn} onClick={() => { setTab('history'); feedbackDisclosure.current.open = true }}>{t.product.shareFeedback}</button>
           <button className={styles.actionBtn} disabled={!user || results.persistent === false || results._isDemo || !stateLoaded} onClick={saveCurrentResult}>
             <CheckIcon size={12}/>
             {savedCurrent ? t.results.savedResult : t.results.saveResult}
@@ -1867,7 +1868,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
             />
           )}
         </div>
-        <div className={tab === 'history' ? styles.feedbackColumn : undefined} hidden={tab !== 'history'}><Feedback sessionId={results.session_id} editorial={tab === 'history'} /></div>
+        <div className={tab === 'history' ? styles.feedbackColumn : undefined} hidden={tab !== 'history'}><details ref={feedbackDisclosure} className={styles.historyFeedback}><summary>{t.product.shareFeedback}</summary><Feedback sessionId={results.session_id} editorial={tab === 'history'} /></details></div>
         </div>
       </div>
 

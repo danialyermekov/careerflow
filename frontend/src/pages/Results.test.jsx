@@ -323,7 +323,7 @@ describe('editorial results navigation and Best Match', () => {
   })
 
   test('feedback is contextual to History and remains reachable through More actions', async () => {
-    const feedback = container.querySelector('.betaCard[aria-label="Feedback & Ideas"]').parentElement
+    const feedback = container.querySelector('.betaCard[aria-label="Feedback & Ideas"]').closest('[hidden]')
     expect(feedback.hidden).toBe(true)
     const action = [...container.querySelectorAll('.actionsMenu button')].find(el => el.textContent === translations.en.product.shareFeedback)
     expect(action).not.toBeUndefined()
@@ -331,6 +331,7 @@ describe('editorial results navigation and Best Match', () => {
     expect(container.querySelector('#results-tab-history').getAttribute('aria-selected')).toBe('true')
     expect(container.querySelector('.feedbackColumn').hidden).toBe(false)
     expect(container.querySelector('.feedbackColumn form')).not.toBeNull()
+    expect(container.querySelector('.historyFeedback').open).toBe(true)
   })
 
   test('feature explanation separates raw profile values and signed contributions from classifier and composite scores', async () => {
