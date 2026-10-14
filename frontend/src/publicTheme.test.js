@@ -11,7 +11,7 @@ test.each([[null, 'light'], ['dark', 'dark'], ['light', 'light'], ['invalid', 'l
       beforeParse(window) { if (stored) window.localStorage.setItem('theme', stored) },
     })
     expect(dom.window.document.documentElement.dataset.theme).toBe(expected)
-    expect(dom.window.document.querySelector('meta[name="theme-color"]').content).toBe(expected === 'dark' ? '#07090d' : '#FBFBFA')
+    expect(dom.window.document.querySelector('meta[name="theme-color"]').content).toBe(expected === 'dark' ? '#0B1018' : '#FBFBFA')
     dom.window.close()
   }
 )

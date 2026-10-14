@@ -32,7 +32,7 @@ export function AppProvider({ children, initialLanguage }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#07090d' : '#FBFBFA')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0B1018' : '#FBFBFA')
     safeSave('theme', theme)
   }, [theme])
 
