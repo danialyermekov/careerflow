@@ -505,3 +505,17 @@ test('About AI CTA enters the real recommendation and advisor flow without sendi
   expect(container.querySelector('.chatSidebar')).not.toBeNull()
   expect(api.sendChatStream).not.toHaveBeenCalled()
 })
+
+test.each([404, 500])('unavailable result link (%s) explains recovery and starts a clean calculation', async status => {
+  window.history.replaceState({}, '', '/#results/missing-result')
+  api.getRecommendationState.mockRejectedValue(Object.assign(new Error('Unavailable'), { status }))
+  await act(async () => root.render(<App />))
+  expect(container.querySelector('[role="alert"]').textContent).toContain('This result could not be restored')
+  expect(container.querySelector('form')).toBeNull()
+  expect(container.textContent).not.toMatch(/expired|Server error/i)
+  await act(async () => button('New analysis').click())
+  expect(window.location.hash).toBe('#profile')
+  expect(container.querySelector('input[name="gpa"]')).not.toBeNull()
+  expect(container.querySelector('[role="alert"]')).toBeNull()
+  expect(api.getRecommendation).not.toHaveBeenCalled()
+})

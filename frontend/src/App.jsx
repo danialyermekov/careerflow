@@ -70,7 +70,7 @@ function AppInner() {
           setPage('results')
         }
       } catch {
-        if (!cancelled && pendingRequest.current === request && window.location.hash === hash) { setError(requestText.current.errors.api); setPage('form') }
+        if (!cancelled && pendingRequest.current === request && window.location.hash === hash) { setError(''); setPage('resultUnavailable') }
       } finally {
         if (!cancelled && pendingRequest.current === request) cancelPendingRequest()
       }
@@ -144,6 +144,10 @@ function AppInner() {
       {page === 'login' && <Login />}
       {page === 'account' && <Account />}
 
+      {page === 'resultUnavailable' && <main className="betaPage productPage"><section className="betaCard" role="alert">
+        <h1>{t.review.resultUnavailableTitle}</h1><p>{t.review.resultUnavailableNote}</p>
+        <button type="button" onClick={handleStart}>{t.results.newAnalysis}</button>
+      </section></main>}
       <AnimatePresence mode="wait">
         {page === 'hero' && (
           <motion.main
