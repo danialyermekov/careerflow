@@ -14,7 +14,7 @@ export default function About({ onExploreAdvisor }) {
       <p>{t.experience.contact} <a href="mailto:contact@careerflow.live">contact@careerflow.live</a></p>
     </section>
     <aside className="advisorShowcase" aria-labelledby="advisor-showcase-title"><h2 id="advisor-showcase-title">{text.aiTitle}</h2><p>{text.aiText}</p>
-      <ul>{text.aiCapabilities.map(item => <li key={item}>{item}</li>)}</ul><p className="publicNote">{t.experience.byokText}</p><p>{text.aiProvider}</p>
+      <ul>{text.aiCapabilities.map(item => <li key={item}>{item}</li>)}</ul><p>{text.aiProvider}</p>
       <button type="button" onClick={onExploreAdvisor}>{text.aiExplore}</button><p>{text.aiNext}</p>
     </aside>
     <p className="publicLinks"><a href="/feedback">{text.feedback}</a><a href="/changelog">{text.changelog}</a><a href="/roadmap">{text.roadmap}</a></p>

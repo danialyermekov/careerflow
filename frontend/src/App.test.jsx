@@ -70,7 +70,7 @@ test('live demo calls the real API directly and guides all five steps without an
   await act(async () => root.render(<App />))
   expect(container.textContent).toContain('How CareerFlow works')
   expect(container.textContent).toContain('No AI key required')
-  expect(container.textContent).toContain('limited free AI preview')
+  expect(container.textContent).toContain('After sign-in, a limited Gemini preview allows up to 3 questions.')
   expect(container.textContent).not.toContain('generates examples for missing classes')
   expect([...container.querySelectorAll('a')].map(a => a.href)).toEqual(expect.arrayContaining([
     'https://huggingface.co/datasets/lukebarousse/data_jobs',
@@ -496,7 +496,7 @@ test.each(['about', 'feedback', 'changelog', 'roadmap'])('clean /%s route works 
 test('About AI CTA enters the real recommendation and advisor flow without sending an AI request', async () => {
   window.history.replaceState({}, '', '/about')
   await act(async () => root.render(<App />))
-  expect(container.textContent).toContain('limited free AI preview')
+  expect(container.textContent).toContain('After sign-in, a limited Gemini preview allows up to 3 questions.')
   await act(async () => button('Explore AI Advisor').click())
   expect(window.location.pathname).toBe('/')
   expect(window.location.hash).toBe('#profile')
