@@ -2,6 +2,7 @@ name: Release checks
 on:
   push:
   pull_request:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -9,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.12'
@@ -16,7 +20,10 @@ jobs:
         working-directory: backend
       - run: uv run --locked --extra dev python -m pytest --ignore=tests/test_recommendations.py
         working-directory: backend
-      - run: uv run --locked --extra dev python -m ruff check .
+      - name: Deployment safety tests (no Azure or production requests)
+        run: uv run --locked --extra dev python -m unittest discover -s ../.github/scripts -p test_deploy.py
+        working-directory: backend
+      - run: uv run --locked --extra dev python -m ruff check . ../.github/scripts
         working-directory: backend
       - run: uv run --locked --extra dev python -m pyright
         working-directory: backend
@@ -24,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

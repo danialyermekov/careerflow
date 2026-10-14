@@ -1,0 +1,65 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: careerflow-production
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main and public build configuration
+        env:
+          REACT_APP_SUPABASE_URL: ${{ vars.REACT_APP_SUPABASE_URL }}
+          REACT_APP_SUPABASE_PUBLISHABLE_KEY: ${{ vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main || "$GITHUB_REPOSITORY" != danialyermekov/careerflow ]]; then
+            echo "::error::Production deployment is only allowed from danialyermekov/careerflow main."
+            exit 1
+          fi
+          if [[ -z "$REACT_APP_SUPABASE_URL" || -z "$REACT_APP_SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::Set the two public REACT_APP_SUPABASE_* repository variables described in README."
+            exit 1
+          fi
+
+  checks:
+    needs: guard
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REACT_APP_SUPABASE_URL: ${{ vars.REACT_APP_SUPABASE_URL }}
+      REACT_APP_SUPABASE_PUBLISHABLE_KEY: ${{ vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
+      AZURE_CORE_COLLECT_TELEMETRY: 'false'
+    steps:
+      - name: Check out the checked deployment commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify checkout identity
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      # No environment: retain the existing main-branch OIDC subject.
+      - name: Azure OIDC login
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac # v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build or reuse the image, deploy and verify production
+        run: python3 .github/scripts/deploy.py

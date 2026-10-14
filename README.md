@@ -412,6 +412,80 @@ Open [http://localhost:18002](http://localhost:18002); stop with `docker stop ca
 - **Cloud Ingress (Azure Container Apps):** The container listens on internal port `8000` HTTP; Azure ingress handles public HTTPS for `careerflow.live`. The 9 October 2026 read-only check found single-revision mode, 0–1 replicas and ready image `careerflowacr.azurecr.io/careerflow:v1.1-73e220b`. Scale-to-zero can discard guest state. The image starts one Uvicorn worker with proxy-header support and access logs disabled; its wildcard forwarded-header trust assumes traffic arrives through the trusted ingress and needs review before exposing that server directly.
 - **BYOK AI Security:** No LLM API keys are baked into the image. BYOK credentials stay in browser memory and travel only with explicit AI requests in secure headers. The optional free Gemini preview reads its separate backend-owned key from runtime environment, never from React configuration. No owner Anthropic key is required.
 
+## Production Deployment
+
+Production CD is **manual only**: GitHub **Actions → Deploy production → Run workflow → branch `main`**. Merge the deployment workflow PR into `main` first. Only run it after approving that exact commit for production. Pushes and merges run CI but never deploy; non-main dispatches fail. Production runs are serialized without cancelling an in-progress deployment.
+
+### One-time GitHub configuration
+
+In **Settings → Secrets and variables → Actions**, retain the existing repository **secrets** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`. Under **Variables**, create:
+
+| Repository variable | Value |
+| --- | --- |
+| `REACT_APP_SUPABASE_URL` | The existing production Supabase project's HTTPS URL |
+| `REACT_APP_SUPABASE_PUBLISHABLE_KEY` | That same project's public publishable key (or legacy `anon` key) |
+
+Copy these public values from the production project's Supabase **Connect / API keys** settings or the existing approved frontend configuration. They are intentionally visible in the browser bundle. Never use a database password, `sb_secret_*` key or `service_role` JWT. Both variables were absent during the 12 October 2026 read-only check; the workflow fails until they are supplied. `REACT_APP_API_URL` is explicitly empty for same-origin production.
+
+The existing `careerflow-github-deploy` Entra application uses issuer `https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange`, and subject:
+
+```text
+repo:danialyermekov@188733471/careerflow@1233169767:ref:refs/heads/main
+```
+
+The repository's immutable OIDC subject setting and owner/repository IDs were checked against this credential. No GitHub `production` environment is used: adding one changes the subject to an environment context and requires a separately approved federated credential (including these immutable IDs). Do not replace the branch subject with an older name-only example. Actions uses OIDC, not a service-principal password or registry administrator login.
+
+Azure resource group `careerflow-rg` was verified, not inferred. The assigned **Container Registry Tasks Contributor** on `careerflowacr` supports quick builds, source upload and task-run metadata in its current **LegacyRegistryPermissions** mode; no `AcrPush`/registry credentials are used by Actions. **Container Apps Contributor** on the existing `careerflow` app supports the image-only update and revision inspection. Current Azure CLI's image-only update uses a PATCH with the existing container configuration, without changing the managed environment. Use a current CLI; do not use `containerapp up`, recreate the app, or pass registry/environment/scaling flags. Existing app registry-pull configuration must remain valid.
+
+If ACR is changed to ABAC mode, this pipeline intentionally stops. That mode requires explicit source-registry authentication (`--source-acr-auth-id '[caller]'`) and **Container Registry Repository Writer** for the deploy identity (prefer a `careerflow` repository condition), in addition to the Tasks role. Review that change before updating the workflow; it never grants Azure permissions automatically.
+
+### What happens and how to verify it
+
+1. The existing **Release checks** workflow runs both `backend` (tests, deployment safety tests, Ruff, Pyright) and `frontend` (tests, build/prerender/SEO). All jobs check out the dispatch's exact `github.sha`, even if `main` advances during the run.
+2. ACR remotely builds the root Dockerfile for Linux/amd64 using only the public frontend arguments. Tags are `careerflow:sha-<full-commit-SHA>-<public-config-hash>-<ACR-run-ID>`; successful retries reuse a matching retained build, including its original tag. A changed public build configuration gets a new image. Unique run IDs prevent tag overwrites if task history expires or no matching build remains among the latest 100 successful builds. `latest` is never used.
+3. The existing app's single container image is updated to **`careerflowacr.azurecr.io/careerflow@sha256:<digest>`**, an immutable content reference. Domain/ingress, runtime environment and secrets, registry configuration, scaling and the Dockerfile's one worker are preserved. Migrations are separate and are never run here.
+4. The script checks the actual ready revision's digest, active/provisioned/healthy status and **100% traffic**, then requests `https://careerflow.live/health` and checks Azure state again. An old revision's HTTP 200 cannot satisfy this verification. Startup/health polling has a ten-minute budget with bounded CLI/HTTP timeouts, including scale-to-zero cold starts; ACR builds have a thirty-minute budget and the deployment job a sixty-minute limit.
+
+The run is successful only when the **deploy** job and its final **Deployment verified** summary succeed. Its summary records the commit, image tag/digest, ACR build run (for fresh builds), verified revision, and **previous serving revision/image for rollback**. Record these before any manual intervention. A failed verification does not prove the update failed: the new revision may already be serving, so inspect Azure before retrying or rolling back.
+
+To identify the currently serving version (the app template can lead traffic during an update):
+
+```bash
+REVISION=$(az containerapp show --name careerflow --resource-group careerflow-rg \
+  --query properties.latestReadyRevisionName --output tsv)
+az containerapp revision show --name careerflow --resource-group careerflow-rg \
+  --revision "$REVISION" \
+  --query '{revision:name,image:properties.template.containers[0].image,active:properties.active,health:properties.healthState,provisioning:properties.provisioningState,running:properties.runningState,traffic:properties.trafficWeight}'
+```
+
+Match its digest to the successful deployment's summary. If necessary, `az acr task list-runs --registry careerflowacr --image 'careerflow@sha256:<digest>' --run-status Succeeded --query '[].outputImages[]'` returns retained SHA-tag/build metadata. `/health` is liveness; it does not independently establish database readiness or the deployed commit.
+
+### Manual rollback
+
+Rollback requires an operator's explicit approval; it is never automatic. Stop/resolve any in-progress **Deploy production** run first and coordinate manual Azure changes with deployments. Use the **previous serving image** from the run summary, preferably its digest; keep rollback images in ACR. Check that the previous release remains compatible with the current database schema and runtime settings. Rolling back an image does not undo database migrations or restore earlier environment values.
+
+After `az login` and selecting the intended subscription:
+
+```bash
+# Set this to the recorded working digest/tag, not latest or the failed image.
+PREVIOUS_IMAGE='careerflowacr.azurecr.io/careerflow@sha256:<previous-digest>'
+az containerapp update --name careerflow --resource-group careerflow-rg \
+  --container-name careerflow --image "$PREVIOUS_IMAGE" --no-wait --output none
+```
+
+For the initial pre-CD release, the read-only check found `careerflowacr.azurecr.io/careerflow:v1.1-73e220b`, revision `careerflow--0000003`; confirm its continued availability rather than treating this historical value as a permanent rollback target. Use an image-only update in single-revision mode, rather than changing revision mode or traffic rules to activate an old revision.
+
+Repeat the version-inspection commands above for up to ten minutes until **latestRevisionName equals latestReadyRevisionName**, the ready revision uses exactly `$PREVIOUS_IMAGE`, is active/Provisioned/Healthy and has traffic `100`. Then run `curl --fail --max-time 30 https://careerflow.live/health` and inspect the ready revision again. `Running` and `RunningAtMaxScale` are healthy running states; `ScaledToZero` is valid before the health request wakes the app. If readiness/health does not converge, stop and inspect diagnostics; do not repeatedly change production settings to make the check pass.
+
+### Common failures
+
+- **Missing/public-key validation:** set both repository variables for the existing production Supabase project; server keys are rejected before any build/update.
+- **OIDC login (`AADSTS700213` / no matching credential):** compare the issuer, audience and exact immutable branch subject; check whether an environment/custom OIDC template was added. Keep `id-token: write` confined to the deployment job. Do not create a client secret as a workaround.
+- **ACR authorization/build:** verify the Tasks role at the existing registry scope and legacy RBAC mode. Use the recorded run ID with `az acr task logs --registry careerflowacr --run-id <run-id>` or the ACR portal. Logs may include public build values; do not pass server secrets or enable debug logging. A timed-out remote build may need an explicit `az acr task cancel-run` after inspection.
+- **Container App authorization:** verify the app-scoped Contributor role and current CLI. Review the exact denied operation/scope before assigning additional permissions; avoid YAML/environment-changing update commands. No permission expansion is automated.
+- **Image pull or revision startup:** inspect the revision's Azure system logs/probes and the existing registry-pull configuration. Check port 8000 and runtime Supabase settings without printing their values. The workflow does not reset secrets, configure registry credentials or migrate the database.
+- **Unexpected topology or unfinished update:** the pipeline stops if revision mode, container, port, domain, 0–1 replica assumptions or latest/ready revisions differ. Resolve that state deliberately before another dispatch.
+
 ## Local Development
 
 Use Python 3.11–3.13 (production/CI use 3.12), [uv](https://docs.astral.sh/uv/), and Node.js 22 with npm. Clone the current repository, or use an existing checkout:
