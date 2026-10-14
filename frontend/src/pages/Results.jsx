@@ -826,6 +826,8 @@ export default function Results({ results: initialResults, formData, onBack, onR
     }
   }, [tab])
   const [tourStep, setTourStep] = useState(initialResults._guided ? 0 : null)
+  const resultHeading = useRef(null)
+  useEffect(() => { if (tourStep === null) resultHeading.current?.focus({ preventScroll: true }) }, [tourStep, results.session_id])
   const [advisorMode, setAdvisorMode] = useState(llmProvider ? 'byok' : 'preview')
   const changeTourStep = step => {
     setTourStep(step)
@@ -1795,7 +1797,7 @@ export default function Results({ results: initialResults, formData, onBack, onR
           <div data-tour-slot="continue" />
           <div className={styles.contextHeading}>
             <button className={styles.backBtn} onClick={onBack}>{t.results.back}</button>
-            <h1>{t.results.title}</h1>
+            <h1 ref={resultHeading} tabIndex={-1}>{t.results.title}</h1>
             {(results._formData || formData)?.gpa != null && <span className={styles.profileMeta}>GPA {(results._formData || formData).gpa}</span>}
             {(results._formData || formData)?.field_of_study && <span className={styles.profileMeta}>{t.form.fields[(results._formData || formData).field_of_study] || (results._formData || formData).field_of_study}</span>}
           </div>

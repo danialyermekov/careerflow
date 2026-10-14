@@ -1,5 +1,6 @@
 export const experienceTranslations = {
   en: {
+    preparingDemo: 'Preparing your example…', demoFailed: 'Could not prepare the demo. Please try again.', demoBusy: 'Too many requests. Please wait a moment and try again.',
     liveDemo: 'Try Live Demo', next: 'Next', back: 'Back', skip: 'Skip Tour', finish: 'Finish Tour',
     tour: 'Demo walkthrough', temporary: 'Demo results and progress are temporary (up to two hours). They are never added to your account. Sign in to save future personal recommendations.',
     steps: [
@@ -27,6 +28,7 @@ export const experienceTranslations = {
     contact: 'Questions or feedback:',
   },
   ru: {
+    preparingDemo: 'Готовим ваш пример…', demoFailed: 'Не удалось подготовить демо. Попробуйте ещё раз.', demoBusy: 'Слишком много запросов. Немного подождите и повторите попытку.',
     liveDemo: 'Попробовать живое демо', next: 'Далее', back: 'Назад', skip: 'Пропустить тур', finish: 'Завершить тур',
     tour: 'Знакомство с демо', temporary: 'Результаты и прогресс демо временные (до двух часов) и не добавляются в аккаунт. Войдите, чтобы сохранять будущие личные рекомендации.',
     steps: [
@@ -54,6 +56,7 @@ export const experienceTranslations = {
     contact: 'Вопросы или обратная связь:',
   },
   kk: {
+    preparingDemo: 'Үлгіңізді дайындап жатырмыз…', demoFailed: 'Демоны дайындау мүмкін болмады. Қайталап көріңіз.', demoBusy: 'Сұраулар тым көп. Сәл күтіп, қайталап көріңіз.',
     liveDemo: 'Тікелей демоны көру', next: 'Келесі', back: 'Артқа', skip: 'Турды өткізу', finish: 'Турды аяқтау',
     tour: 'Демомен танысу', temporary: 'Демо нәтижелері мен прогресі уақытша (екі сағатқа дейін) және аккаунтқа қосылмайды. Болашақ жеке ұсыныстарды сақтау үшін кіріңіз.',
     steps: [

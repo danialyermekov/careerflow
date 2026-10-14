@@ -8,7 +8,7 @@ import * as api from './utils/api'
 jest.mock('./utils/api')
 jest.mock('framer-motion', () => {
   const React = require('react')
-  return { AnimatePresence: ({ children }) => <>{children}</>, motion: { main: ({ children }) => <main>{children}</main> } }
+  return { AnimatePresence: ({ children }) => <>{children}</>, motion: { main: ({ children }) => <main>{children}</main> }, useReducedMotion: () => false }
 })
 
 const result = {
@@ -23,7 +23,7 @@ const result = {
   _formData: DEMO_PROFILE,
 }
 let container, root
-const button = text => [...container.querySelectorAll('button')].find(el => el.textContent === text)
+const button = text => [...container.querySelectorAll('button')].find(el => (el.getAttribute('aria-label') || el.textContent) === text)
 const tourButton = text => [...container.querySelectorAll('.guidedTour button')].find(el => el.textContent === text)
 
 beforeEach(() => {
@@ -109,6 +109,65 @@ test('live demo calls the real API directly and guides all five steps without an
   expect(api.sendChatStream).not.toHaveBeenCalled()
   expect(api.sendTrialMessage).not.toHaveBeenCalled()
   expect(api.getRecommendationHistory).not.toHaveBeenCalled()
+})
+
+test('pending demo has one status and a later profile submission ignores the old completion', async () => {
+  let resolveDemo, resolveProfile
+  api.getRecommendation
+    .mockImplementationOnce(() => new Promise(resolve => { resolveDemo = resolve }))
+    .mockImplementationOnce(() => new Promise(resolve => { resolveProfile = resolve }))
+  await act(async () => root.render(<App />))
+  const launch = button('Try Live Demo')
+  await act(async () => { launch.click(); launch.click() })
+  expect(api.getRecommendation).toHaveBeenCalledTimes(1)
+  expect(container.querySelectorAll('button[aria-label="Preparing your example…"]')).toHaveLength(3)
+  expect([...container.querySelectorAll('button[aria-label="Preparing your example…"]')].every(el => el.disabled)).toBe(true)
+  expect([...container.querySelectorAll('[role="status"]')].filter(el => el.textContent)).toHaveLength(1)
+  expect(container.querySelector('.betaPage')).toBeNull()
+  await act(async () => button('Create your profile').click())
+  await act(async () => Simulate.change(container.querySelector('#profile-gpa'), { target: { value: '3.1' } }))
+  await act(async () => Simulate.submit(container.querySelector('#career-profile')))
+  await act(async () => resolveDemo(result))
+  expect(window.location.hash).toBe('#profile')
+  expect(container.querySelector('#profile-gpa').value).toBe('3.1')
+  expect(container.querySelector('button[type="submit"]').disabled).toBe(true)
+  expect(container.querySelector('.guidedTour')).toBeNull()
+  await act(async () => resolveProfile({ ...result, session_id: 'personal-result' }))
+  expect(window.location.hash).toBe('#results/personal-result')
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull()
+  expect(document.activeElement).toBe(container.querySelector('h1'))
+})
+
+test.each(['hashchange', 'popstate'])('leaving demo via %s ignores a late success or error', async event => {
+  let rejectDemo
+  api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectDemo = reject }))
+  await act(async () => root.render(<App />))
+  await act(async () => button('Try Live Demo').click())
+  await act(async () => {
+    window.history.pushState({}, '', '/#login')
+    window.dispatchEvent(new Event(event))
+  })
+  await act(async () => rejectDemo(new Error('Service unavailable')))
+  expect(window.location.hash).toBe('#login')
+  expect(container.textContent).not.toContain(require('./i18n').translations.en.experience.demoFailed)
+  expect(container.querySelector('.appError')).toBeNull()
+  expect(container.querySelector('[aria-busy="true"]')).toBeNull()
+})
+
+test.each([500, 429])('failed demo (%s) restores all actions and Retry can succeed', async status => {
+  let rejectDemo
+  api.getRecommendation.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectDemo = reject }))
+  await act(async () => root.render(<App />))
+  await act(async () => button('Try Live Demo').click())
+  await act(async () => rejectDemo(Object.assign(new Error('Request failed'), { status })))
+  const text = require('./i18n').translations.en.experience
+  expect(container.querySelector('[role="alert"]').textContent).toBe(status === 429 ? text.demoBusy : text.demoFailed)
+  expect([...container.querySelectorAll('button[aria-label="Try Live Demo"]')].every(el => !el.disabled)).toBe(true)
+  await act(async () => button('Try again').click())
+  expect(window.location.hash).toBe('#results/review-test-session')
+  expect(container.querySelector('.guidedTour')).not.toBeNull()
+  await act(async () => button('Skip Tour').click())
+  expect(document.activeElement).toBe(container.querySelector('h1'))
 })
 
 test('normal empty and partial profiles keep GPA validation and accept optional defaults', async () => {

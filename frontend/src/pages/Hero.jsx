@@ -1,12 +1,23 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { DEMO_PROFILE } from '../utils/demoProfile'
 import styles from './Hero.module.css'
 
 const tracks = ['Data Analyst', 'Software Engineer', 'Machine Learning Engineer', 'Cloud Engineer', 'Data Scientist', 'Data Engineer', 'Business Analyst']
 
-export default function Hero({ onStart, onDemo, demoLoading = false }) {
+export default function Hero({ onStart, onDemo, demoLoading = false, error = '' }) {
   const { t } = useApp()
+  const [demoSource, setDemoSource] = useState('hero')
+  const launchDemo = source => { setDemoSource(source); onDemo() }
+  const demoButton = source => <>
+    <button className={`${styles.cta} ${styles.demoCta}`} onClick={() => launchDemo(source)} disabled={demoLoading}
+      aria-label={demoLoading ? t.experience.preparingDemo : t.experience.liveDemo}>
+      <span aria-hidden="true" style={{ visibility: demoLoading ? 'hidden' : 'visible' }}>{t.experience.liveDemo}</span>
+      <span aria-hidden="true" style={{ visibility: demoLoading ? 'visible' : 'hidden' }}>{t.experience.preparingDemo}</span>
+      {demoLoading && <i className={styles.busyLine} aria-hidden="true" />}
+    </button>
+    {error && demoSource === source && <div className={styles.demoError}><p role="alert">{error}</p><button className={styles.secondaryCta} onClick={() => launchDemo(source)}>{t.product.retry}</button></div>}
+  </>
   useEffect(() => {
     const section = document.getElementById(window.location.hash.slice(1))
     if (!section) return
@@ -20,12 +31,14 @@ export default function Hero({ onStart, onDemo, demoLoading = false }) {
     target?.scrollIntoView({ block: 'start' })
   }
 
-  return <div className={styles.landing}>
+  return <>
+    <span className="visuallyHidden" role="status">{demoLoading ? t.experience.preparingDemo : ''}</span>
+    <div className={styles.landing} aria-busy={demoLoading}>
     <section className={styles.hero}>
       <h1 className={styles.title}>{t.hero.titleStart}<em>{t.hero.titleEnd}</em></h1>
       <p className={styles.subtitle}>{t.hero.subtitle}</p>
       <div className={styles.ctaGroup}>
-        <button className={styles.cta} onClick={onDemo} disabled={demoLoading}>{demoLoading ? t.form.submitting : t.experience.liveDemo}</button>
+        {demoButton('hero')}
         <button className={styles.secondaryCta} onClick={onStart}>{t.review.start}</button>
         <a className={styles.secondaryCta} href="#methodology" onClick={scrollToSection}>{t.hero.methodology}</a>
       </div>
@@ -59,7 +72,7 @@ export default function Hero({ onStart, onDemo, demoLoading = false }) {
               <div className={styles.recommendation}>
                 <span className={styles.badge}>{t.review.scoreTitle}</span>
                 <h3>{t.hero.previewPending}</h3><p>{t.hero.previewNote}</p>
-                <button className={styles.cta} onClick={onDemo} disabled={demoLoading}>{demoLoading ? t.form.submitting : t.experience.liveDemo}</button>
+                {demoButton('preview')}
               </div>
             </div>
             <aside className={styles.previewRoadmap}>
@@ -115,12 +128,12 @@ export default function Hero({ onStart, onDemo, demoLoading = false }) {
       <div className={styles.finalCta}>
         <h2>{t.review.ctaTitle}</h2><p>{t.review.ctaText}</p>
         <div className={styles.ctaGroup}>
-          <button className={styles.cta} onClick={onDemo} disabled={demoLoading}>{demoLoading ? t.form.submitting : t.experience.liveDemo}</button>
+          {demoButton('closing')}
           <button className={styles.secondaryCta} onClick={onStart}>{t.hero.cta}</button>
           <a className={styles.secondaryCta} href="#career-tracks" onClick={scrollToSection}>{t.hero.tracksTitle}</a>
         </div>
         <p className={styles.note}>{t.experience.byokText}</p>
       </div>
     </section>
-  </div>
+  </div></>
 }

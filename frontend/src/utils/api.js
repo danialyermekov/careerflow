@@ -38,7 +38,7 @@ export async function getRecommendation(profile, { demo = false } = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(profile),
   })
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`API error: ${res.status}`), { status: res.status })
   return res.json()
 }
 
