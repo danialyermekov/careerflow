@@ -72,7 +72,6 @@ for (const [route, metadata] of Object.entries(seo.pages)) {
     e('div', { className: 'dataGrid', 'aria-hidden': true }), e(Navbar), route === '/' ? e('main', null, content) : content, e(Footer)))
   const markup = renderToStaticMarkup(tree)
   let html = head(template, metadata, route).replace('<div id="root"></div>', `<div id="root">${markup}</div>`)
-    .replace('<html lang="en">', '<html lang="en" data-theme="dark">')
     .replace('</head>', '<meta name="robots" content="index, follow"/></head>')
   if (route === '/') html = html.replace('</head>', `<script id="careerflow-schema" type="application/ld+json">${JSON.stringify(schema).replaceAll('<', '\\u003c')}</script></head>`)
   assert(html.includes('<h1'), `Missing initial content: ${route}`)

@@ -18,6 +18,27 @@ test('public product pages have matching translated keys and roadmap items', () 
 
 const supportedLanguages = ['en', 'ru', 'kk']
 
+test.each(supportedLanguages)('%s uses the same demand and historical trend labels in controls and explanations', lang => {
+  const t = translations[lang]
+  expect(t.results.sortOptions.market).toBe(t.review.demandShare)
+  expect(t.results.marketShare).toBe(t.review.demandShare)
+  expect(t.results.sortOptions.trend).toBe(t.review.historicalTrend)
+  expect(t.results.trend).toBe(t.review.historicalTrend)
+  expect(t.review.signals[2][0]).toBe(t.review.historicalTrend)
+  expect(t.review.signals[3][0]).toBe(t.review.demandShare)
+})
+
+test.each(['en', 'ru', 'kk'])('%s supplies the complete four-step editorial landing and form labels', lang => {
+  expect(translations[lang].review.steps).toHaveLength(4)
+  expect(translations[lang].hero.trackDescriptions).toHaveLength(7)
+  for (const key of ['previewTitle', 'previewPending', 'methodology', 'tracksTitle', 'privacyText']) {
+    expect(translations[lang].hero[key]).toBeTruthy()
+  }
+  for (const key of ['addSkill', 'reset', 'selected', 'academicHint', 'step']) {
+    expect(translations[lang].form[key]).toBeTruthy()
+  }
+})
+
 test.each(['en', 'ru', 'kk'])('%s translates the complete walkthrough and preview', lang => {
   expect(Object.keys(translations[lang].experience).sort()).toEqual(Object.keys(translations.en.experience).sort())
   expect(translations[lang].experience.steps).toHaveLength(5)

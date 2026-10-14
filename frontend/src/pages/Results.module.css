@@ -486,34 +486,8 @@
 
 .professionBarRow::after,
 .gapCompareRow::after,
-.scoreCircleTooltip::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%);
-  z-index: 120;
-  max-width: min(320px, 80vw);
-  white-space: pre-line;
-  pointer-events: none;
-  opacity: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text-2);
-  font-size: .7rem;
-  font-family: var(--font-mono);
-  box-shadow: var(--shadow-md);
-  transition: opacity .15s ease;
-}
-
 .professionBarRow:hover::after,
 .gapCompareRow:hover::after,
-.scoreCircleTooltip:hover::after {
-  opacity: 1;
-}
-
 .professionBarRank,
 .professionBarPct {
   color: var(--text-3);
@@ -948,29 +922,6 @@
 /* ─── Bar ────────────────────────────────────────────────────── */
 .barWrap { flex: 1; display: flex; align-items: center; gap: 8px; }
 .bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); overflow: visible; position: relative; }
-
-.barTooltipWrap { cursor: help; }
-.barTooltipWrap::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-2);
-  font-size: .7rem;
-  font-family: var(--font-mono);
-  padding: 5px 9px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  box-shadow: var(--shadow-md);
-  z-index: 100;
-}
-.barTooltipWrap:hover::after { opacity: 1; }
 
 .barFill { height: 100%; border-radius: 2px; }
 .barPct { font-size: .75rem; font-family: var(--font-mono); color: var(--text-3); min-width: 32px; text-align: right; }
@@ -2150,8 +2101,11 @@
 .methodDetails summary { cursor: pointer; color: var(--text); padding: 6px 0; }
 .methodDetails p { margin: 14px 0; }
 .scoreEquation { display: block; color: var(--accent); overflow-wrap: anywhere; margin: 12px 0; }
-.methodTableWrap { overflow-x: auto; }
-.methodTable { width: 100%; border-collapse: collapse; text-align: left; }
+.methodTableWrap { overflow-x: auto; padding: 4px; margin: 0 -4px; overscroll-behavior-x: contain; }
+.methodTableWrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.methodTable { width: 100%; min-width: 640px; border-collapse: collapse; text-align: left; }
+.methodTable th { overflow-wrap: normal; }
+.methodTable td { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .methodTable th, .methodTable td { padding: 9px; border-bottom: 1px solid var(--border); font-size: .82rem; }
 .historyNote { font-size: .8rem; color: var(--text-2); line-height: 1.65; margin: 8px 0 14px; }
 .historyItem { text-align: left; }
@@ -2346,3 +2300,547 @@
     font-size: 0.85rem;
   }
 }
+
+/* Stage 3: shared result frame; later-stage panel and advisor internals stay local. */
+.layout, .layout.layoutRightClosed {
+  display: block;
+  min-height: 100dvh;
+  padding-top: 80px;
+  background: var(--bg);
+}
+.main {
+  position: static;
+  height: auto;
+  width: min(var(--content-width), 100%);
+  margin: 0 auto;
+  padding: 24px 32px 80px;
+  overflow: visible;
+}
+.contextHeading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 16px; }
+.contextHeading h1 { font: 600 1rem/1.5 var(--font-sans); }
+.contextHeading .backBtn { margin: 0; min-height: 44px; padding: 0 8px; font: 500 .875rem/1.5 var(--font-sans); }
+.profileMeta { background: var(--bg-tertiary); padding: 4px 10px; border-radius: var(--radius-full); font-size: .875rem; color: var(--text-2); }
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; width: 100%; padding: 4px; background: var(--bg-tertiary); border: 0; border-radius: var(--radius-sm); overflow: visible; }
+.tab { min-height: 44px; width: 100%; padding: 8px 12px; font: 600 .9375rem/1.4 var(--font-sans); color: var(--text-2); white-space: normal; border: 1px solid transparent; border-radius: 6px; }
+.tab.tabActive { color: var(--text); background: var(--bg-secondary); border-color: var(--border); box-shadow: var(--shadow-sm); }
+.tab::after { display: none; }
+.sessionNotice { background: var(--bg-tertiary); border-radius: var(--radius-sm); padding: 10px 14px; margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.sessionNotice:empty { display: none; }
+.sessionNotice p { margin: 0; font-size: .875rem; }
+.sessionNotice .demoBadge { margin: 0; background: var(--panel); color: var(--text); }
+.contextTools { border-bottom: 1px solid var(--border); color: var(--text-2); font-size: .875rem; }
+.contextTools summary { min-height: 44px; padding: 8px 0; cursor: pointer; }
+.contextGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 16px 0 24px; }
+.contextGrid .sidebarLabel { font: 600 .875rem/1.5 var(--font-sans); color: var(--text); }
+.contextGrid .sidebarSection { margin: 0; padding: 0; }
+.contextGrid .sidebarScoreRow, .contextGrid .roadmapPreviewItem { width: 100%; text-align: left; border: none; background: transparent; min-height: 44px; }
+.contextGrid .sidebarScoreKey, .contextGrid .sidebarScoreVal, .contextGrid .roadmapPreviewCat { font-size: .875rem; }
+.resultActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0; }
+.resultActions button { width: auto; min-height: 44px; margin: 0; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border-control); color: var(--text); font: 600 .8125rem/1.4 var(--font-sans); border-radius: var(--radius-sm); box-shadow: none; }
+.resultActions button:hover { background: var(--bg-tertiary); transform: none; }
+.resultActions button:disabled { opacity: .55; }
+.tabContent { padding: 0; }
+.bestPanel { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.recommendationHero { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); overflow: hidden; }
+.profileNotice { margin: 0; padding: 16px 24px; border-top: 1px solid var(--border); color: var(--text-2); line-height: 1.6; }
+.heroGrid { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 24px; padding: 24px; }
+.bestPanel .bestRank { display: inline-block; padding: 5px 10px; color: var(--primary-contrast); background: var(--primary); border-radius: 4px; font: 600 .8125rem/1.4 var(--font-sans); letter-spacing: 0; }
+.bestPanel .bestName { font: 500 clamp(1.875rem, 3vw, 2.5rem)/1.2 var(--font-display); letter-spacing: -.025em; margin: 12px 0; color: var(--text); overflow-wrap: anywhere; }
+.summaryText { max-width: 680px; color: var(--text-2); font-size: 1rem; line-height: 1.75; }
+.heroActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.primaryAction, .secondaryAction { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border-radius: var(--radius-sm); font: 600 .875rem/1.5 var(--font-sans); text-align: center; }
+.primaryAction { border: 1px solid var(--primary); background: var(--primary); color: var(--primary-contrast); }
+.primaryAction:hover { background: var(--primary-hover); }
+.secondaryAction { border: 1px solid var(--border-control); background: var(--bg-secondary); color: var(--text); }
+.secondaryAction:hover { background: var(--bg-tertiary); }
+.heroScore { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.heroScore > strong { font-size: .8125rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .035em; }
+.heroScore p { color: var(--text-2); font-size: .875rem; line-height: 1.6; }
+.heroScore [aria-label] > span { font: 500 2.25rem/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.heroScore [aria-label] > small { font: 600 .875rem/1.4 var(--font-sans) !important; }
+.bestPanel .aiRecommendationCta { margin: 0; padding: 16px 24px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: var(--bg-tertiary); box-shadow: none; }
+.bestPanel .aiRecommendationCtaSubtitle { font-size: .875rem; line-height: 1.6; white-space: normal; overflow: visible; }
+.bestPanel .aiRecommendationCtaTitle { font-size: .9375rem; }
+.bestPanel .formulaBanner { margin: 0; padding: 0; border: 0; background: transparent; }
+.bestPanel .formulaTitle, .analysisHeading h2 { font: 500 1.5rem/1.3 var(--font-display); color: var(--text); margin: 0 0 16px; }
+.bestPanel .formulaLegend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 0; }
+.bestPanel [data-signal="profile_match"] { --signal-color: var(--accent); }
+.bestPanel [data-signal="skill_match"] { --signal-color: var(--text); }
+.bestPanel [data-signal="trend_score"] { --signal-color: var(--text-3); }
+.bestPanel [data-signal="market_share"] { --signal-color: var(--text-2); }
+.bestPanel .signalContribution { padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); gap: 6px; }
+.bestPanel .signalContribution strong { font-size: .9375rem; }
+.bestPanel .signalContribution strong i, .bestPanel [data-signal] .barFill, .bestPanel .professionBarFactors [data-signal] { background: var(--signal-color) !important; }
+.bestPanel .signalContribution span { align-self: flex-start; padding: 3px 8px; color: var(--text); background: var(--bg-tertiary); border-radius: var(--radius-full); font-size: .8125rem; }
+.bestPanel .signalContribution p { flex: 1; font-size: .875rem; line-height: 1.7; color: var(--text-2); }
+.bestPanel .signalContribution b { color: var(--text); font: 500 1.375rem/1.4 var(--font-display); font-variant-numeric: tabular-nums; }
+.bestPanel .signalContribution small { font: 500 .875rem/1.6 var(--font-sans); font-variant-numeric: tabular-nums; }
+.signalTrack { width: 100%; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
+.signalTrack i { display: block; height: 100%; background: var(--signal-color); }
+.bestPanel .methodDetails { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); padding: 8px 16px; font-size: .9375rem; }
+.bestPanel .methodDetails summary { min-height: 44px; padding: 8px 0; }
+.methodologyDetails { border-top: 1px solid var(--border); margin-top: 12px; }
+.technicalGroup { margin: 20px 0 12px; }
+.technicalGroup + .technicalGroup { border-top: 1px solid var(--border); padding-top: 16px; }
+.technicalGroup h3, .technicalGroup summary { color: var(--text); font: 600 1rem/1.5 var(--font-sans); }
+.technicalGroup strong { color: var(--text); }
+.inputTable { min-width: 560px; }
+.inputTable th { max-width: 240px; overflow-wrap: anywhere; }
+.inputTable td { white-space: normal; min-width: 120px; overflow-wrap: anywhere; color: var(--text); }
+.tableScrollHint { display: none; }
+@media (max-width: 768px) { .tableScrollHint { display: block; font-size: .8125rem; } }
+.bestPanel .methodTable th, .bestPanel .methodTable td { font-size: .875rem; padding: 12px 8px; }
+.bestPanel .scoreEquation { font-size: .875rem; font-variant-numeric: tabular-nums; }
+.analysisHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.analysisHeading h2 { margin: 0; }
+.chartControls { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: var(--radius-sm); background: var(--bg-tertiary); }
+.chartControls button { min-height: 44px; padding: 8px 12px; border: 1px solid transparent; border-radius: 6px; color: var(--text-2); background: transparent; font: 600 .875rem/1.4 var(--font-sans); }
+.chartControls button[aria-pressed="true"] { border-color: var(--border); color: var(--text); background: var(--bg-secondary); }
+.analysisGrid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.visualizationPanel, .gapAssessment { min-width: 0; padding: 24px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.chartLegend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 24px; font-size: .8125rem; color: var(--text-2); }
+.chartLegend span { display: inline-flex; align-items: center; gap: 6px; }
+.chartLegend i { width: 8px; height: 8px; background: var(--signal-color); border-radius: 50%; }
+.bestPanel .compareChart, .bestPanel .radarCompare, .bestPanel .gapCompare, .bestPanel .activeMetricPanel { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.bestPanel .compareHeader { color: var(--text); font: 600 .875rem/1.5 var(--font-sans); flex-wrap: wrap; gap: 8px; }
+.bestPanel .compareHeader small { font: 400 .8125rem/1.5 var(--font-sans); color: var(--text-2); }
+.bestPanel .professionBarRow { padding: 10px 0; min-height: 44px; grid-template-columns: 24px minmax(0, 1fr) 88px; gap: 8px; }
+.bestPanel .professionBarTrack { grid-column: 2 / 4; grid-row: 2; }
+.bestPanel .professionBarPct { grid-column: 3; grid-row: 1; font: 600 .8125rem/1.4 var(--font-sans); }
+.bestPanel .professionBarName { font-size: .875rem; white-space: normal; }
+.bestPanel .professionBarFill { background: var(--text); }
+.bestPanel .professionBarRank { display: inline; font-size: .75rem; }
+.bestPanel .scoreRow { display: block; }
+.bestPanel .profScores { display: flex; flex-direction: column; align-items: stretch; gap: 20px; }
+.bestPanel .scoreLabel { display: block; font: 500 .875rem/1.5 var(--font-sans); color: var(--text); margin-bottom: 8px; white-space: normal; text-align: left; }
+.bestPanel .metricRow > div > span { font: 500 .875rem/1.5 var(--font-sans) !important; color: var(--text) !important; }
+.bestPanel .bar { height: 8px; background: var(--bg-tertiary); }
+.bestPanel .barPct { font: 600 .8125rem/1.4 var(--font-sans); min-width: 80px; }
+.bestPanel .radarCompare { width: 100%; }
+.bestPanel .radarCompareBody svg { width: min(100%, 360px); height: auto; }
+.bestPanel .skillGapRadar { width: min(300px, 100%); }
+.bestPanel .skillGapRadar svg { width: 100%; height: auto; }
+.bestPanel .radarLegend { font-size: .8125rem; flex-wrap: wrap; }
+.gapAssessment h3 { font: 600 1rem/1.5 var(--font-sans); }
+.gapAssessment h2 + p { margin-top: 8px; }
+.gapAssessment h3 { margin: 18px 0 8px; }
+.bestPanel .gapAssessment .methodNote { margin-top: 16px; }
+.gapAssessment > .primaryAction { margin-top: 18px; }
+.gapAssessment h4 { font: 600 .875rem/1.5 var(--font-sans); margin: 24px 0 12px; }
+.gapAssessment p { color: var(--text-2); font-size: .875rem; line-height: 1.7; }
+.gapAssessment .secondaryAction { margin-top: 24px; }
+.gapChips { display: flex; flex-wrap: wrap; gap: 8px; }
+.gapChips span { padding: 5px 10px; font-size: .875rem; color: var(--text); background: var(--bg-tertiary); border-radius: var(--radius-full); overflow-wrap: anywhere; }
+.bestPanel .explainCard { padding: 24px; border-radius: var(--radius-md); background: var(--panel); box-shadow: none; }
+.bestPanel .explainText { font-size: .9375rem; line-height: 1.7; }
+.alternativeGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; }
+.alternativeGrid button { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; padding: 12px 16px; background: var(--panel); color: var(--text); border: 1px solid var(--border-control); border-radius: var(--radius-sm); text-align: left; font: 600 .9375rem/1.5 var(--font-sans); }
+.alternativeGrid strong { color: var(--text-2); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.alternativeGrid button:hover { background: var(--bg-tertiary); }
+.aiFab { min-height: 44px; background: var(--primary); color: var(--primary-contrast); opacity: 1; border-color: var(--primary); border-radius: var(--radius-sm); }
+.aiFab:hover, .aiFab:focus-visible { background: var(--primary-hover); opacity: 1; }
+
+@media (min-width: 1441px) {
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--chat-w, 360px); max-width: calc(var(--content-width) + var(--chat-w, 360px)); margin: 0 auto; }
+  .layout.layoutRightClosed { display: block; }
+}
+@media (max-width: 1000px) {
+  .bestPanel .formulaLegend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analysisGrid { grid-template-columns: 1fr; }
+  .alternativeGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .layout, .layout.layoutRightClosed { padding-top: 0; }
+  .chatSidebar { top: 0; height: 100dvh; z-index: 110; }
+  .main { padding: 16px 16px 80px; }
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tab { font-size: .875rem; }
+  .contextHeading { gap: 8px; }
+  .contextHeading h1 { flex: 1; }
+  .contextGrid { grid-template-columns: 1fr; }
+  .heroGrid { grid-template-columns: 1fr; padding: 24px; gap: 24px; }
+  .heroScore { border-top: 1px solid var(--border); padding-top: 24px; }
+  .heroScore p { max-width: 300px; }
+  .bestPanel .aiRecommendationCta { padding: 24px; }
+  .bestPanel { gap: 24px; }
+  .bestPanel .formulaLegend { gap: 12px; }
+  .bestPanel .signalContribution { padding: 12px; }
+  .visualizationPanel, .gapAssessment { padding: 20px; }
+  .chartControls { width: 100%; }
+  .chartControls button { flex: 1; }
+  .alternativeGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 359px) {
+  .bestPanel .formulaLegend { grid-template-columns: 1fr; }
+  .heroGrid { padding: 20px; }
+  .heroActions { flex-direction: column; }
+}
+
+/* Stage 4: one controlled career ranking and selected-detail rail. */
+.allPanel { min-width: 0; }
+.careerHeading { margin-bottom: 28px; }
+.careerHeading h2 { font: 500 clamp(1.5rem, 2.2vw, 2rem)/1.3 var(--font-display); letter-spacing: -.025em; color: var(--text); }
+.marketQualifier { color: var(--text-2); font: 400 .875rem/1.6 var(--font-sans); margin: 16px 0; }
+.careerHeading p { max-width: 800px; margin: 16px 0; color: var(--text-2); font-size: 1rem; line-height: 1.75; }
+.careerHeading > span { display: inline-block; padding: 4px 10px; background: var(--bg-tertiary); border-radius: 4px; color: var(--text-2); font-size: .875rem; }
+.careerToolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; padding: 16px; margin-bottom: 24px; background: var(--bg-tertiary); border-radius: var(--radius-sm); }
+.careerSort { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .875rem; color: var(--text-2); }
+.careerSort button { min-height: 44px; padding: 8px 12px; background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border-control); border-radius: var(--radius-sm); font: 500 .875rem/1.5 var(--font-sans); }
+.careerSort button[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: var(--primary-contrast); }
+.careerToolbar .chartLegend { margin: 0; gap: 8px 16px; }
+.allPanel [data-signal="profile_match"] { --signal-color: var(--accent); }
+.allPanel [data-signal="skill_match"] { --signal-color: var(--text); }
+.allPanel [data-signal="trend_score"] { --signal-color: var(--text-3); }
+.allPanel [data-signal="market_share"] { --signal-color: var(--text-2); }
+.careerMasterDetail { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); align-items: start; gap: 24px; }
+.careerRanking { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; min-width: 0; }
+.careerRow { border-bottom: 1px solid var(--border); background: var(--panel); }
+.careerRowSelected { background: var(--accent-light); box-shadow: inset 3px 0 var(--accent); }
+.careerSelect { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 16px; color: var(--text); background: transparent; border: 0; text-align: left; font: 400 .875rem/1.5 var(--font-sans); }
+.careerSelect:hover { background: var(--bg-tertiary); }
+.careerSelect:focus-visible { outline-offset: -4px; }
+.careerRowHeading { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: start; gap: 12px; width: 100%; }
+.careerRank { display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; background: var(--bg-tertiary); border-radius: var(--radius-full); font: 600 .8125rem/1.5 var(--font-sans); font-variant-numeric: tabular-nums; }
+.careerRowSelected .careerRank { background: var(--primary); color: var(--primary-contrast); }
+.careerName { font: 500 1.125rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
+.careerTopBadge { display: inline-block; vertical-align: middle; padding: 3px 8px; background: var(--accent-light); color: var(--accent); border-radius: var(--radius-full); font: 600 .75rem/1.4 var(--font-sans); }
+.careerScore { display: block; font: 500 1.5rem/1.3 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.careerTrack { position: relative; display: block; width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: var(--radius-full); overflow: hidden; }
+.careerScoreFill { display: block; height: 100%; background: var(--text); }
+.careerSignalSegments { display: flex; position: absolute; inset: 0; }
+.careerSignalSegments span { height: 100%; background: var(--signal-color); }
+.careerRowMeta { padding-left: 44px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; color: var(--text-2); width: 100%; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.rankingDetailLink { display: none; }
+.selectedCareer { min-width: 0; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); display: flex; flex-direction: column; gap: 24px; }
+.careerDetailHeading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px; }
+.careerDetailHeading h3 { font: 500 1.75rem/1.25 var(--font-display); scroll-margin-top: 160px; }
+.careerDetailHeading p { font-size: .8125rem; color: var(--text-2); margin-top: 8px; }
+.careerDetailHeading .careerDetailRank { color: var(--accent); }
+.allPanel .methodNote { margin: 0; font-size: .875rem; line-height: 1.7; }
+.allPanel .formulaBanner { padding: 0; margin: 0; border: 0; background: transparent; }
+.allPanel .formulaTitle { font: 500 1.25rem/1.4 var(--font-display); color: var(--text); margin-bottom: 16px; }
+.allPanel .formulaLegend { display: flex; flex-direction: column; gap: 20px; padding: 0; }
+.allPanel .signalContribution { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 0; background: transparent; gap: 6px 8px; }
+.allPanel .signalContribution strong { font: 500 .875rem/1.5 var(--font-sans); }
+.allPanel .signalContribution p { display: none; }
+.allPanel .signalContribution span, .allPanel .signalContribution small { text-align: right; }
+.allPanel .signalTrack { grid-column: 1 / -1; }
+.allPanel .signalContribution b { color: var(--text); font: 600 1rem/1.5 var(--font-sans); font-variant-numeric: tabular-nums; }
+.allPanel .signalContribution strong i, .allPanel .professionBarFactors [data-signal] { background: var(--signal-color) !important; }
+.allPanel .methodDetails { padding: 8px 0 0; margin-top: 16px; border-top: 1px solid var(--border); font-size: .875rem; }
+.allPanel .methodDetails summary, .careerComparisons summary { min-height: 44px; padding: 12px 0; cursor: pointer; color: var(--text); }
+.allPanel .methodTable th, .allPanel .methodTable td { font-size: .8125rem; }
+.allPanel .scoreEquation { font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.careerCoverage { padding: 16px; background: var(--bg-tertiary); border-radius: var(--radius-sm); }
+.careerCoverage h4 { font: 600 .875rem/1.5 var(--font-sans); margin: 16px 0 8px; }
+.careerCoverage h4:first-child { margin-top: 0; }
+.careerCoverage p { color: var(--text-2); font-size: .875rem; line-height: 1.7; margin: 8px 0; }
+.careerCoverage .gapChips span { background: var(--panel); font-size: .8125rem; }
+.careerKnownSkills, .careerMissingSkills { min-width: 0; }
+.careerCoverage .methodNote { margin-top: 16px; }
+.careerComparisons { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 8px; }
+.allPanel .compareChart, .allPanel .gapCompare, .allPanel .scoreCircleCard { background: var(--panel); box-shadow: none; }
+.allPanel .compareHeader { font: 600 .875rem/1.5 var(--font-sans); flex-wrap: wrap; gap: 8px; }
+.allPanel .professionBarRow { grid-template-columns: 24px minmax(0, 1fr) 88px; gap: 8px; min-height: 44px; }
+.allPanel .professionBarTrack { grid-column: 2 / 4; grid-row: 2; }
+.allPanel .professionBarPct { grid-column: 3; grid-row: 1; font: 600 .8125rem/1.4 var(--font-sans); }
+.allPanel .professionBarName { white-space: normal; font-size: .875rem; }
+.allPanel .professionBarRank { display: inline; }
+.allPanel .professionBarFill { background: var(--text); }
+.allPanel .gapCompareUnavailable .gapCompareMeta { grid-column: 2 / 4; white-space: normal; text-align: left; font: 400 .8125rem/1.6 var(--font-sans); }
+@media (max-width: 1000px) {
+  .careerMasterDetail { grid-template-columns: minmax(0, 1fr); }
+  .rankingDetailLink { display: inline-flex; min-height: 44px; padding: 8px 24px; margin-bottom: 8px; border: 0; background: transparent; color: var(--accent); font: 600 .875rem/1.5 var(--font-sans); text-align: left; }
+}
+@media (max-width: 640px) {
+  .careerToolbar { padding: 12px; }
+  .careerSort { width: 100%; }
+  .careerSort > span { width: 100%; }
+  .careerSort button { flex: 1 1 100px; }
+  .careerSelect { padding: 16px; }
+  .careerRowHeading { grid-template-columns: 28px minmax(0, 1fr); gap: 8px; }
+  .careerRowHeading .careerScore { grid-column: 2; }
+  .careerName { font-size: 1.125rem; }
+  .careerRank { min-width: 28px; min-height: 28px; }
+  .careerSelect { gap: 6px; }
+  .careerRowMeta { font-size: .8125rem; padding-left: 36px; gap: 6px; }
+  .careerCoverage { padding: 12px; }
+}
+
+/* Stage 5: controlled, skill-based learning plan within the existing Results frame. */
+.learningPanel { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.roadmapOverview { display: block; }
+.learningPanel .roadmapHint { font: 500 clamp(1.5rem, 2.2vw, 2rem)/1.3 var(--font-display); color: var(--text); letter-spacing: -.025em; margin: 0 0 8px; }
+.roadmapOverview p, .learningPanel .methodNote { color: var(--text-2); font: 400 1rem/1.7 var(--font-sans); margin: 0; max-width: 680px; }
+.learningPanel .roadmapProgressPanel { display: block; margin: 0; padding: 16px; background: var(--panel); }
+.roadmapProgressHeading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
+.learningPanel .roadmapProgressHeading span { font-size: 1rem; color: var(--accent); }
+.learningPanel .roadmapProgressPanel p { margin: 12px 0 0; color: var(--text-2); font-size: .875rem; }
+.learningPanel .dependencyPanel { margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
+.dependencyHeading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.dependencyHeading h3, .roadmapAdvisor h3 { font: 500 1.5rem/1.3 var(--font-display); }
+.dependencyHeading small { padding: 5px 10px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent); font-size: .875rem; }
+.learningPanel .dependencyTree { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; margin-top: 12px; }
+.learningPanel .dependencyNode { padding: 12px; border-radius: var(--radius-md); background: var(--panel); min-width: 0; }
+.learningPanel .dependencyNodeTop { flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.dependencyNodeTop h4 { font: 500 1.25rem/1.4 var(--font-display); overflow-wrap: anywhere; }
+.learningPanel .dependencyNodeTop strong { align-self: start; font: 500 .875rem/1.5 var(--font-sans); color: var(--text-2); text-transform: none; }
+.learningPanel .dependencyDone { opacity: 1; border-color: var(--border); }
+.learningPanel .dependencyReady { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.learningPanel .dependencyLocked { border-color: var(--border); }
+.learningPanel .dependencyPrereq { border-top: 1px solid var(--border); padding-top: 12px; color: var(--text-2); font: 400 .875rem/1.5 var(--font-sans); }
+.learningPanel .dependencyPrereq i { border-radius: var(--radius-sm); color: var(--text-2); overflow-wrap: anywhere; }
+.learningPanel .dependencyPrereq .prereqDone { color: var(--success); }
+.learningPanel .dragHint { margin: 0; color: var(--text-2); font: 400 .875rem/1.6 var(--font-sans); }
+.learningPanel .courseFilterPanel { margin: 0; padding: 16px; background: var(--panel); box-shadow: none; }
+.learningPanel .compareHeader { flex-wrap: wrap; gap: 8px; font: 600 .875rem/1.5 var(--font-sans); margin-bottom: 12px; }
+.learningPanel .compareHeader small { color: var(--text-2); font: 400 .875rem/1.5 var(--font-sans); }
+.learningPanel .courseFilterGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.learningPanel .courseFilterGrid label span { font: 500 .875rem/1.5 var(--font-sans); color: var(--text-2); text-transform: none; }
+.learningPanel .courseFilterGrid select { min-height: 44px; min-width: 0; font: 400 .875rem/1.5 var(--font-sans); background: var(--bg-tertiary); border-color: var(--border-control); }
+.learningPanel .activeFilters button { min-height: 44px; font: 500 .875rem/1.5 var(--font-sans); padding: 8px 12px; }
+.learningPanel .roadmap { gap: 24px; }
+.learningPanel .roadmapCat { background: var(--panel); backdrop-filter: none; box-shadow: none; overflow: visible; }
+.roadmapCategoryHeader { display: flex; gap: 16px; align-items: center; padding: 20px 24px; }
+.roadmapCategoryHeader h3 { flex: 1; min-width: 0; }
+.learningPanel .catHeader { background: transparent; backdrop-filter: none; border: 0; min-height: 44px; padding: 0; gap: 16px; flex-wrap: wrap; }
+.learningPanel .catName { flex: 1; font: 500 1.375rem/1.4 var(--font-display); color: var(--text); text-transform: none; letter-spacing: 0; overflow-wrap: anywhere; }
+.learningPanel .catCount { font: 400 .875rem/1.5 var(--font-sans); color: var(--text-2); background: var(--bg-tertiary); margin: 0; padding: 4px 10px; font-variant-numeric: tabular-nums; }
+.learningPanel .skillList { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.learningPanel .skillItemWrap { border: 0; border-radius: var(--radius-sm); background: var(--bg-tertiary); min-width: 0; }
+.learningPanel .skillItem { padding: 20px; animation: none; }
+.learningPanel .skillTopRow { flex-wrap: wrap; justify-content: start; }
+.skillCompletion { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; flex: 1; min-width: 0; cursor: pointer; }
+.skillCompletion input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent); }
+.learningPanel .skillName { font: 500 1.125rem/1.5 var(--font-sans); margin: 0; overflow-wrap: anywhere; }
+.roadmapSkillDone .skillName { text-decoration: line-through; }
+.roadmapStatus { color: var(--success); font-size: .875rem; }
+.learningPanel .completedDivider { border: 0; border-radius: var(--radius-sm); font: 500 .875rem/1.5 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.roadmapReorder { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.roadmapDragHandle { width: 24px; text-align: center; font-size: 1.5rem; color: var(--text-2); cursor: grab; }
+.roadmapReorder button { width: 44px; min-height: 44px; background: transparent; color: var(--text-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font: 600 1rem/1.4 var(--font-sans); }
+.roadmapReorder button:hover:not(:disabled) { background: var(--bg-secondary); border-color: var(--border-control); }
+.roadmapReorder button:disabled { opacity: .4; cursor: default; }
+.learningPanel .roadmapDragging { opacity: .6; }
+.learningPanel .roadmapDropTarget { outline: 2px dashed var(--accent); outline-offset: -3px; }
+.learningPanel .courses { gap: 16px; }
+.learningPanel .courseWrap { display: flex; gap: 16px; align-items: center; min-width: 0; }
+.learningPanel .courseWrap .course { display: flex; flex-direction: column; align-items: start; gap: 8px; min-width: 0; padding: 0; background: transparent; border: 0; backdrop-filter: none; text-align: left; transform: none; border-radius: var(--radius-sm); }
+.learningPanel .courseTitle { white-space: normal; overflow: visible; font: 500 1.25rem/1.4 var(--font-display); overflow-wrap: anywhere; }
+.learningPanel .coursePlatform, .learningPanel .courseRating, .learningPanel .courseReviews, .learningPanel .coursePrice { font: 400 .875rem/1.5 var(--font-sans); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.learningPanel .courseMeta { gap: 6px 12px; margin: 0; }
+.roadmapCourseActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.learningPanel .courseCopyBtn { opacity: 1; min-height: 44px; width: 44px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-secondary); }
+.learningPanel .courseFallback, .learningPanel .courseEmptyState { color: var(--text-2); font: 400 1rem/1.6 var(--font-sans); margin: 0; padding: 12px; }
+.roadmapAdvisor { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; background: var(--bg-tertiary); border-radius: var(--radius-md); }
+.roadmapAdvisor p { max-width: 680px; margin-top: 8px; color: var(--text-2); font-size: 1rem; line-height: 1.7; }
+.roadmapCourseModal .modalBox { backdrop-filter: none; box-shadow: var(--shadow-sm); max-height: calc(100dvh - 48px); overflow-y: auto; }
+.roadmapCourseModal .modalTitle { font: 500 1.75rem/1.3 var(--font-display); }
+.roadmapCourseModal .modalDesc, .roadmapCourseModal .modalDescEmpty { font: 400 1rem/1.7 var(--font-sans); }
+.roadmapCourseModal .modalPlatform, .roadmapCourseModal .modalRating, .roadmapCourseModal .modalLink { font: 500 .875rem/1.5 var(--font-sans); }
+.roadmapCourseModal .modalClose, .roadmapCourseModal .modalLink { min-height: 44px; }
+.roadmapCourseModal .modalClose { width: 44px; }
+.roadmapCourseModal .modalLink { color: var(--accent-contrast); }
+.learningPanel :is(button, a, input, select):focus-visible, .roadmapCourseModal :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 1000px) {
+  .roadmapOverview { grid-template-columns: 1fr; }
+  .learningPanel .courseFilterGrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }
+}
+@media (max-width: 640px) {
+  .learningPanel { gap: 20px; }
+  .learningPanel .roadmapProgressPanel { padding: 16px; }
+  .roadmapCategoryHeader { flex-wrap: wrap; padding: 16px; gap: 8px; }
+  .roadmapCategoryHeader h3 { flex-basis: 100%; order: -1; }
+  .learningPanel .skillList { padding: 0 16px 16px; }
+  .learningPanel .skillItem { padding: 16px; }
+  .learningPanel .skillTopRow .roadmapReorder { order: 2; flex-basis: 100%; }
+  .learningPanel .courseWrap { flex-direction: column; align-items: stretch; }
+  .learningPanel .roadmapCourseActions .secondaryAction { flex: 1; min-width: 0; }
+  .roadmapAdvisor { padding: 20px; }
+}
+
+/* Stages 6–7: scoped history and advisor presentation. */
+.historyFeedbackLayout { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px; align-items: start; }
+.historyFeedbackLayout > .tabContent, .feedbackColumn { min-width: 0; }
+.historyPanel { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.historyPanel h2 { font: 500 clamp(1.75rem, 3vw, 2.5rem)/1.2 var(--font-display); margin: 0 0 16px; }
+.historyPanel p { color: var(--text-2); font: 400 1rem/1.7 var(--font-sans); margin: 0; }
+.historyStorageNote { padding: 16px; background: var(--bg-tertiary); border-radius: var(--radius-sm); }
+.historyRecord { display: flex; flex-direction: column; gap: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 28px; min-width: 0; }
+.historyRecordMeta, .historyProfile { display: flex; flex-wrap: wrap; gap: 8px 16px; font: 400 .875rem/1.6 var(--font-sans); color: var(--text-2); overflow-wrap: anywhere; }
+.historyRecordMeta strong { font-weight: 500; }
+.historyCurrent .historyRecordMeta strong { color: var(--accent); }
+.historyRecordHeading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; }
+.historyRecord h3 { font: 500 1.75rem/1.3 var(--font-display); margin: 0 0 8px; overflow-wrap: anywhere; }
+.historyRecord time { font: 400 .875rem/1.6 var(--font-sans); color: var(--text-2); }
+.historyRecordScore { display: flex; flex-direction: column; gap: 8px; font-variant-numeric: tabular-nums; }
+.historyRecordScore span { font-size: .875rem; color: var(--text-2); }
+.historyRecordScore strong { font: 500 1.75rem/1.3 var(--font-display); }
+.historyRecord button { align-self: start; }
+.historyPreviousTitle { font: 500 1.25rem/1.4 var(--font-display); }
+.historyPanel .historyClear { min-height: 44px; padding: 12px 16px; width: auto; align-self: start; font: 500 .875rem/1.5 var(--font-sans); border: 1px solid var(--border-control); }
+.historyPanel :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 1000px) { .historyFeedbackLayout { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .historyRecord { padding: 20px; } }
+
+/* The advisor overlays the unchanged Results frame at every viewport width. */
+.layout, .layout.layoutRightClosed { display: block; max-width: none; }
+.aiFab[hidden], .advisorModal:not([open]), .advisorModal [hidden] { display: none; }
+@media (max-width: 640px) {
+  .aiFab { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; border-radius: 50%; }
+  .aiFabLabel { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+}
+.advisorModal { position: fixed; inset: 0; margin: 0; padding: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; border: 0; background: transparent; color: var(--text); overflow: hidden; }
+.advisorModal[open] { display: block; }
+.advisorModal::backdrop { background: transparent; }
+.advisorBackdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgb(0 0 0 / .3); cursor: default; }
+.advisorModal .chatSidebar { position: absolute; top: 0; right: 0; bottom: 0; height: 100%; min-width: 0; max-width: 100vw; padding: 0; opacity: 1; pointer-events: auto; border-left: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow-lg); resize: none; overflow: hidden; transition: none; }
+.advisorModal .chatHeader { justify-content: space-between; padding: 24px; gap: 16px; }
+.advisorModal .chatTitle { margin: 0; font: 500 1.75rem/1.3 var(--font-display); }
+.advisorProvider { margin: 6px 0 0; color: var(--text-2); font: 400 .875rem/1.5 var(--font-sans); }
+.advisorModal .chatCloseBtn { width: 44px; height: 44px; flex-shrink: 0; color: var(--text); background: var(--bg-secondary); border-color: var(--border-control); font-size: 1.5rem; }
+.advisorContext { flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; padding: 16px 24px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border); font: 400 .875rem/1.6 var(--font-sans); overflow-wrap: anywhere; }
+.advisorContext strong { font-weight: 600; }
+.advisorContext span { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.advisorModal :global(.advisorModes) { flex-shrink: 0; gap: 4px; margin: 20px 24px; padding: 4px; border-radius: var(--radius-sm); background: var(--bg-tertiary); }
+.advisorModal :global(.advisorModes button) { min-height: 44px; padding: 8px 12px; border-color: transparent; background: transparent; color: var(--text-2); font: 600 .875rem/1.4 var(--font-sans); }
+.advisorModal :global(.advisorModes [aria-pressed="true"]) { background: var(--bg-secondary); color: var(--text); border-color: var(--border); box-shadow: var(--shadow-sm); }
+.advisorPreview, .advisorByok { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.advisorByok { display: flex; flex-direction: column; }
+.advisorModal :global(.freePreview) { min-height: 100%; padding: 0 24px 24px; overflow: visible; gap: 20px; font: 400 .9375rem/1.6 var(--font-sans); }
+.advisorModal :global(.previewHeader h3) { font: 600 1rem/1.5 var(--font-sans); color: var(--text); }
+.advisorModal :global(.previewSubtitle) { font-size: .875rem; }
+.advisorModal :global(.previewQuota) { color: var(--text-2); font-size: .875rem; }
+.advisorModal :global(.previewQuotaTrack) { height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.advisorModal :global(.previewQuotaTrack i) { height: 100%; display: block; background: var(--accent); }
+.advisorModal :global(.previewEmpty) { padding: 24px 0; color: var(--text-2); }
+.advisorModal :global(.previewAssistant), .advisorModal .msgAi .msgBubble { background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.advisorModal :global(.previewUser), .advisorModal .msgUser .msgBubble { background: var(--bg-tertiary); color: var(--text); border-radius: var(--radius-sm); }
+.advisorModal :global(.previewMessage), .advisorModal .msgBubble { font-size: .9375rem; line-height: 1.7; overflow-wrap: anywhere; }
+.advisorModal :global(.previewSuggestions button), .advisorModal .suggestion { min-height: 44px; font: 400 .875rem/1.6 var(--font-sans); background: var(--bg-secondary); border-color: var(--border-control); color: var(--text); }
+.advisorModal :global(.previewForm) { position: sticky; bottom: 0; z-index: 1; background: var(--panel); border-top: 1px solid var(--border); padding: 20px 0 0; gap: 16px; }
+.advisorModal :global(.previewConsentCompact) { align-items: flex-start; font-size: .875rem; line-height: 1.6; }
+.advisorModal :global(.previewConsentCompact input) { margin-top: 4px; }
+.advisorModal :global(.freePreview textarea), .advisorModal .chatInputField { min-height: 64px; padding: 12px; background: var(--bg-secondary); color: var(--text); border-color: var(--border-control); font: 400 .9375rem/1.6 var(--font-sans); }
+.advisorModal :global(.freePreview .previewSendButton), .advisorModal .chatSend { min-height: 44px; background: var(--primary); color: var(--primary-contrast); border-color: var(--primary); }
+.advisorModal :global(.freePreview .previewSendButton:hover:not(:disabled)), .advisorModal .chatSend:hover:not(:disabled) { background: var(--primary-hover); }
+.advisorModal :global(.previewDisclosure), .advisorPrivacy { color: var(--text-2); font-size: .8125rem; line-height: 1.6; opacity: 1; }
+.advisorModal :global(.previewDisclosure a), .advisorPrivacy a { color: var(--accent); text-decoration: underline; }
+.advisorPrivacy { margin: 0; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--panel); }
+.advisorModal :global(.byokDescription) { padding: 0 24px 16px; margin: 0; font-size: .875rem; }
+.advisorByok > section { padding: 0 24px 24px; max-height: none; overflow: visible; font-size: .875rem; }
+.advisorByok > section summary { min-height: 44px; padding: 8px 0; }
+.advisorByok > section :is(input, select, button) { min-height: 44px; }
+.advisorModal .chatMessages { flex: 1 0 auto; overflow: visible; padding: 24px; min-height: 120px; }
+.advisorModal .chatBottom { position: sticky; bottom: 0; z-index: 1; background: var(--panel); }
+.advisorModal .chatScope { padding: 12px 24px; font: 400 .875rem/1.6 var(--font-sans); color: var(--text-2); }
+.advisorModal .chatToolbar { padding: 16px 24px 0; }
+.advisorModal :is(.deepModeBtn, .voiceBtn) { min-height: 44px; color: var(--text); }
+.advisorModal .msgCopyBtn { opacity: 1; min-height: 36px; color: var(--text-2); }
+.advisorModal .chatResizeHandle { left: 0; width: 8px; }
+.advisorModal :is(button, a, input, textarea, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.advisorModal button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .advisorModal .chatSidebar { width: 100% !important; }
+  .advisorModal .chatResizeHandle { display: none; }
+  .advisorModal .chatHeader { padding: 16px 20px; }
+  .advisorModal .chatTitle { font-size: 1.5rem; }
+}
+
+/* Focused consistency pass; protected history/roadmap internals are not targeted. */
+.resultsTools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 12px 0 16px; }
+.contextTools { min-width: 0; border: 0; }
+.contextTools summary { padding: 10px 0; font: 500 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
+.contextGrid { grid-template-columns: 1fr; gap: 8px; padding: 8px 0 0; }
+.contextGrid .sidebarSection, .profileInputs { padding: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.profileInputs h3 { margin: 0 0 12px; font: 600 .9375rem/1.5 var(--font-sans); color: var(--text); }
+.profileInputs p { margin: 12px 0; font-size: .875rem; line-height: 1.6; }
+.profileInputs dl, .modelScores { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 12px 0; font: 400 .875rem/1.6 var(--font-sans); }
+.profileInputs dd, .modelScores dd { margin: 0; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.contextGrid .profileInputs { padding: 0; background: transparent; border: 0; }
+.profileInputs .profileSummary { margin: 0 0 12px; }
+.profileInputs p { margin: 8px 0; }
+.profileDetails { border-top: 1px solid var(--border); font: 400 .875rem/1.5 var(--font-sans); }
+.evaluationInputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px 16px; margin: 8px 0; }
+.evaluationInputs dt { color: var(--text-2); overflow-wrap: anywhere; }
+.evaluationInputs dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+.contextGrid .skillTag { display: inline-flex; gap: 8px; max-width: 100%; padding: 5px 10px; border: 0; border-radius: var(--radius-full); color: var(--text); background: var(--bg-tertiary); font: 400 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; }
+.contextGrid .skillWeightBadge { font: 600 .8125rem/1.5 var(--font-sans); color: var(--text-2); background: transparent; }
+.actionsDisclosure { position: relative; }
+.actionsDisclosure summary { display: list-item; min-height: 44px; padding: 10px 14px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text); cursor: pointer; font: 600 .8125rem/1.5 var(--font-sans); }
+.actionsMenu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: min(280px, calc(100vw - 48px)); display: grid; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); box-shadow: var(--shadow-lg); }
+.actionsMenu button { width: 100%; justify-content: flex-start; text-align: left; }
+.resultActions button[hidden] { display: none; }
+.alternativeRank { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.alternativeTrack { grid-column: 2 / 4; width: 100%; height: 4px; background: var(--bg-tertiary); border-radius: 2px; overflow: hidden; }
+.alternativeTrack i { display: block; height: 100%; background: var(--accent); }
+.alternativeLink { grid-column: 2 / 4; color: var(--text-2); font: 400 .8125rem/1.5 var(--font-sans); }
+.bestPanel .methodNote { margin: 12px 0 0; color: var(--text-2); font: 400 .875rem/1.6 var(--font-sans); }
+.bestPanel .signalMaximum { color: var(--text-2); }
+.bestPanel .chartDetails, .featureDetails { width: 100%; border-top: 1px solid var(--border); margin-top: 12px; font: 400 .875rem/1.6 var(--font-sans); }
+.chartDetails summary, .featureDetails summary { min-height: 44px; padding: 10px 0; color: var(--text); cursor: pointer; }
+.bestPanel .chartStack { gap: 12px; }
+.bestPanel .explainCard { border: 1px solid var(--border); }
+.bestPanel .skillExplainBlock { margin: 0; padding: 0; border: 0; background: transparent; gap: 8px; }
+.bestPanel .featureSummary .skillImpactRow { margin-bottom: 0; min-height: 28px; }
+.featureSummary { margin-top: 12px; }
+.shapLegend { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; color: var(--text-2); font-size: .875rem; line-height: 1.6; }
+.shapLegend li { display: grid; gap: 2px; }
+.shapLegend strong, .featureDetails strong { color: var(--text); font-weight: 600; }
+.featureDisclosure { align-self: flex-start; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--text); font: 500 .875rem/1.6 var(--font-sans); text-align: left; cursor: pointer; }
+.featureDisclosure:hover { color: var(--accent); }
+.featureDisclosure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bestPanel .skillImpactRow { grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 74px; gap: 12px; margin-bottom: 12px; }
+.bestPanel .skillImpactName { color: var(--text); font: 500 .875rem/1.5 var(--font-sans); overflow-wrap: anywhere; white-space: normal; }
+.skillImpactName small { display: block; color: var(--text-2); font: 400 .75rem/1.5 var(--font-sans); }
+.bestPanel .skillImpactValue { color: var(--text); font: 600 .8125rem/1.5 var(--font-sans); font-variant-numeric: tabular-nums; }
+.bestPanel .skillImpactTrack { position: relative; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }
+.bestPanel .skillImpactTrack i { position: absolute; height: 100%; border-radius: 3px; }
+.bestPanel .skillImpactPositive { background: var(--accent); }
+.bestPanel .skillImpactNegative { background: var(--text-2); }
+.bestPanel .skillImpactBaseline { background: var(--border-control); }
+.signalRadar { width: min(100%, 360px); align-self: center; }
+.signalRadar svg { width: 100%; height: auto; }
+.allPanel .allCharts { grid-template-columns: 1fr; }
+.bestPanel .gapKnown { background: var(--accent); }
+.bestPanel :is(button, summary):focus-visible, .resultsTools :is(button, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.advisorModal :global(.freePreview) { padding: 0; gap: 16px; }
+.advisorModal :global(.freePreview > button) { align-self: flex-start; margin: 0 24px; }
+.advisorModal :global(.previewHeader), .advisorModal :global(.previewSuggestions), .advisorModal :global(.previewAlert) { margin: 0; padding: 0 24px; }
+.advisorModal :global(.previewMessages), .advisorModal .chatMessages { padding: 0 24px; margin: 0; min-height: 120px; }
+.advisorModal :global(.previewMessage), .advisorModal .msgBubble { padding: 12px 14px; }
+.advisorModal :global(.previewMessage p) { margin: 0; white-space: pre-wrap; }
+.advisorModal :global(.previewSuggestions), .advisorModal .chatSuggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+.advisorModal :global(.previewSuggestions button), .advisorModal .suggestion { width: auto; max-width: 100%; padding: 8px 12px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); text-align: left; }
+.advisorModal :global([data-advisor-composer]) { margin: auto 0 0; padding: 16px 24px; gap: 12px; background: var(--panel); border-top: 1px solid var(--border); }
+.advisorModal :global([data-advisor-composer] textarea) { width: 100%; min-height: 76px; max-height: 160px; border-radius: var(--radius-sm); margin: 0; padding: 12px; font: 400 .9375rem/1.6 var(--font-sans); }
+.advisorModal :global([data-advisor-composer] button[type="submit"]) { width: auto; min-height: 44px; border-radius: var(--radius-sm); padding: 10px 12px; font: 600 .875rem/1.5 var(--font-sans); }
+.advisorModal .chatToolbar { padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.advisorModal :is(.deepModeBtn, .voiceBtn) { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; margin: 0; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-2); font: 500 .8125rem/1.5 var(--font-sans); }
+.advisorModal :is(.deepModeBtn, .voiceBtn):hover { background: var(--bg-tertiary); }
+.advisorModal :is(.deepModeBtn, .voiceBtn)[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-light); box-shadow: none; }
+.advisorModal .chatScope, .advisorModal .advisorPrivacy { padding: 0; border: 0; font: 400 .8125rem/1.6 var(--font-sans); }
+.advisorModal .chatEmpty { min-height: 0; padding: 24px 0; font: 400 .9375rem/1.6 var(--font-sans); }
+.advisorModal .chatEmptyIcon { display: none; }
+.advisorByok > section { margin: 0 24px 16px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-secondary); }
+.advisorByok > section > div { padding: 8px 12px; }
+.advisorByok > section details { padding: 0 12px 20px; }
+.advisorByok > section summary { font: 500 .875rem/1.5 var(--font-sans); }
+.advisorByok > section :is(input, select) { border-radius: var(--radius-sm); }
+.advisorModal [hidden] { display: none; }
+@media (max-width: 1000px) { .featureSummary { grid-template-columns: 1fr; gap: 16px; } }
+@media (max-width: 640px) {
+  .resultsTools { grid-template-columns: 1fr; gap: 4px; }
+  .resultActions { justify-content: flex-end; }
+  .heroGrid { padding: 20px; gap: 16px; }
+  .heroScore { padding-top: 16px; }
+  .bestPanel .aiRecommendationCta { padding: 16px 20px; }
+  .alternativeGrid button { grid-template-columns: 24px minmax(0, 1fr); padding: 12px; }
+  .alternativeGrid strong { grid-column: 2; }
+  .alternativeTrack, .alternativeLink { grid-column: 2; }
+  .bestPanel .skillImpactRow { grid-template-columns: minmax(0, 1fr) 70px; }
+  .bestPanel .skillImpactTrack { grid-column: 1 / 3; grid-row: 2; }
+}
+.bestPanel .rawValue > summary { cursor: pointer; width: fit-content; font: inherit; }
+.rawValue > code { display: block; margin-top: 8px; overflow-wrap: anywhere; }

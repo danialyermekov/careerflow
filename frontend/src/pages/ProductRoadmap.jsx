@@ -13,9 +13,9 @@ export default function ProductRoadmap() {
     getPublicRoadmap().then(data => { if (active) { setIdeas(data.items); setStatus('ready') } }).catch(() => { if (active) setStatus('error') })
     return () => { active = false }
   }, [])
-  return <main className="betaPage productPage"><header className="publicHeading"><div><h1>{text.roadmap}</h1><p>{text.roadmapSubtitle}</p></div></header><p className="publicNote">{text.roadmapNote}</p>
-    {Object.entries(productRoadmap).filter(([, keys]) => keys.length).map(([group, keys]) => <section className="publicSection" key={group}><h2>{text[group]}</h2>
-      <ul>{keys.map(key => <li key={key} id={key}>{text.roadmapItems[key]}</li>)}</ul></section>)}
+  return <main className="betaPage productPage maintenancePage"><header className="publicHeading"><div><h1>{text.roadmap}</h1><p>{text.roadmapSubtitle}</p></div></header><p className="publicNote">{text.roadmapNote}</p>
+    {Object.entries(productRoadmap).map(([group, keys]) => <section className="publicSection roadmapGroup" key={group}><h2>{text[group]}</h2>
+      {keys.length ? <ul>{keys.map(key => <li key={key} id={key}>{text.roadmapItems[key]}</li>)}</ul> : <p className="publicNote">{text.noPlannedItems}</p>}</section>)}
     <section className="publicSection"><h2>{text.communityIdeas}</h2>
       {status === 'loading' && <p role="status">{t.beta.loading}</p>}
       {status === 'error' && <p role="alert">{text.roadmapError}</p>}

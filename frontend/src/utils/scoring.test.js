@@ -1,4 +1,9 @@
-import { getScoreBreakdown, formatMatchScore } from './scoring'
+import { getScoreBreakdown, formatMatchScore, formatRawValue } from './scoring'
+
+test.each([[0, '0'], [0.9865577206853644, '0.986558'], [0.29306611424689877, '0.293066'], [1e-10, '1e-10'], [Number.MIN_VALUE, '5e-324']])('raw display keeps six significant digits and nonzero values: %s', (value, expected) => {
+  expect(formatRawValue(value)).toBe(expected)
+  expect(value === 0 || Number(formatRawValue(value)) !== 0).toBe(true)
+})
 
 test('the displayed contributions reproduce backend sum/max normalization without final rescaling', () => {
   const results = {
@@ -14,4 +19,6 @@ test('the displayed contributions reproduce backend sum/max normalization withou
   expect(formatMatchScore(0.9435)).toBe('94.4 / 100')
   expect(getScoreBreakdown({ ...results, skill_scores: { A: 0, B: 0 } }, 'A')[1].value).toBe(0)
   expect(getScoreBreakdown({}, 'A').every(item => item.value === 0 && item.contribution === null)).toBe(true)
+  expect(getScoreBreakdown({}, 'A').every(item => !item.available)).toBe(true)
+  expect(getScoreBreakdown({ ...results, skill_scores: { A: 0, B: 0 } }, 'A')[1].available).toBe(true)
 })

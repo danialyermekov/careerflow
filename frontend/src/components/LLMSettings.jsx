@@ -33,7 +33,7 @@ export default function LLMSettings() {
         <button type="button" onClick={remove}>{t.llm.remove}</button>
       </div>}
       <details open={!llmProvider}>
-        <summary>{llmProvider ? t.llm.change : t.llm.configure}</summary>
+        <summary hidden={!llmProvider}>{t.llm.change}</summary>
         <form onSubmit={save} autoComplete="off">
           <label htmlFor="llm-provider">{t.llm.provider}</label>
           <select id="llm-provider" value={provider} onChange={event => setProvider(event.target.value)}>
@@ -44,8 +44,9 @@ export default function LLMSettings() {
             autoComplete="off" spellCheck={false} autoCapitalize="none" />
           <button type="submit">{t.llm.save}</button>
         </form>
+        <p>{t.llm.sessionOnly}</p>
+        <p>{t.llm.requestOnly} <a href="/privacy">{t.experience.privacyLink}</a></p>
       </details>
-      <p>{t.llm.sessionOnly}</p>
       {error && <p role="alert">{error}</p>}
     </section>
   )

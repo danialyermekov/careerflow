@@ -46,7 +46,8 @@ test.each(['en', 'ru', 'kk'])('Login page renders brand logo, title, buttons wit
     )
   })
 
-  expect(container.querySelector('.loginBrand img[alt="CareerFlow"]')).not.toBeNull()
+  expect(container.querySelector('.loginBrand').textContent).toBe('CareerFlow')
+  expect(container.querySelector('.loginBrand img')).toBeNull()
   expect(container.querySelector('h1').textContent).toBe(t.welcome)
   expect(container.querySelector('.loginSubtitle').textContent).toBe(t.loginSubtitle)
 
@@ -92,4 +93,18 @@ test('Google and GitHub buttons trigger OAuth sign-in with correct provider', as
   expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith(
     expect.objectContaining({ provider: 'github' })
   )
+})
+
+test('unconfigured authentication explains why sign-in buttons are disabled', async () => {
+  const auth = require('../context/AuthContext')
+  const mock = jest.spyOn(auth, 'useAuth').mockReturnValue({ configured: false, loading: false, error: null, signIn: jest.fn() })
+  try {
+    await act(async () => root.render(<AppProvider initialLanguage="en"><Login /></AppProvider>))
+    expect(container.querySelector('.loginGoogleBtn').disabled).toBe(true)
+    expect(container.querySelector('.loginGithubBtn').disabled).toBe(true)
+    expect(container.querySelector('.loginAlert').textContent).toContain(translations.en.beta.authUnavailable)
+    expect(container.querySelector('.loginAlert').textContent).not.toContain(translations.en.beta.authError)
+  } finally {
+    mock.mockRestore()
+  }
 })

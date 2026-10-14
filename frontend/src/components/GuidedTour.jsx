@@ -19,7 +19,14 @@ export default function GuidedTour({ step, onStep, onClose, onAdvisor, location 
     slot?.scrollIntoView({ behavior: 'auto', block: 'start' })
     return () => { target?.removeAttribute('data-tour-highlight'); details.forEach(element => element.removeAttribute('data-tour-highlight')) }
   }, [step, location])
-  useEffect(() => { card.current?.focus() }, [anchor, step])
+  useEffect(() => {
+    const tourCard = card.current
+    if (!tourCard) return
+    tourCard.focus({ preventScroll: true })
+    const headerBottom = document.querySelector('nav')?.getBoundingClientRect().bottom || 0
+    const cardTop = tourCard.getBoundingClientRect().top
+    if (cardTop < headerBottom + 12) window.scrollBy(0, cardTop - headerBottom - 12)
+  }, [anchor, step])
   if (!anchor) return null
   return createPortal(<aside className="guidedTour" ref={card} tabIndex={-1} aria-label={text.tour}
     onKeyDown={event => { if (event.key === 'Escape') onClose() }}>

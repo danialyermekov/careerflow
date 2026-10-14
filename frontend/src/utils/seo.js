@@ -1,11 +1,13 @@
 import seo from '../data/seo.json'
 import { structuredData } from '../data/structuredData'
 
-export function updatePageMetadata(page, t, lang) {
+export function updatePageMetadata(page, t, lang, viewTitle) {
   const path = page === 'hero' ? '/' : `/${page}`
   const metadata = seo.pages[path]
   const publicPage = Boolean(metadata)
-  document.title = publicPage && lang === 'en' ? metadata.title : `CareerFlow — ${t.product[page] || t.beta[page] || t.nav.title}`
+  const privateTitles = { results: t.results.title, form: t.review.start, login: t.beta.login, account: t.beta.account }
+  const title = viewTitle || privateTitles[page] || t.product[page] || t.beta[page] || t.hero.title
+  document.title = publicPage && lang === 'en' ? metadata.title : `${title} — CareerFlow`
   const descriptions = { about: t.product.whatText, feedback: t.product.feedbackSubtitle, changelog: t.product.changelogSubtitle, roadmap: t.product.roadmapSubtitle }
   const description = publicPage && lang === 'en' ? metadata.description : descriptions[page] || t.product.whatText
   const meta = (attribute, key, value) => {

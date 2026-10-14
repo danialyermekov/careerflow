@@ -23,16 +23,16 @@ export function AppProvider({ children, initialLanguage }) {
       window.removeEventListener(LLM_SETTINGS_EVENT, refresh)
     }
   }, [])
-  const [theme, setTheme] = useState(() => safeGet('theme', 'dark'))
+  const [theme, setTheme] = useState(() => safeGet('theme', 'light') === 'dark' ? 'dark' : 'light')
   const [lang,  setLang]  = useState(() => {
     if (initialLanguage) return initialLanguage
-    const browserLang = typeof navigator !== 'undefined' ? navigator.language?.split('-')[0] : 'en'
-    const stored = safeGet('lang', translations[browserLang] ? browserLang : 'en')
-    return translations[stored] ? stored : 'ru'
+    const stored = safeGet('lang', 'en')
+    return translations[stored] ? stored : 'en'
   })
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#07090d' : '#FBFBFA')
     safeSave('theme', theme)
   }, [theme])
 

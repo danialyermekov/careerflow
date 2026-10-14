@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AppProvider, useApp } from './context/AppContext'
 import Navbar from './components/Navbar'
 import Hero from './pages/Hero'
@@ -28,17 +28,27 @@ function AppInner() {
     const hash = window.location.hash.slice(1)
     const path = window.location.pathname.replace(/^\/|\/$/g, '')
     if (publicPages.includes(hash)) return hash
+    if (hash.startsWith('results/')) return 'results'
     return !['profile', 'login', 'account'].includes(hash) && !hash.startsWith('results/') && publicPages.includes(path) ? path : 'hero'
   })
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
   const [demo, setDemo] = useState(false)
+  const [profileDraft, setProfileDraft] = useState(null)
   const [advisorRequested, setAdvisorRequested] = useState(false)
+  const pendingRequest = useRef(null)
+  // Changing language updates request errors without restarting routing.
+  const requestText = useRef(t)
+  requestText.current = t
+  const reducedMotion = useReducedMotion()
+  const cancelPendingRequest = () => { pendingRequest.current = null; setLoading(false) }
+  useEffect(() => () => { pendingRequest.current = null }, [])
 
   useEffect(() => {
     let cancelled = false
     const route = async () => {
+      cancelPendingRequest()
       const hash = window.location.hash
       if (authLoading) return
       const publicPage = hash.slice(1)
@@ -50,35 +60,39 @@ function AppInner() {
         setPage(publicPages.includes(pathPage) ? pathPage : 'hero'); return
       }
       if (results?.session_id === sessionId) { setPage('results'); return }
+      const request = {}
+      pendingRequest.current = request
       setLoading(true)
       try {
         const state = await getRecommendationState(sessionId)
-        if (!cancelled && window.location.hash === hash) {
+        if (!cancelled && pendingRequest.current === request && window.location.hash === hash) {
           setResults({ ...state.results, _isDemo: isDemoSession(sessionId) })
           setPage('results')
         }
       } catch {
-        if (!cancelled && window.location.hash === hash) { setError(t.errors.api); setPage('form') }
+        if (!cancelled && pendingRequest.current === request && window.location.hash === hash) { setError(requestText.current.errors.api); setPage('form') }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && pendingRequest.current === request) cancelPendingRequest()
       }
     }
     route()
     window.addEventListener('hashchange', route)
     window.addEventListener('popstate', route)
     return () => { cancelled = true; window.removeEventListener('hashchange', route); window.removeEventListener('popstate', route) }
-  }, [results, t.errors.api, authLoading])
+  }, [results, authLoading])
 
   useEffect(() => {
-    updatePageMetadata(page, t, lang)
-  }, [page, t, lang])
+    if (page !== 'results' || !results) updatePageMetadata(page, t, lang)
+  }, [page, results, t, lang])
 
   useEffect(() => { window.scrollTo(0, 0) }, [page])
 
-  const handleStart = () => { setDemo(false); setError(''); window.history.pushState({}, '', '/#profile'); setPage('form') }
-  const handleDemo = () => { setDemo(true); handleSubmit({ ...DEMO_PROFILE, lang }, true, true) }
-  const handleBack = () => { window.history.pushState({}, '', '/'); setPage('hero') }
+  const handleStart = () => { cancelPendingRequest(); setProfileDraft(null); setDemo(false); setError(''); window.history.pushState({}, '', '/#profile'); setPage('form') }
+  const handleEditProfile = profile => { handleStart(); setProfileDraft(profile) }
+  const handleDemo = () => { if (pendingRequest.current) return; setDemo(true); handleSubmit({ ...DEMO_PROFILE, lang }, true, true) }
+  const handleBack = () => { cancelPendingRequest(); setError(''); window.history.pushState({}, '', '/'); setPage('hero') }
   const showResult = data => {
+    cancelPendingRequest()
     setResults(data)
     window.history.pushState({}, '', `/#results/${data.session_id}`)
     setPage('results')
@@ -90,20 +104,28 @@ function AppInner() {
   }
 
   const handleSubmit = async (profile, isDemo = false, guided = false) => {
+    if (pendingRequest.current) return
+    const request = {}
+    const routeUrl = window.location.href
+    pendingRequest.current = request
     setLoading(true)
     setError('')
     try {
       const data = await getRecommendation(profile, { demo: isDemo })
+      if (pendingRequest.current !== request || window.location.href !== routeUrl) return
       if (isDemo) rememberDemoSession(data.session_id)
       showResult({ ...data, _formData: profile, _isDemo: isDemo, _guided: guided })
     } catch (e) {
-      setError(t.errors.api)
+      if (pendingRequest.current === request && window.location.href === routeUrl) {
+        const text = requestText.current
+        setError(isDemo ? e.status === 429 ? text.experience.demoBusy : text.experience.demoFailed : text.errors.api)
+      }
     } finally {
-      setLoading(false)
+      if (pendingRequest.current === request) cancelPendingRequest()
     }
   }
 
-  const pageVariants = {
+  const pageVariants = reducedMotion ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } } : {
     initial: { opacity: 0, scale: 0.975, y: 18, filter: 'blur(10px)' },
     animate: { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' },
     exit: { opacity: 0, scale: 1.025, y: -18, filter: 'blur(10px)' },
@@ -114,9 +136,7 @@ function AppInner() {
       <div className="dataGrid" aria-hidden="true" />
 
       <Navbar onLogoClick={handleBack} />
-      {page === 'hero' && loading && <p className="betaPage" role="status">{t.beta.loading}</p>}
-      {page === 'hero' && error && <p className="appError" role="alert">{error}</p>}
-      {authLoading && <p className="betaPage" role="status">{t.beta.loading}</p>}
+      {(authLoading || (loading && page !== 'hero' && page !== 'form')) && <p className="routeLoading" role="status">{t.beta.loading}</p>}
       {['contact', 'privacy', 'terms', 'disclaimer'].includes(page) && <PublicPage page={page} />}
       {page === 'about' && <About onExploreAdvisor={exploreAdvisor} />}
       {page === 'feedback' && <FeedbackPage />}
@@ -135,7 +155,7 @@ function AppInner() {
             exit="exit"
             transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Hero onStart={handleStart} onDemo={loading ? undefined : handleDemo} demoLoading={loading} />
+            <Hero onStart={handleStart} onDemo={handleDemo} demoLoading={loading} error={error} />
           </motion.main>
         )}
 
@@ -154,21 +174,21 @@ function AppInner() {
               </div>
             )}
             {advisorRequested && <p className="advisorFlowNote" role="status">{t.product.aiNext}</p>}
-            <Form onSubmit={handleSubmit} loading={loading} initialDemo={demo} />
+            <Form onSubmit={handleSubmit} loading={loading} initialDemo={demo} initialProfile={profileDraft} />
           </motion.main>
         )}
 
         {page === 'results' && results && (
           <motion.main
             key="results"
-            variants={pageVariants}
+            variants={{ initial: { opacity: reducedMotion ? 1 : 0 }, animate: { opacity: 1 }, exit: { opacity: 1 } }}
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reducedMotion ? 0 : 0.18 }}
           >
-            <Suspense fallback={<p className="betaPage" role="status">{t.beta.loading}</p>}>
-              <Results results={results} onBack={handleBack} onRetry={handleStart} onHistorySelect={showResult} openAdvisor={advisorRequested} />
+            <Suspense fallback={<p className="routeLoading" role="status" aria-busy="true">{t.beta.loading}</p>}>
+              <Results results={results} onBack={handleBack} onRetry={handleStart} onEditProfile={handleEditProfile} onHistorySelect={showResult} openAdvisor={advisorRequested} />
             </Suspense>
           </motion.main>
         )}

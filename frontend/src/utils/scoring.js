@@ -12,9 +12,10 @@ export function getScoreBreakdown(results, profession) {
     const raw = values[profession] || 0
     const value = raw / divisor
     const weight = results.scoring_weights?.[weightKey]
-    return { key, raw, divisor, value, weight, contribution: weight == null ? null : value * weight * 100 }
+    return { key, raw, divisor, value, weight, available: values[profession] != null, contribution: weight == null ? null : value * weight * 100 }
   })
 }
 
 export const formatMatchPoints = value => (Math.round(Number(value || 0) * 1000) / 10).toFixed(1)
 export const formatMatchScore = value => `${formatMatchPoints(value)} / 100`
+export const formatRawValue = value => Number(value.toPrecision(6)).toString()

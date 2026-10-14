@@ -32,11 +32,25 @@ test.each(['en', 'ru', 'kk'])('preview is localized in %s, needs consent and nev
   expect(container.textContent).not.toContain('Claude: Learn SQL first.')
 })
 
-test('remount displays the server quota, disabled mode stays usable alongside BYOK', async () => {
+test('unavailable preview hides quota and disabled chat, and offers BYOK', async () => {
   api.getTrialStatus.mockResolvedValue({ available: false, remaining: 1, total: 3 })
-  await act(async () => root.render(<AppProvider initialLanguage="en"><FreePreview sessionId="owned-session" /></AppProvider>))
-  expect(container.textContent).toContain('1 of 3 free messages remaining')
+  const onByok = jest.fn()
+  await act(async () => root.render(<AppProvider initialLanguage="en"><FreePreview sessionId="owned-session" onByok={onByok} /></AppProvider>))
+  expect(container.textContent).not.toContain('1 of 3 free messages remaining')
   expect(container.textContent).toContain(translations.en.experience.unavailable)
   expect(api.sendTrialMessage).not.toHaveBeenCalled()
-  expect(container.querySelector('textarea').maxLength).toBe(1000)
+  expect(container.querySelector('textarea')).toBeNull()
+  expect(container.querySelector('h3')).toBeNull()
+  expect(container.querySelectorAll('button')).toHaveLength(1)
+  expect(container.querySelector('button').textContent).toBe(translations.en.experience.connectKey)
+  await act(async () => container.querySelector('button').click())
+  expect(onByok).toHaveBeenCalledTimes(1)
+})
+
+test('exhausted preview identifies quota exhaustion separately', async () => {
+  api.getTrialStatus.mockResolvedValue({ available: true, remaining: 0, total: 3 })
+  await act(async () => root.render(<AppProvider initialLanguage="en"><FreePreview sessionId="owned-session" /></AppProvider>))
+  expect(container.textContent).toContain(translations.en.experience.exhausted)
+  expect(container.textContent).not.toContain(translations.en.experience.unavailable)
+  expect(container.querySelector('textarea')).toBeNull()
 })

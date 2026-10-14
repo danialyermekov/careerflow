@@ -1,0 +1,22 @@
+.editorial { min-width: 0; color: var(--text); }
+.editorial h2 { font: 500 clamp(1.75rem, 3vw, 2.5rem)/1.2 var(--font-display); margin: 0 0 24px; }
+.editorial form { display: flex; flex-direction: column; gap: 20px; padding: 28px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.editorial label { display: flex; flex-direction: column; gap: 8px; font: 500 .875rem/1.6 var(--font-sans); }
+.editorial :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100%; min-width: 0; min-height: 44px; padding: 12px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-tertiary); color: var(--text); font: 400 1rem/1.6 var(--font-sans); }
+.editorial textarea { min-height: 140px; resize: vertical; }
+.editorial fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
+.editorial legend { font: 500 .875rem/1.6 var(--font-sans); padding: 0; margin-bottom: 8px; }
+.ratingOptions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ratingOptions label { flex: 1; min-width: 44px; min-height: 44px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4px; padding: 8px; background: var(--bg-tertiary); border-radius: var(--radius-sm); cursor: pointer; }
+.ratingOptions label:has(input:checked) { color: var(--accent); outline: 1px solid var(--accent); }
+.ratingOptions input, .editorial input[type="checkbox"] { accent-color: var(--accent); }
+.editorial .consent { flex-direction: row; align-items: start; gap: 12px; font-weight: 400; }
+.consent input { margin-top: 5px; width: 18px; height: 18px; flex-shrink: 0; }
+.editorial p { font: 400 .875rem/1.7 var(--font-sans); color: var(--text-2); margin: 0; overflow-wrap: anywhere; }
+.editorial a { color: var(--accent); text-decoration: underline; }
+.editorial button[type="submit"] { min-height: 44px; padding: 12px 20px; background: var(--primary); color: var(--primary-contrast); border: 1px solid var(--primary); border-radius: var(--radius-sm); font: 600 .875rem/1.5 var(--font-sans); }
+.editorial button:disabled { opacity: .5; cursor: wait; }
+.editorial [role="alert"] { color: var(--color-error); }
+.editorial [role="status"] { color: var(--success); }
+.editorial :is(input, select, textarea, button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 640px) { .editorial form { padding: 20px; } }

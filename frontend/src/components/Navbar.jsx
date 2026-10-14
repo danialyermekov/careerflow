@@ -26,21 +26,20 @@ export default function Navbar({ onLogoClick }) {
   ]
 
   return (
-    <nav className={styles.nav}>
+    <nav className={styles.nav} aria-label={t.nav.title}>
       <div className={styles.inner}>
         <a className={styles.logo} href="/" onClick={event => { if (onLogoClick) { event.preventDefault(); onLogoClick() } }} aria-label={t.nav.title}>
           <BrandLogo />
         </a>
         <div className={styles.actions}>
-          <span className={styles.beta}>{t.beta.beta}</span>
           <a className={styles.feedbackLink} href="/feedback">{t.product.feedbackNav}</a>
           <a className={styles.accountLink} href={user ? '/#account' : '/#login'} onClick={() => {
             if (!user && !['#login', '#account'].includes(window.location.hash)) sessionStorage.setItem('careerflow-auth-return', window.location.hash || window.location.pathname)
           }}>{loading ? t.beta.loading : user ? t.beta.account : t.beta.login}</a>
-          <button className={styles.iconBtn} onClick={toggleTheme} title={t.nav.themeToggle || t.nav.theme}>
+          <button className={styles.iconBtn} onClick={toggleTheme} title={t.nav.themeToggle || t.nav.theme} aria-label={t.nav.themeToggle || t.nav.theme} aria-pressed={theme === 'dark'}>
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
-          <div className={styles.langGroup} aria-label={t.nav.language || 'Language'}>
+          <div className={styles.langGroup} role="group" aria-label={t.nav.language || 'Language'}>
             {languages.map(item => (
               <button
                 key={item.key}

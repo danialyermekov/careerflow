@@ -3,6 +3,20 @@ import seo from '../data/seo.json'
 import { translations } from '../i18n'
 
 beforeEach(() => { document.head.innerHTML = '' })
+
+test.each(['en', 'ru', 'kk'])('private route and results-tab titles are meaningful in %s', lang => {
+  const t = translations[lang]
+  for (const [page, title] of [['results', t.results.title], ['form', t.review.start], ['login', t.beta.login], ['account', t.beta.account]]) {
+    updatePageMetadata(page, t, lang)
+    expect(document.title).toBe(`${title} — CareerFlow`)
+    expect(document.title).not.toBe('CareerFlow — CareerFlow')
+  }
+  for (const title of [t.results.roadmap, t.review.historyTab]) {
+    updatePageMetadata('results', t, lang, title)
+    expect(document.title).toBe(`${title} — CareerFlow`)
+    expect(document.querySelector('meta[name="robots"]').content).toBe('noindex, follow')
+  }
+})
 test.each(Object.entries(seo.pages))('public metadata is specific and canonical for %s', (path, expected) => {
   updatePageMetadata(path === '/' ? 'hero' : path.slice(1), translations.en, 'en')
   expect(document.title).toBe(expected.title)
