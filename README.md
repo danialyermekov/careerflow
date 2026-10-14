@@ -37,6 +37,7 @@ The original project authors are:
 | Name | GitHub |
 | --- | --- |
 | Danial Yermekov | https://github.com/danialyermekov |
+| Adil Token | https://github.com/Adlkrut |
 | Nurbek Seiilbek | https://github.com/Nurbek399 |
 | Turan Tastan | https://github.com/another-restless-student23 |
 
