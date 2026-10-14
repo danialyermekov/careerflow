@@ -778,8 +778,15 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
             <p>{t.review.marketNote}</p>
             <a href="/#methodology">{t.review.sources}</a>
           </section>
+          {!!results.user_skills_ranked?.length && <details className={styles.technicalGroup}>
+            <summary>{t.polish.calculatedSkills}</summary><p>{t.results.skillsTooltip}</p>
+            <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
+          </details>}
+        </details>
+      </details>
           <details className={styles.technicalGroup}>
-            <summary>{t.review.modelInputs}</summary>
+            <summary>{t.review.technicalInspection}</summary>
+            <h3>{t.review.modelInputs}</h3>
             <p>{t.review.modelInputsNote}</p>
             <dl className={styles.evaluationInputs}><div><dt>{t.polish.classifierOutput}</dt><dd>{results.classification_scores?.[profession]?.toPrecision(5) ?? '—'}</dd></div></dl>
             <div className={styles.methodTableWrap} tabIndex={0} role="region" aria-label={t.review.modelInputs}>
@@ -796,12 +803,6 @@ function ScoringFormulaHeader({ results, profession, t, profile }) {
               </table>
             </div>
           </details>
-          {!!results.user_skills_ranked?.length && <details className={styles.technicalGroup}>
-            <summary>{t.polish.calculatedSkills}</summary><p>{t.results.skillsTooltip}</p>
-            <dl className={styles.evaluationInputs}>{results.user_skills_ranked.map((item, index) => <div key={index}><dt>{item.skill}</dt><dd>{item.tfidf_weight} · {item.status === 'General/Non-IT Token' ? t.polish.generalToken : t.polish.tokenWeight}</dd></div>)}</dl>
-          </details>}
-        </details>
-      </details>
     </section>
   )
 }
